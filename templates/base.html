@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<!-- Declaracion de documento HTML5 -->
+<html lang="es">
+<head>
+    <!-- Configuracion de codificacion UTF-8 -->
+    <meta charset="UTF-8">
+    <!-- Meta viewport indispensable para el diseno responsivo en celulares y tablets -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Titulo dinamico de la pagina -->
+    <title>{% block title %}BioBalcarce - Control Industrial{% endblock %}</title>
+    <!-- Icono de pestana del navegador en alta resolucion -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <!-- Icono de acceso directo para navegadores clasicos -->
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <!-- Vinculo a la hoja de estilos CSS propia (con versionado para invalidar cache del navegador) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=1.5">
+    <!-- Incorporacion de Chart.js desde CDN para visualizacion grafica de KPIs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Barra de navegacion superior responsiva (oculta en pantallas de bienvenida inmersivas) -->
+    {% if not hide_navbar %}
+    <!-- Elemento nav de la barra superior -->
+    <nav class="navbar">
+        <!-- Marca y titulo de la planta con enlace inteligente segun rol -->
+        <a href="{% if g.user and g.user.role == 'usuario' %}{{ url_for('production.index') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="navbar-brand">
+            <!-- Logotipo oficial de girasol y gota de aceite -->
+            <img src="{{ url_for('static', filename='images/logo_simple.png') }}" alt="BioBalcarce" style="height: 30px; width: 30px; object-fit: contain; margin-right: 0.45rem; vertical-align: middle;">
+            <!-- Denominacion institucional de la aplicacion -->
+            <span>BioBalcarce Control</span>
+        </a>
+
+        <!-- Si el usuario esta autenticado muestra menu de navegacion adaptado a su perfil -->
+        {% if g.user %}
+        <div class="nav-links">
+            <!-- Navegacion exclusiva para Administrador (Solo Dashboard) -->
+            {% if g.user.role == 'administrador' %}
+            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
+            {% endif %}
+
+            <!-- Navegacion para Rol Operario / Usuario de Carga -->
+            {% if g.user.role == 'usuario' %}
+            <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
+            <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
+            <a href="{{ url_for('dashboard.shifts') }}" class="nav-item">🔄 Guardias</a>
+            {% endif %}
+
+            <!-- Navegacion completa para Administrador del Sistema -->
+            {% if g.user.role == 'admin_sistema' %}
+            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
+            <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje</a>
+            <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
+            <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
+            <a href="{{ url_for('config.index') }}" class="nav-item">⚙️ Equipos</a>
+            <a href="{{ url_for('admin.users_list') }}" class="nav-item" style="color: #60a5fa; font-weight: 600;">👥 Usuarios</a>
+            <a href="{{ url_for('admin.audit_view') }}" class="nav-item" style="color: #34d399;">📋 Auditoría</a>
+            <a href="{{ url_for('admin.errors_view') }}" class="nav-item" style="color: #f87171;">⚠️ Errores</a>
+            {% endif %}
+
+            <!-- Indicador de usuario y rol activo -->
+            <span class="user-pill" style="background: rgba(255,255,255,0.12); padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
+                <strong>{{ g.user.full_name.split(' ')[0] }}</strong>
+                <span style="opacity: 0.8; font-size: 0.72rem;">
+                    ({% if g.user.role == 'usuario' %}Operario{% elif g.user.role == 'administrador' %}Gerencia{% else %}Admin Sistema{% endif %})
+                </span>
+            </span>
+
+            <!-- Boton para cambiar contrasena personal -->
+            <a href="{{ url_for('dashboard.change_password') }}" class="nav-item" title="Cambiar Contraseña">🔑 Clave</a>
+
+            <!-- Enlace para cerrar sesion de forma segura -->
+            <a href="{{ url_for('dashboard.logout') }}" class="nav-item" style="color: #fca5a5; font-weight: 600;">🚪 Salir</a>
+        </div>
+        {% endif %}
+    </nav>
+    <!-- Cierra la condicion de navbar -->
+    {% endif %}
+
+    <!-- Si la pagina solicita vista inmersiva completa sin contenedor estándar -->
+    {% if hide_navbar %}
+    <!-- Bloque para contenido a pantalla completa inmersiva (ej. Login estilo aceitera) -->
+    {% block full_content %}{% endblock %}
+    {% else %}
+    <!-- Contenedor principal para pantallas y formularios -->
+    <main class="container">
+        <!-- Renderizado de mensajes flash del sistema con soporte visual para alertas -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            <!-- Si existen mensajes en la cola flash -->
+            {% if messages %}
+                <!-- Itera sobre cada mensaje de alerta -->
+                {% for category, message in messages %}
+                    <!-- Contenedor de la alerta visual con categoria -->
+                    <div class="alert alert-{{ category }}">
+                        <!-- Texto del mensaje flash -->
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Bloque donde se inserta el contenido de cada plantilla hija -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Pie de pagina informativo -->
+    <footer class="footer">
+        <!-- Texto de copyright y descripcion de sistema -->
+        <p>&copy; 2026 BioBalcarce - Sistema Industrial Modular de Control de Proceso y Rendimiento.</p>
+    </footer>
+    {% endif %}
+
+    <!-- Script de interactividad comun -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- Bloque para scripts especificos de cada pagina -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

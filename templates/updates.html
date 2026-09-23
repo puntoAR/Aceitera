@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base -->
+
+{% block title %}Centro de Actualizaciones y Respaldos - BioBalcarce{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Centro de Actualizaciones y Respaldos</h1>
+        <p style="color: #64748b;">
+            Actualice el sistema sin reinstalar, manteniendo todas las configuraciones y datos históricos seguros.
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('config.index') }}" class="btn" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;">&larr; Volver a Configuración</a>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TARJETA DE ESTADO DE LA VERSION ACTUAL                                    -->
+<!-- ========================================================================= -->
+<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+    <div class="metric-card card-speed">
+        <div class="metric-title">Versión Instalada</div>
+        <div class="metric-value" style="color: #1d4ed8;">
+            v{{ version_info.version }}
+        </div>
+        <div class="metric-subtitle">
+            Lanzamiento: <strong>{{ version_info.release_date }}</strong> &bull; {{ version_info.app_name }}
+        </div>
+    </div>
+
+    <div class="metric-card card-yield">
+        <div class="metric-title">Copias de Seguridad Disponibles</div>
+        <div class="metric-value" style="color: #059669;">
+            {{ backups|length }}
+            <span class="metric-unit">respaldos</span>
+        </div>
+        <div class="metric-subtitle">
+            Puntos seguros de restauración (*Rollback*)
+        </div>
+    </div>
+</div>
+
+<!-- MENSAJE DE GARANTIA INDUSTRIAL -->
+<div class="alert alert-info" style="margin-bottom: 1.5rem;">
+    <span>
+        <strong>Garantía de Cero Pérdida de Datos:</strong> Las actualizaciones en caliente aplican cambios sobre el código y ejecutan migraciones incrementales de base de datos sin tocar sus registros de producción ni las dimensiones de sus equipos. Cada actualización genera automáticamente un respaldo preventivo y ejecuta un diagnóstico de integridad antes de confirmarse.
+    </span>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 1: BUSCADOR DE ACTUALIZACIONES REMOTAS ONLINE                    -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 1.5rem; background: linear-gradient(to right, #ffffff, #f8fafc); border-left: 4px solid #2563eb;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e3a8a; margin-bottom: 0.25rem;">
+                Búsqueda de Actualizaciones en Línea
+            </h3>
+            <p style="font-size: 0.875rem; color: #64748b;">
+                Verifica directamente en el servidor o repositorio oficial si existen mejoras o parches para BioBalcarce.
+            </p>
+        </div>
+        <form action="{{ url_for('updater.check_online') }}" method="POST" style="margin: 0; display: flex; gap: 0.5rem; align-items: center;">
+            <input type="hidden" name="update_url" value="{{ server_url or '' }}">
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-weight: 700;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.35rem;">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                Buscar Actualizaciones Online
+            </button>
+        </form>
+    </div>
+
+    <!-- Si se consulto y hay resultado disponible -->
+    {% if check_result %}
+        {% if check_result.update_available %}
+        <div style="margin-top: 1.25rem; padding: 1.25rem; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: #1e40af; letter-spacing: 0.05em;">¡Actualización Lista para Instalar!</span>
+                    <h4 style="font-size: 1.4rem; font-weight: 800; color: #1e3a8a; margin: 0.25rem 0;">
+                        Versión v{{ check_result.remote_version }} (Lanzada el {{ check_result.release_date }})
+                    </h4>
+                    <p style="font-size: 0.875rem; color: #334155; margin-bottom: 0.5rem;">
+                        {{ check_result.description or 'Incluye mejoras en cálculos y estabilidad de planta.' }}
+                    </p>
+                    {% if check_result.changelog %}
+                    <ul style="font-size: 0.85rem; color: #475569; padding-left: 1.25rem; margin-bottom: 0.75rem;">
+                        {% for item in check_result.changelog %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+                <div>
+                    <form action="{{ url_for('updater.install_remote') }}" method="POST" onsubmit="return confirm('¿Confirma la descarga e instalación en caliente de la versión v{{ check_result.remote_version }}? Se creará un respaldo automático previo.');">
+                        <input type="hidden" name="download_url" value="{{ check_result.download_url }}">
+                        <input type="hidden" name="sha256" value="{{ check_result.sha256 }}">
+                        <button type="submit" class="btn btn-success" style="padding: 0.85rem 1.5rem; font-size: 1.05rem; font-weight: 700;">
+                            Descargar e Instalar Ahora &rarr;
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% elif check_result.success %}
+        <div style="margin-top: 1.25rem; padding: 1rem; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.5rem; color: #166534; font-size: 0.9rem;">
+            <strong>&check; Su sistema está al día:</strong> Posee instalada la versión oficial más reciente (v{{ check_result.current_version }}). No hay parches pendientes.
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- Opcion avanzada para configurar URL de repositorio -->
+    <details style="margin-top: 1rem; font-size: 0.8rem; color: #64748b;">
+        <summary style="cursor: pointer;">Configuración avanzada de servidor de actualizaciones</summary>
+        <form action="{{ url_for('updater.check_online') }}" method="POST" style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+            <input class="form-input" style="font-size: 0.85rem; flex: 1;" type="url" name="update_url" value="{{ server_url or '' }}" placeholder="https://raw.githubusercontent.com/usuario/repo/main/latest.json">
+            <button type="submit" class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #e2e8f0; color: #334155;">Probar URL</button>
+        </form>
+    </details>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+    <!-- ===================================================================== -->
+    <!-- FORMULARIO DE SUBIDA DE PARCHE (.ZIP)                                 -->
+    <!-- ===================================================================== -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e3a8a; margin-bottom: 1rem;">
+            + Aplicar Parche Local (.zip)
+        </h3>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">
+            Si la planta no tiene internet, puede subir directamente un archivo ZIP provisto en un pendrive.
+        </p>
+        <form action="{{ url_for('updater.upload_update') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="update_file">Archivo del Parche (.zip)</label>
+                <input class="form-input" type="file" id="update_file" name="update_file" accept=".zip" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;" onclick="return confirm('¿Desea aplicar esta actualización? Se creará un respaldo automático preventivo.');">
+                Verificar y Actualizar en Caliente
+            </button>
+        </form>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- FORMULARIO DE RESPALDO MANUAL INMEDIATO                               -->
+    <!-- ===================================================================== -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #059669; margin-bottom: 1rem;">
+            + Crear Respaldo Manual Preventivo
+        </h3>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">
+            Guarda una copia íntegra e instantánea de la base de datos y de todo el código de planta.
+        </p>
+        <form action="{{ url_for('updater.manual_backup') }}" method="POST">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="label">Etiqueta de la Copia</label>
+                <input class="form-input" type="text" id="label" name="label" placeholder="ej. antes_mantenimiento_mensual" value="manual">
+            </div>
+
+            <button type="submit" class="btn btn-success" style="width: 100%;">
+                Generar Respaldo Ahora
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TABLA DE COPIAS DE SEGURIDAD DISPONIBLES Y ROLLBACK                       -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Puntos de Restauración Disponibles (Rollback)
+    </h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Carpeta de Respaldo</th>
+                    <th>Versión</th>
+                    <th>Etiqueta</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td><strong>{{ b.created_at }}</strong></td>
+                    <td><code>{{ b.folder_name }}</code></td>
+                    <td>v{{ b.version }}</td>
+                    <td><span style="font-size: 0.85rem; color: #475569;">{{ b.label }}</span></td>
+                    <td>
+                        <form action="{{ url_for('updater.execute_rollback') }}" method="POST" style="margin: 0;" onsubmit="return confirm('¿Está seguro de restaurar el sistema a este punto seguro? Se restablecerá el código y la base de datos de esa fecha.');">
+                            <input type="hidden" name="backup_folder" value="{{ b.folder_name }}">
+                            <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                Restaurar (Rollback)
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay copias de seguridad creadas aún.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- HISTORIAL DE MIGRACIONES DE BASE DE DATOS                                 -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Historial de Migraciones de Base de Datos
+    </h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Versión</th>
+                    <th>Identificador</th>
+                    <th>Descripción de Cambio</th>
+                    <th>Fecha de Aplicación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in migrations %}
+                <tr>
+                    <td><strong>v{{ m.version }}</strong></td>
+                    <td><code>{{ m.name }}</code></td>
+                    <td>{{ m.description }}</td>
+                    <td>{{ m.applied_at }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay registros de migraciones en la tabla schema_migrations.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

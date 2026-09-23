@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base del sistema -->
+
+{% block title %}Cambio de Guardia y Turnos - BioBalcarce{% endblock %}
+
+{% block content %}
+<!-- Cabecera de la pagina de turnos -->
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Gestión de Turnos y Guardias Operativas</h1>
+        <p style="color: #64748b;">
+            Actualización del turno activo y designación del operario responsable en planta.
+        </p>
+    </div>
+</div>
+
+<!-- Contenedor centrado del formulario de guardias -->
+<div style="max-width: 550px; margin: 1rem auto; padding: 0 0.5rem;">
+    <!-- Tarjeta del formulario -->
+    <div class="form-card" style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 0.75rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1.25rem;">
+            Asignar Guardia Activa
+        </h3>
+        
+        <!-- Formulario de cambio de guardia -->
+        <form action="{{ url_for('dashboard.shifts') }}" method="POST">
+            <!-- Selector dinamico de turno segun autorizacion de rol -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="shift_id" style="font-weight: 600;">Turno de Trabajo</label>
+                <select class="form-select" id="shift_id" name="shift_id" required style="padding: 0.65rem;">
+                    {% for s in available_shifts %}
+                    <option value="{{ s.id }}" {% if active_shift.shift_id == s.id %}selected{% endif %}>
+                        {{ s.name }} {% if s.admin_only %}[Exclusivo ADMIN]{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Campo para nombre y apellido del operario en turno -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" for="operator_name" style="font-weight: 600;">Operario Responsable de la Guardia</label>
+                <input class="form-input" type="text" id="operator_name" name="operator_name"
+                       value="{{ active_shift.operator_name }}" placeholder="Nombre y apellido del operario" required style="padding: 0.65rem;">
+            </div>
+
+            <!-- Boton para confirmar el cambio -->
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-weight: 600;">
+                Confirmar Cambio de Guardia &rarr;
+            </button>
+        </form>
+
+        <!-- Detalle de la guardia en curso -->
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; font-size: 0.85rem; color: #64748b;">
+            <p style="margin: 0.25rem 0;"><strong>Guardia en curso:</strong> {{ active_shift.shift_name }}</p>
+            <p style="margin: 0.25rem 0;"><strong>Responsable:</strong> {{ active_shift.operator_name }}</p>
+            <p style="margin: 0.25rem 0;"><strong>Apertura:</strong> {{ active_shift.opened_at }}</p>
+        </div>
+
+        <!-- Leyenda explicativa de los turnos oficiales de planta -->
+        <div style="margin-top: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: 0.5rem; font-size: 0.75rem; color: #475569; line-height: 1.45;">
+            <strong>Horarios reglamentarios de BioBalcarce:</strong><br>
+            • <strong>Turno Mañana:</strong> 06:00 a 14:00 hs<br>
+            • <strong>Turno Tarde:</strong> 14:00 a 22:00 hs<br>
+            • <strong>Turno Noche:</strong> 22:00 a 06:00 hs<br>
+            • <strong>Turno Central:</strong> 08:00 a 16:00 hs <em>(Exclusivo Administrador del Sistema)</em>
+        </div>
+    </div>
+</div>
+{% endblock %}

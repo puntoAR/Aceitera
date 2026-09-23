@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+<!-- Extiende la plantilla base -->
+
+{% block title %}Auditoría del Sistema - BioBalcarce{% endblock %}
+
+{% block content %}
+<!-- Cabecera del visor de auditoria -->
+<div class="header-card" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; color: #0f172a; margin-bottom: 0.25rem;">Registro de Auditoría y Trazabilidad</h1>
+        <p style="color: #64748b; font-size: 0.875rem; margin: 0;">Historial cronológico de accesos, pesadas, cubicajes, cambios de rol y eventos de seguridad.</p>
+    </div>
+    <!-- Boton para volver a gestion de usuarios -->
+    <a href="{{ url_for('admin.users_list') }}" class="btn" style="background: #2563eb; color: white; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 0.85rem; border-radius: 0.375rem;">
+        👥 Volver a Usuarios
+    </a>
+</div>
+
+<!-- Filtros de busqueda -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="GET" action="{{ url_for('admin.audit_view') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <!-- Filtro por categoria -->
+        <div style="flex: 1; min-width: 180px;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 0.25rem;">Categoría</label>
+            <select name="category" class="form-select" style="font-size: 0.85rem; padding: 0.4rem;">
+                <option value="">Todas las categorías</option>
+                <option value="AUTH" {% if selected_cat == 'AUTH' %}selected{% endif %}>AUTH (Accesos y Claves)</option>
+                <option value="PRODUCCION" {% if selected_cat == 'PRODUCCION' %}selected{% endif %}>PRODUCCION</option>
+                <option value="INVENTARIO" {% if selected_cat == 'INVENTARIO' %}selected{% endif %}>INVENTARIO (Cubicaje)</option>
+                <option value="LABORATORIO" {% if selected_cat == 'LABORATORIO' %}selected{% endif %}>LABORATORIO</option>
+                <option value="RENDIMIENTO" {% if selected_cat == 'RENDIMIENTO' %}selected{% endif %}>RENDIMIENTO</option>
+                <option value="CONFIGURACION" {% if selected_cat == 'CONFIGURACION' %}selected{% endif %}>CONFIGURACION</option>
+                <option value="USUARIOS" {% if selected_cat == 'USUARIOS' %}selected{% endif %}>USUARIOS (Roles/Altas)</option>
+                <option value="SISTEMA" {% if selected_cat == 'SISTEMA' %}selected{% endif %}>SISTEMA (Updates/Backups)</option>
+            </select>
+        </div>
+
+        <!-- Filtro por usuario -->
+        <div style="flex: 1; min-width: 180px;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 0.25rem;">Usuario / Identificador</label>
+            <input type="text" name="username" value="{{ selected_user or '' }}" class="form-input" placeholder="Ej: admin, 32456789" style="font-size: 0.85rem; padding: 0.4rem;">
+        </div>
+
+        <!-- Botones de accion -->
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">
+                🔍 Filtrar
+            </button>
+            <a href="{{ url_for('admin.audit_view') }}" class="btn" style="background: #e2e8f0; color: #334155; text-decoration: none; padding: 0.45rem 0.75rem; font-size: 0.85rem; border-radius: 0.375rem;">
+                Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de eventos de auditoria -->
+<div class="card">
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; font-size: 0.825rem;">
+            <thead>
+                <tr style="background: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;">
+                    <th style="padding: 0.6rem;">Fecha y Hora</th>
+                    <th style="padding: 0.6rem;">Categoría</th>
+                    <th style="padding: 0.6rem;">Acción</th>
+                    <th style="padding: 0.6rem;">Usuario</th>
+                    <th style="padding: 0.6rem;">IP</th>
+                    <th style="padding: 0.6rem;">Estado</th>
+                    <th style="padding: 0.6rem;">Detalle del Evento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <!-- Timestamp -->
+                    <td style="padding: 0.6rem; white-space: nowrap; color: #64748b;">{{ log.timestamp }}</td>
+                    <!-- Categoria con badge distintivo -->
+                    <td style="padding: 0.6rem;">
+                        <span style="font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;
+                            {% if log.category == 'AUTH' %}background: #e0e7ff; color: #3730a3;
+                            {% elif log.category == 'PRODUCCION' %}background: #ecfdf5; color: #065f46;
+                            {% elif log.category == 'INVENTARIO' %}background: #fef3c7; color: #92400e;
+                            {% elif log.category == 'USUARIOS' %}background: #f3e8ff; color: #6b21a8;
+                            {% else %}background: #f1f5f9; color: #334155;{% endif %}">
+                            {{ log.category }}
+                        </span>
+                    </td>
+                    <!-- Accion -->
+                    <td style="padding: 0.6rem; font-weight: 600; color: #0f172a;">{{ log.action }}</td>
+                    <!-- Usuario -->
+                    <td style="padding: 0.6rem; font-family: monospace;">{{ log.username or 'anónimo' }}</td>
+                    <!-- IP -->
+                    <td style="padding: 0.6rem; color: #64748b; font-family: monospace;">{{ log.ip_address or '-' }}</td>
+                    <!-- Estado -->
+                    <td style="padding: 0.6rem;">
+                        {% if log.status == 'OK' %}
+                        <span style="color: #15803d; font-weight: 600;">✓ OK</span>
+                        {% elif log.status == 'ADVERTENCIA' %}
+                        <span style="color: #b45309; font-weight: 600;">⚠️ ALERTA</span>
+                        {% else %}
+                        <span style="color: #b91c1c; font-weight: 600;">✕ ERROR</span>
+                        {% endif %}
+                    </td>
+                    <!-- Detalle -->
+                    <td style="padding: 0.6rem; color: #334155;">{{ log.details }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="padding: 1.5rem; text-align: center; color: #64748b; font-style: italic;">
+                        No se encontraron registros de auditoría para los criterios seleccionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

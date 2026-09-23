@@ -1,0 +1,232 @@
+# Importa datetime para estampa de fecha y hora
+import datetime
+# Importa json para almacenar datos brutos analiticos
+import json
+# Importa conexion a la base de datos
+from core.database import get_db_connection
+# Importa funciones analiticas de calculo de laboratorio
+from modules.calculations.lab_calc import (
+    calculate_moisture_pct, calculate_moisture_with_tare,
+    calculate_fat_pct, calculate_foreign_matter_pct, calculate_oil_acidity_pct
+)
+# Importa el registrador de eventos
+from core.error_logger import log_info, log_error
+# Importa auditoria de eventos
+from core.audit import record_audit_event
+
+# Registra una determinacion analitica de laboratorio con calculo de parametros o ingreso directo
+def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes=''):
+    # Inicializa las variables de resultados
+    moisture_pct = None
+    fat_pct = None
+    foreign_matter_pct = None
+    acidity_pct = None
+
+    # Prioridad A: Entrada directa de porcentajes si fueron provistos en el formulario rapido
+    if raw_data.get('direct_moisture_pct') is not None and str(raw_data.get('direct_moisture_pct')).strip() != '':
+        moisture_pct = float(raw_data['direct_moisture_pct'])
+    if raw_data.get('direct_fat_pct') is not None and str(raw_data.get('direct_fat_pct')).strip() != '':
+        fat_pct = float(raw_data['direct_fat_pct'])
+    if raw_data.get('direct_acidity_pct') is not None and str(raw_data.get('direct_acidity_pct')).strip() != '':
+        acidity_pct = float(raw_data['direct_acidity_pct'])
+    if raw_data.get('direct_fm_pct') is not None and str(raw_data.get('direct_fm_pct')).strip() != '':
+        foreign_matter_pct = float(raw_data['direct_fm_pct'])
+
+    # Prioridad B: Calculo de humedad si se proveyeron pesadas gravimetricas y no se paso directo
+    if moisture_pct is None and raw_data.get('moisture_initial_g') and raw_data.get('moisture_dry_g'):
+        init_g = float(raw_data['moisture_initial_g'])
+        dry_g = float(raw_data['moisture_dry_g'])
+        tare_g = float(raw_data.get('moisture_tare_g', 0.0))
+        # Si se especifico tara de capsula
+        if tare_g > 0:
+            moisture_pct = calculate_moisture_with_tare(tare_g, init_g, dry_g)
+        else:
+            moisture_pct = calculate_moisture_pct(init_g, dry_g)
+
+    # Prioridad C: Calculo de materia grasa si se proveyeron pesadas gravimetricas y no se paso directo
+    if fat_pct is None and raw_data.get('fat_sample_g') and raw_data.get('fat_final_flask_g') and raw_data.get('fat_tare_flask_g'):
+        sample_g = float(raw_data['fat_sample_g'])
+        final_flask_g = float(raw_data['fat_final_flask_g'])
+        tare_flask_g = float(raw_data['fat_tare_flask_g'])
+        fat_pct = calculate_fat_pct(sample_g, final_flask_g, tare_flask_g)
+
+    # Prioridad D: Calculo de materia extrana si se proveyeron datos de zarandeo
+    if foreign_matter_pct is None and raw_data.get('fm_sample_g') and raw_data.get('fm_impurities_g'):
+        fm_sample_g = float(raw_data['fm_sample_g'])
+        fm_impurities_g = float(raw_data['fm_impurities_g'])
+        foreign_matter_pct = calculate_foreign_matter_pct(fm_sample_g, fm_impurities_g)
+
+    # Prioridad E: Calculo de acidez libre si es aceite vegetal y se titularon muestras
+    if acidity_pct is None and product == 'aceite' and raw_data.get('acidity_sample_g') and raw_data.get('acidity_naoh_ml'):
+        acidity_sample_g = float(raw_data['acidity_sample_g'])
+        naoh_ml = float(raw_data['acidity_naoh_ml'])
+        naoh_n = float(raw_data.get('acidity_naoh_normality', 0.0997))
+        ft = float(raw_data.get('acidity_ft_factor', 0.282))
+        acidity_pct = calculate_oil_acidity_pct(acidity_sample_g, naoh_ml, naoh_n, ft)
+
+    # Estampa de tiempo actual
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Guarda en la tabla lab_analyses
+    with get_db_connection() as conn:
+        cursor = conn.execute("""
+            INSERT INTO lab_analyses (
+                timestamp, sample_code, product, sampling_point, shift_id,
+                operator_name, moisture_pct, fat_pct, foreign_matter_pct,
+                acidity_pct, raw_data_json, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (now_str, sample_code, product, sampling_point, shift_id,
+              operator_name, moisture_pct, fat_pct, foreign_matter_pct,
+              acidity_pct, json.dumps(raw_data), notes))
+        conn.commit()
+        analysis_id = cursor.lastrowid
+
+    # Registra en log el ensayo
+    log_info('LAB', f'Analisis {sample_code} de {product} guardado (MG: {fat_pct}%, H: {moisture_pct}%, Acidez: {acidity_pct}%).')
+    # Registra en auditoria de planta
+    record_audit_event('LABORATORIO', 'ANALISIS_CALIDAD', f"Muestra {sample_code} ({product}) registrada en {sampling_point}. Humedad: {moisture_pct}%, Grasa: {fat_pct}%, Acidez: {acidity_pct}%. Obs: {notes}")
+
+    # Retorna el resumen del analisis
+    return {
+        'id': analysis_id,
+        'sample_code': sample_code,
+        'product': product,
+        'moisture_pct': moisture_pct,
+        'fat_pct': fat_pct,
+        'foreign_matter_pct': foreign_matter_pct,
+        'acidity_pct': acidity_pct
+    }
+
+# Obtiene los analisis recientes de laboratorio
+def get_recent_analyses(product=None, limit=50):
+    # Abre conexion a base de datos
+    with get_db_connection() as conn:
+        # Si se filtro por producto
+        if product:
+            rows = conn.execute("""
+                SELECT * FROM lab_analyses
+                WHERE product = ?
+                ORDER BY timestamp DESC
+                LIMIT ?;
+            """, (product, limit)).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT * FROM lab_analyses
+                ORDER BY timestamp DESC
+                LIMIT ?;
+            """, (limit,)).fetchall()
+        # Retorna lista de diccionarios
+        return [dict(row) for row in rows]
+
+# Obtiene los parametros analiticos promedio de calidad para un turno
+def get_shift_lab_averages(shift_id):
+    # Abre conexion a base de datos
+    with get_db_connection() as conn:
+        # Promedios de semilla
+        seed_row = conn.execute("""
+            SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
+            FROM lab_analyses
+            WHERE shift_id = ? AND product = 'semilla';
+        """, (shift_id,)).fetchone()
+        # Promedios de expeller
+        exp_row = conn.execute("""
+            SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
+            FROM lab_analyses
+            WHERE shift_id = ? AND product = 'expeller';
+        """, (shift_id,)).fetchone()
+        # Promedio de acidez en aceite
+        oil_row = conn.execute("""
+            SELECT AVG(acidity_pct) as avg_acidity, AVG(moisture_pct) as avg_moist
+            FROM lab_analyses
+            WHERE shift_id = ? AND product = 'aceite';
+        """, (shift_id,)).fetchone()
+    # Retorna diccionario con medias analiticas
+    return {
+        'seed_fat_pct': round(seed_row['avg_fat'], 2) if seed_row and seed_row['avg_fat'] is not None else 45.0,
+        'seed_moist_pct': round(seed_row['avg_moist'], 2) if seed_row and seed_row['avg_moist'] is not None else 9.0,
+        'seed_fm_pct': round(seed_row['avg_fm'], 2) if seed_row and seed_row['avg_fm'] is not None else 2.0,
+        'expeller_fat_pct': round(exp_row['avg_fat'], 2) if exp_row and exp_row['avg_fat'] is not None else 10.0,
+        'expeller_moist_pct': round(exp_row['avg_moist'], 2) if exp_row and exp_row['avg_moist'] is not None else 7.5,
+        'oil_acidity_pct': round(oil_row['avg_acidity'], 2) if oil_row and oil_row['avg_acidity'] is not None else 0.8
+    }
+
+# Registra la inspeccion, carga y despacho de un camion cisterna de aceite
+def record_oil_truck_dispatch(shift_id, operator_name, truck_plate, trailer_plate, driver_name, driver_dni,
+                              transport_company, destination, tank_source_id, quantity_kg, transport_status,
+                              seals_numbers, sample_delivered='NO', sample_code=None, oil_temperature_c=None,
+                              oil_acidity_pct=None, notes=''):
+    # Limpia y valida campos obligatorios del transporte
+    plate = str(truck_plate).strip().upper()
+    trailer = str(trailer_plate).strip().upper() if trailer_plate else ''
+    driver = str(driver_name).strip()
+    dni = str(driver_dni).strip() if driver_dni else ''
+    status = str(transport_status).strip()
+    seals = str(seals_numbers).strip()
+    sample_deliv = 'SI' if str(sample_delivered).strip().upper() in ('SI', 'S', '1', 'TRUE', 'YES') else 'NO'
+    qty_kg = float(quantity_kg or 0.0)
+    qty_tons = round(qty_kg / 1000.0, 3)
+    tank_id = int(tank_source_id) if tank_source_id else None
+    temp_c = float(oil_temperature_c) if oil_temperature_c else None
+    acid_pct = float(oil_acidity_pct) if oil_acidity_pct else None
+
+    # Valida que los datos criticos no esten vacios
+    if not plate or not driver or not seals or not status:
+        raise ValueError("Patente, Chofer, Estado de Transporte y Numeración de Precintos son campos obligatorios.")
+
+    # Estampa de tiempo actual
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Abre conexion para insertar el registro de despacho
+    with get_db_connection() as conn:
+        cursor = conn.execute("""
+            INSERT INTO oil_truck_dispatches (
+                timestamp, shift_id, operator_name, truck_plate, trailer_plate,
+                driver_name, driver_dni, transport_company, destination, tank_source_id,
+                quantity_kg, quantity_tons, transport_status, seals_numbers,
+                sample_delivered, sample_code, oil_temperature_c, oil_acidity_pct, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (now_str, shift_id, operator_name, plate, trailer,
+              driver, dni, transport_company, destination, tank_id,
+              qty_kg, qty_tons, status, seals, sample_deliv, sample_code,
+              temp_c, acid_pct, notes))
+        conn.commit()
+        dispatch_id = cursor.lastrowid
+
+    # Registra evento en log
+    log_info('LAB_DISPATCH', f"Despacho #{dispatch_id}: Camion {plate} ({driver}), {qty_kg} kg aceite. Estado: {status}, Precintos: {seals}, Muestra: {sample_deliv}.")
+    # Registra en auditoria de planta
+    record_audit_event(
+        'LABORATORIO',
+        'CARGA_CAMION_ACEITE',
+        f"Carga y precintado de camión {plate} ({trailer}) - Chofer: {driver} (DNI: {dni}). Estado: {status}. Precintos: '{seals}'. Muestra entregada: {sample_deliv}. Kilos: {qty_kg} kg."
+    )
+
+    # Retorna diccionario con la informacion del despacho registrado
+    return {
+        'id': dispatch_id,
+        'timestamp': now_str,
+        'truck_plate': plate,
+        'trailer_plate': trailer,
+        'driver_name': driver,
+        'quantity_kg': qty_kg,
+        'quantity_tons': qty_tons,
+        'transport_status': status,
+        'seals_numbers': seals,
+        'sample_delivered': sample_deliv
+    }
+
+# Obtiene la lista cronologica de cargas y despachos de camiones de aceite
+def get_recent_oil_truck_dispatches(limit=50):
+    # Abre conexion a la base de datos
+    with get_db_connection() as conn:
+        # Consulta los despachos vinculando con la denominacion del tanque de origen si existe
+        rows = conn.execute("""
+            SELECT d.*, t.name as tank_name, t.code as tank_code, s.name as shift_name
+            FROM oil_truck_dispatches d
+            LEFT JOIN equipment_tanks t ON d.tank_source_id = t.id
+            LEFT JOIN shifts s ON d.shift_id = s.id
+            ORDER BY d.timestamp DESC
+            LIMIT ?;
+        """, (limit,)).fetchall()
+        # Retorna la lista convertida a diccionarios
+        return [dict(r) for r in rows]

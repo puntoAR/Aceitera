@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base del sistema industrial BioBalcarce -->
+
+{% block title %}Laboratorio de Calidad y Cargas - BioBalcarce{% endblock %}
+
+{% block content %}
+<!-- Cabecera principal del modulo de laboratorio -->
+<div class="page-header" style="margin-bottom: 1.25rem;">
+    <div>
+        <h1 class="page-title" style="font-size: 1.45rem; color: #0f172a; margin-bottom: 0.2rem;">Laboratorio y Control de Calidad</h1>
+        <p style="color: #64748b; font-size: 0.85rem; margin: 0;">
+            Ensayos de materia grasa, humedad, acidez y control de carga, precintado y despacho de camiones de aceite.
+        </p>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TARJETAS DE PROMEDIOS DE CALIDAD DEL TURNO                                -->
+<!-- ========================================================================= -->
+<div class="dashboard-grid" style="margin-bottom: 1.5rem;">
+    <!-- Semilla Calidad -->
+    <div class="metric-card card-seed">
+        <div class="metric-title">Materia Prima (Semilla Girasol)</div>
+        <div class="metric-value" style="color: #15803d;">
+            {{ averages.seed_fat_pct }}%
+            <span class="metric-unit">Materia Grasa</span>
+        </div>
+        <div class="metric-subtitle">
+            Humedad promedio: <strong>{{ averages.seed_moist_pct }}%</strong> &bull;
+            Impurezas: <strong>{{ averages.seed_fm_pct }}%</strong>
+        </div>
+    </div>
+
+    <!-- Expeller Calidad -->
+    <div class="metric-card card-expeller">
+        <div class="metric-title">Expeller (Grasa Residual)</div>
+        <div class="metric-value" style="color: #854d0e;">
+            {{ averages.expeller_fat_pct }}%
+            <span class="metric-unit">Grasa Residual</span>
+        </div>
+        <div class="metric-subtitle">
+            Humedad promedio: <strong>{{ averages.expeller_moist_pct }}%</strong>
+        </div>
+    </div>
+
+    <!-- Aceite Calidad -->
+    <div class="metric-card card-oil">
+        <div class="metric-title">Aceite Crudo (Acidez Libre)</div>
+        <div class="metric-value" style="color: #b45309;">
+            {{ averages.oil_acidity_pct }}%
+            <span class="metric-unit">% Ác. Oleico</span>
+        </div>
+        <div class="metric-subtitle">
+            Parámetro clave para certificación de despacho
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 1: REGISTRO DE ANALISIS ANALITICO DE CALIDAD                      -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 2rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">
+        <span style="font-size: 1.25rem;">🧪</span>
+        <h2 style="font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 0;">
+            Registrar Determinación de Laboratorio
+        </h2>
+    </div>
+
+    <form action="{{ url_for('laboratory.add_analysis') }}" method="POST">
+        <!-- Datos de contexto del turno activo -->
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+        <!-- Fila 1: Producto, Codigo de Muestra y Punto -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+            <!-- Selector de producto -->
+            <div class="form-group">
+                <label class="form-label" for="product" style="font-weight: 600;">Producto Analizado</label>
+                <select class="form-select" id="product" name="product" required style="padding: 0.6rem;">
+                    <option value="semilla">Semilla de Girasol (Materia Prima)</option>
+                    <option value="expeller">Expeller de Extracción (Producto)</option>
+                    <option value="aceite">Aceite Crudo (Producto Terminado)</option>
+                </select>
+            </div>
+            <!-- Codigo identificador de muestra -->
+            <div class="form-group">
+                <label class="form-label" for="sample_code" style="font-weight: 600;">Código de Muestra</label>
+                <input class="form-input" type="text" id="sample_code" name="sample_code" placeholder="ej. M-2026-0923" required style="padding: 0.6rem;">
+            </div>
+            <!-- Punto de muestreo en planta -->
+            <div class="form-group">
+                <label class="form-label" for="sampling_point" style="font-weight: 600;">Punto de Muestreo</label>
+                <input class="form-input" type="text" id="sampling_point" name="sampling_point" placeholder="ej. Tolva ingreso, Prensa 2, TK-01" required style="padding: 0.6rem;">
+            </div>
+        </div>
+
+        <!-- Fila 2: Parametros directos obligatorios solicitados -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.25rem;">
+            <p style="font-size: 0.8rem; font-weight: 700; color: #1e3a8a; margin: 0 0 0.75rem 0; text-transform: uppercase;">
+                Resultados Analíticos Directos (%):
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
+                <!-- Humedad % -->
+                <div class="form-group">
+                    <label class="form-label" for="direct_moisture_pct" style="font-weight: 600; color: #1e40af;">Humedad (%)</label>
+                    <input class="form-input" type="number" step="0.01" id="direct_moisture_pct" name="direct_moisture_pct" placeholder="ej. 8.50" style="padding: 0.6rem; font-weight: 600;">
+                    <small style="color: #64748b; font-size: 0.72rem;">Semilla y Expeller</small>
+                </div>
+                <!-- Materia Grasa % -->
+                <div class="form-group">
+                    <label class="form-label" for="direct_fat_pct" style="font-weight: 600; color: #b45309;">Materia Grasa (%)</label>
+                    <input class="form-input" type="number" step="0.01" id="direct_fat_pct" name="direct_fat_pct" placeholder="ej. 45.20" style="padding: 0.6rem; font-weight: 600;">
+                    <small style="color: #64748b; font-size: 0.72rem;">Semilla y Expeller</small>
+                </div>
+                <!-- Acidez del aceite % -->
+                <div class="form-group">
+                    <label class="form-label" for="direct_acidity_pct" style="font-weight: 600; color: #b91c1c;">Acidez del Aceite (%)</label>
+                    <input class="form-input" type="number" step="0.01" id="direct_acidity_pct" name="direct_acidity_pct" placeholder="ej. 0.85" style="padding: 0.6rem; font-weight: 600;">
+                    <small style="color: #64748b; font-size: 0.72rem;">% Ácido Oleico</small>
+                </div>
+                <!-- Impurezas / Materia extrana % -->
+                <div class="form-group">
+                    <label class="form-label" for="direct_fm_pct" style="font-weight: 600; color: #475569;">Impurezas / M.E. (%)</label>
+                    <input class="form-input" type="number" step="0.01" id="direct_fm_pct" name="direct_fm_pct" placeholder="ej. 1.80" style="padding: 0.6rem;">
+                    <small style="color: #64748b; font-size: 0.72rem;">Opcional zarandeo</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fila 3: Campo amplio de observaciones para materia prima y producto terminado -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" for="notes" style="font-weight: 600; color: #0f172a;">
+                Observaciones del Lote (Materia Prima / Producto Terminado)
+            </label>
+            <textarea class="form-input" id="notes" name="notes" rows="2" placeholder="Detalles de procedencia de grano, aspecto visual, color, olor, temperatura o desvíos del proceso..." style="padding: 0.65rem;"></textarea>
+        </div>
+
+        <!-- Detalle colapsable opcional para calculo gravimetrico con pesadas de balanza -->
+        <details style="margin-bottom: 1.25rem; background: #fafafa; border: 1px dashed #cbd5e1; border-radius: 0.5rem; padding: 0.75rem;">
+            <summary style="font-size: 0.85rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none;">
+                ⚙️ Opcional: Asistente de cálculo gravimétrico por pesadas de balanza (gramos)
+            </summary>
+            <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; font-size: 0.8rem;">
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Humedad Muestra Inicial (g)</label>
+                    <input class="form-input" type="number" step="0.001" name="moisture_initial_g" placeholder="ej. 10.000">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Humedad Muestra Seca (g)</label>
+                    <input class="form-input" type="number" step="0.001" name="moisture_dry_g" placeholder="ej. 9.150">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Grasa Muestra (g)</label>
+                    <input class="form-input" type="number" step="0.001" name="fat_sample_g" placeholder="ej. 2.000">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Balón + Grasa (g)</label>
+                    <input class="form-input" type="number" step="0.001" name="fat_final_flask_g" placeholder="ej. 122.900">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Tara Balón Vacío (g)</label>
+                    <input class="form-input" type="number" step="0.001" name="fat_tare_flask_g" placeholder="ej. 122.000">
+                </div>
+                <div>
+                    <label style="display:block; margin-bottom: 0.2rem;">Gasto NaOH 0.1N (ml)</label>
+                    <input class="form-input" type="number" step="0.01" name="acidity_naoh_ml" placeholder="ej. 2.50">
+                </div>
+            </div>
+        </details>
+
+        <!-- Boton de envio del ensayo -->
+        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.75rem; font-weight: 600;">
+            Guardar Ensayo de Laboratorio &rarr;
+        </button>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 2: CONTROL DE CARGA Y DESPACHO DE CAMIONES DE ACEITE              -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">
+        <span style="font-size: 1.35rem;">🚛</span>
+        <div>
+            <h2 style="font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 0;">
+                Control de Carga y Despacho de Camiones de Aceite
+            </h2>
+            <p style="color: #64748b; font-size: 0.8rem; margin: 0.2rem 0 0 0;">
+                Inspección de transporte cisterna, precintos colocados, muestra testigo y certificación.
+            </p>
+        </div>
+    </div>
+
+    <!-- Formulario de despacho de camion cisterna -->
+    <form action="{{ url_for('laboratory.add_truck_dispatch') }}" method="POST">
+        <!-- Turno y responsable -->
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+        <!-- Grupo 1: Estado del transporte y Precintos -->
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                <!-- Estado del transporte -->
+                <div class="form-group">
+                    <label class="form-label" for="transport_status" style="font-weight: 700; color: #92400e;">
+                        ESTADO del Transporte *
+                    </label>
+                    <select class="form-select" id="transport_status" name="transport_status" required style="padding: 0.65rem; font-weight: 600;">
+                        <option value="Apto para Carga" selected>✓ Apto para Carga (Inspección Conforme)</option>
+                        <option value="En Proceso de Carga">⏳ En Proceso de Carga</option>
+                        <option value="Completado y Precintado">🔒 Completado y Precintado</option>
+                        <option value="Despachado">🚀 Despachado (Listo para Salida)</option>
+                        <option value="Rechazado">✕ RECHAZADO (No cumple condiciones sanitarias)</option>
+                    </select>
+                </div>
+
+                <!-- Muestra entregada SI / NO -->
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 700; color: #92400e;">
+                        Muestra Entregada al Chofer *
+                    </label>
+                    <div style="display: flex; gap: 1.5rem; align-items: center; margin-top: 0.4rem;">
+                        <label style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: #15803d; cursor: pointer;">
+                            <input type="radio" name="sample_delivered" value="SI" checked>
+                            <span>SÍ (Entregada)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.35rem; font-weight: 700; color: #b91c1c; cursor: pointer;">
+                            <input type="radio" name="sample_delivered" value="NO">
+                            <span>NO</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Precintos colocados y su numeracion -->
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label" for="seals_numbers" style="font-weight: 700; color: #92400e;">
+                    Precintos Colocados y su Numeración *
+                </label>
+                <input class="form-input" type="text" id="seals_numbers" name="seals_numbers"
+                       placeholder="Ej: Válvula de descarga: #45890; Bocas de carga superiores: #45891, #45892" required style="padding: 0.65rem; font-weight: 600;">
+                <small style="color: #78350f; font-size: 0.75rem;">Indique el detalle exacto de precintado de seguridad para garantizar inviolabilidad.</small>
+            </div>
+        </div>
+
+        <!-- Grupo 2: Datos del Transporte y Chofer -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <!-- Patente Chasis -->
+            <div class="form-group">
+                <label class="form-label" for="truck_plate" style="font-weight: 600;">Patente Chasis / Camión *</label>
+                <input class="form-input" type="text" id="truck_plate" name="truck_plate" placeholder="ej. AF 123 CD" required style="padding: 0.6rem; text-transform: uppercase;">
+            </div>
+
+            <!-- Patente Acoplado / Cisterna -->
+            <div class="form-group">
+                <label class="form-label" for="trailer_plate" style="font-weight: 600;">Patente Cisterna / Acoplado</label>
+                <input class="form-input" type="text" id="trailer_plate" name="trailer_plate" placeholder="ej. AD 456 EF" style="padding: 0.6rem; text-transform: uppercase;">
+            </div>
+
+            <!-- Chofer Nombre -->
+            <div class="form-group">
+                <label class="form-label" for="driver_name" style="font-weight: 600;">Chofer (Nombre y Apellido) *</label>
+                <input class="form-input" type="text" id="driver_name" name="driver_name" placeholder="ej. Marcelo Gómez" required style="padding: 0.6rem;">
+            </div>
+
+            <!-- DNI Chofer -->
+            <div class="form-group">
+                <label class="form-label" for="driver_dni" style="font-weight: 600;">DNI del Chofer</label>
+                <input class="form-input" type="text" id="driver_dni" name="driver_dni" placeholder="ej. 28912345" style="padding: 0.6rem;">
+            </div>
+        </div>
+
+        <!-- Grupo 3: Datos de Carga, Origen y Calidad -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <!-- Tanque de Origen -->
+            <div class="form-group">
+                <label class="form-label" for="tank_source_id" style="font-weight: 600;">Tanque de Origen</label>
+                <select class="form-select" id="tank_source_id" name="tank_source_id" style="padding: 0.6rem;">
+                    <option value="">Seleccionar tanque...</option>
+                    {% for t in tanks %}
+                    <option value="{{ t.id }}">{{ t.code }} - {{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Kilos cargados -->
+            <div class="form-group">
+                <label class="form-label" for="quantity_kg" style="font-weight: 600;">Kilos Cargados (kg)</label>
+                <input class="form-input" type="number" step="0.1" id="quantity_kg" name="quantity_kg" placeholder="ej. 28500" style="padding: 0.6rem;">
+            </div>
+
+            <!-- Empresa Transportista -->
+            <div class="form-group">
+                <label class="form-label" for="transport_company" style="font-weight: 600;">Empresa Transportista</label>
+                <input class="form-input" type="text" id="transport_company" name="transport_company" placeholder="ej. TransOliva S.A." style="padding: 0.6rem;">
+            </div>
+
+            <!-- Destino / Cliente -->
+            <div class="form-group">
+                <label class="form-label" for="destination" style="font-weight: 600;">Destino / Cliente</label>
+                <input class="form-input" type="text" id="destination" name="destination" placeholder="ej. Refinería Rosario" style="padding: 0.6rem;">
+            </div>
+        </div>
+
+        <!-- Observaciones de la carga -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label class="form-label" for="dispatch_notes" style="font-weight: 600;">Observaciones de Carga e Inspección</label>
+            <input class="form-input" type="text" id="dispatch_notes" name="notes" placeholder="Cisterna limpia, seca, sin olores previos. Temperatura de carga 28°C..." style="padding: 0.65rem;">
+        </div>
+
+        <!-- Boton de envio de carga de camion -->
+        <button type="submit" class="btn" style="background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 0.8rem 1.75rem; font-weight: 700; border-radius: 0.375rem; box-shadow: 0 4px 6px rgba(217, 119, 6, 0.25);">
+            🚚 Registrar Carga y Precintado de Camión &rarr;
+        </button>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 3: HISTORIAL DE DESPACHOS DE CAMIONES DE ACEITE                   -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 2rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0;">
+            Historial de Cargas y Despachos de Camiones ({{ dispatches|length }})
+        </h3>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table" style="font-size: 0.825rem;">
+            <thead>
+                <tr style="background: #f1f5f9; text-align: left;">
+                    <th>Fecha / Hora</th>
+                    <th>Camión / Cisterna</th>
+                    <th>Chofer (DNI)</th>
+                    <th>Estado Transporte</th>
+                    <th>Precintos Colocados</th>
+                    <th>Muestra</th>
+                    <th>Kilos (Tn)</th>
+                    <th>Tanque</th>
+                    <th>Responsable</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dispatches %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="white-space: nowrap;">{{ d.timestamp }}</td>
+                    <td>
+                        <strong>{{ d.truck_plate }}</strong>
+                        {% if d.trailer_plate %}<br><small style="color: #64748b;">Ac: {{ d.trailer_plate }}</small>{% endif %}
+                    </td>
+                    <td>
+                        {{ d.driver_name }}
+                        {% if d.driver_dni %}<br><small style="color: #64748b;">DNI: {{ d.driver_dni }}</small>{% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 9999px;
+                            {% if 'Apto' in d.transport_status or 'Despachado' in d.transport_status %}background: #dcfce7; color: #15803d;
+                            {% elif 'Rechazado' in d.transport_status %}background: #fee2e2; color: #b91c1c;
+                            {% else %}background: #fef3c7; color: #b45309;{% endif %}">
+                            {{ d.transport_status }}
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 0.8rem; color: #1e3a8a;">
+                        {{ d.seals_numbers }}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if d.sample_delivered == 'SI' %}
+                        <span style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">SÍ</span>
+                        {% else %}
+                        <span style="background: #fee2e2; color: #b91c1c; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">NO</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap;">
+                        <strong>{{ d.quantity_kg }} kg</strong>
+                        <div style="font-size: 0.72rem; color: #64748b;">{{ d.quantity_tons }} Tn</div>
+                    </td>
+                    <td>{{ d.tank_code or '-' }}</td>
+                    <td>{{ d.operator_name }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 1.5rem;">
+                        No hay cargas de camiones registradas en el período.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 4: HISTORIAL DE ENSAYOS ANALITICOS                                -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Historial de Análisis de Calidad
+    </h3>
+    <div class="table-responsive">
+        <table class="table" style="font-size: 0.825rem;">
+            <thead>
+                <tr style="background: #f1f5f9; text-align: left;">
+                    <th>Fecha / Hora</th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Punto</th>
+                    <th>Humedad (%)</th>
+                    <th>Materia Grasa (%)</th>
+                    <th>Acidez (%)</th>
+                    <th>Observaciones</th>
+                    <th>Analista</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in analyses %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="white-space: nowrap;">{{ a.timestamp }}</td>
+                    <td><strong>{{ a.sample_code }}</strong></td>
+                    <td><span style="text-transform: capitalize; font-weight: 600;">{{ a.product }}</span></td>
+                    <td>{{ a.sampling_point }}</td>
+                    <td>{{ a.moisture_pct ~ '%' if a.moisture_pct is not none else '-' }}</td>
+                    <td><strong>{{ a.fat_pct ~ '%' if a.fat_pct is not none else '-' }}</strong></td>
+                    <td>{{ a.acidity_pct ~ '%' if a.acidity_pct is not none else '-' }}</td>
+                    <td style="color: #475569; max-width: 220px;">{{ a.notes or '-' }}</td>
+                    <td>{{ a.operator_name }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay análisis de laboratorio registrados aún.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

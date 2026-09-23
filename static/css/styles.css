@@ -1,0 +1,1303 @@
+/* Hoja de estilos principal para BioBalcarce - Diseno Responsivo Industrial Mobile-First */
+
+/* Variables de diseno y paleta de colores corporativos e industriales */
+:root {
+    --primary-color: #1e3a8a;       /* Azul marino industrial para barras y cabeceras */
+    --primary-hover: #172554;       /* Tono azul oscuro para estados hover */
+    --accent-color: #f59e0b;        /* Ambar / Dorado industrial para resaltar stocks */
+    --accent-hover: #d97706;        /* Tono ambar oscuro */
+    --success-color: #10b981;       /* Verde esmeralda para valores optimos y confirmaciones */
+    --warning-color: #f97316;       /* Naranja para alertas de produccion */
+    --danger-color: #ef4444;        /* Rojo para paradas de linea y errores */
+    --bg-main: #f8fafc;             /* Fondo gris claro limpio y moderno */
+    --card-bg: #ffffff;             /* Fondo blanco para tarjetas de datos */
+    --text-main: #0f172a;           /* Texto principal de alto contraste */
+    --text-muted: #64748b;          /* Texto secundario para etiquetas y unidades */
+    --border-color: #e2e8f0;        /* Color de bordes y separadores */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* Sombra suave para tarjetas */
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1); /* Sombra media para destacar */
+}
+
+/* Reseteo de margenes y dimensionado de cajas */
+* {
+    margin: 0;                      /* Elimina margenes por defecto */
+    padding: 0;                     /* Elimina rellenos por defecto */
+    box-sizing: border-box;         /* Incluye padding y border en el ancho total */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* Tipografia limpia */
+}
+
+/* Estilo del cuerpo del documento */
+body {
+    background-color: var(--bg-main); /* Aplica el fondo general */
+    color: var(--text-main);          /* Color de fuente principal */
+    line-height: 1.5;                /* Altura de linea para buena legibilidad */
+    min-height: 100vh;               /* Altura minima de ventana */
+    display: flex;                   /* Estructura flexible */
+    flex-direction: column;          /* Disposicion vertical */
+}
+
+/* Barra de navegacion superior responsiva */
+.navbar {
+    background-color: var(--primary-color); /* Color primario azul marino */
+    color: #ffffff;                        /* Texto blanco */
+    padding: 0.75rem 1.25rem;              /* Espaciado interno */
+    display: flex;                         /* Contenedor flexible */
+    justify-content: space-between;        /* Distribucion equilibrada */
+    align-items: center;                   /* Alineacion vertical */
+    box-shadow: var(--shadow-md);          /* Sombra inferior */
+    position: sticky;                      /* Fijacion superior al hacer scroll */
+    top: 0;                                /* En la parte superior */
+    z-index: 100;                          /* Capa superior */
+}
+
+/* Logotipo y titulo en navbar */
+.navbar-brand {
+    font-size: 1.25rem;             /* Tamano de fuente del titulo */
+    font-weight: 700;               /* Negrita destacada */
+    display: flex;                  /* Icono y texto juntos */
+    align-items: center;            /* Centrado vertical */
+    gap: 0.5rem;                    /* Separacion */
+    text-decoration: none;          /* Sin subrayado */
+    color: #ffffff;                 /* Color blanco */
+}
+
+/* Indicador de turno activo en la barra */
+.shift-badge {
+    background-color: var(--accent-color); /* Fondo ambar */
+    color: #ffffff;                       /* Letras blancas */
+    padding: 0.25rem 0.6rem;              /* Espaciado de pastilla */
+    border-radius: 9999px;                /* Borde completamente redondeado */
+    font-size: 0.8rem;                    /* Tamano pequeno */
+    font-weight: 600;                     /* Semi negrita */
+}
+
+/* Enlaces de navegacion */
+.nav-links {
+    display: flex;                  /* Disposicion horizontal en desktop */
+    gap: 1rem;                      /* Separacion entre enlaces */
+    align-items: center;            /* Centrado vertical */
+}
+
+/* Estilo de cada enlace del menu */
+.nav-links a {
+    color: #e2e8f0;                 /* Color gris muy claro */
+    text-decoration: none;          /* Sin subrayado */
+    font-size: 0.95rem;             /* Tamano de texto */
+    font-weight: 500;               /* Grosor medio */
+    padding: 0.4rem 0.75rem;        /* Espaciado del boton */
+    border-radius: 0.375rem;        /* Borde redondeado suave */
+    transition: all 0.2s ease;     /* Animacion suave */
+}
+
+/* Estado hover de los enlaces */
+.nav-links a:hover, .nav-links a.active {
+    background-color: rgba(255, 255, 255, 0.15); /* Fondo semitransparente */
+    color: #ffffff;                              /* Blanco pleno */
+}
+
+/* Contenedor principal de la aplicacion */
+.container {
+    max-width: 1280px;              /* Ancho maximo en pantallas grandes */
+    margin: 0 auto;                 /* Centrado horizontal */
+    padding: 1.25rem;               /* Espaciado interior */
+    width: 100%;                    /* Ocupa el ancho completo disponible */
+    flex: 1;                        /* Ocupa el espacio vertical restante */
+}
+
+/* Titulo de seccion y subtitulos */
+.page-header {
+    margin-bottom: 1.5rem;          /* Separacion inferior */
+    display: flex;                  /* Disposicion flexible */
+    justify-content: space-between; /* Titulo a la izquierda, botones a la derecha */
+    align-items: center;            /* Centrado vertical */
+    flex-wrap: wrap;                /* Envoltura en pantallas moviles */
+    gap: 0.75rem;                   /* Separacion en caso de envoltura */
+}
+
+/* Tipografia del titulo */
+.page-title {
+    font-size: 1.5rem;              /* Tamano de titulo */
+    font-weight: 700;               /* Negrita */
+    color: var(--primary-color);    /* Color azul de identidad */
+}
+
+/* Grilla de tarjetas ejecutivas para visualizacion en un golpe de vista */
+.dashboard-grid {
+    display: grid;                  /* Cuadricula CSS */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Adaptable a columnas segun ancho */
+    gap: 1.25rem;                   /* Espacio entre tarjetas */
+    margin-bottom: 1.5rem;          /* Separacion inferior */
+}
+
+/* Tarjeta individual de metricas */
+.metric-card {
+    background-color: var(--card-bg); /* Fondo blanco */
+    border-radius: 0.75rem;           /* Bordes redondeados */
+    padding: 1.25rem;                 /* Espaciado interno */
+    box-shadow: var(--shadow-sm);      /* Sombra sutil */
+    border: 1px solid var(--border-color); /* Borde sutil */
+    display: flex;                    /* Flexbox */
+    flex-direction: column;           /* Disposicion vertical */
+    justify-content: space-between;   /* Distribucion equilibrada */
+    position: relative;               /* Para elementos posicionados */
+    overflow: hidden;                 /* Evita desbordes */
+}
+
+/* Franja de color superior para jerarquia visual de stocks */
+.metric-card::before {
+    content: '';                      /* Elemento visual sin texto */
+    position: absolute;               /* Posicion absoluta */
+    top: 0;                           /* Al tope de la tarjeta */
+    left: 0;                          /* Desde la izquierda */
+    right: 0;                         /* Hasta la derecha */
+    height: 4px;                      /* Grosor de la franja */
+    background-color: var(--border-color); /* Color por defecto */
+}
+
+/* Franjas tematicas segun tipo de producto */
+.card-oil::before { background-color: #d97706; }      /* Ambar aceite */
+.card-seed::before { background-color: #15803d; }     /* Verde semilla */
+.card-expeller::before { background-color: #854d0e; } /* Marron expeller */
+.card-speed::before { background-color: #2563eb; }    /* Azul velocidad */
+.card-yield::before { background-color: #059669; }    /* Esmeralda rendimiento */
+
+/* Titulo de la tarjeta de metrica */
+.metric-title {
+    font-size: 0.875rem;            /* Tamano de fuente */
+    font-weight: 600;               /* Semi negrita */
+    color: var(--text-muted);       /* Color atenuado */
+    text-transform: uppercase;      /* Mayusculas para etiquetas industriales */
+    letter-spacing: 0.05em;         /* Espaciado entre letras */
+    margin-bottom: 0.5rem;          /* Margen inferior */
+}
+
+/* Valor principal destacado en la tarjeta */
+.metric-value {
+    font-size: 2.25rem;             /* Numero grande para impacto inmediato */
+    font-weight: 800;               /* Extra negrita */
+    color: var(--text-main);        /* Color principal */
+    line-height: 1.1;               /* Altura compacta */
+}
+
+/* Unidad de medida adjunta al valor */
+.metric-unit {
+    font-size: 1rem;                /* Tamano moderado */
+    font-weight: 500;               /* Grosor medio */
+    color: var(--text-muted);       /* Color atenuado */
+    margin-left: 0.25rem;           /* Separacion del numero */
+}
+
+/* Subvalor o informacion complementaria */
+.metric-subtitle {
+    font-size: 0.85rem;             /* Tamano reducido */
+    color: var(--text-muted);       /* Color gris */
+    margin-top: 0.5rem;             /* Margen superior */
+}
+
+/* Contenedor de formulario industrial */
+.form-card {
+    background-color: var(--card-bg); /* Fondo blanco */
+    border-radius: 0.75rem;           /* Bordes redondeados */
+    padding: 1.5rem;                  /* Relleno */
+    box-shadow: var(--shadow-sm);      /* Sombra */
+    border: 1px solid var(--border-color); /* Borde */
+    margin-bottom: 1.5rem;            /* Margen inferior */
+}
+
+/* Grilla interna de campos de formulario */
+.form-grid {
+    display: grid;                    /* Cuadricula */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Columnas responsivas */
+    gap: 1rem;                        /* Separacion */
+    margin-bottom: 1rem;              /* Margen */
+}
+
+/* Grupo de campo y etiqueta */
+.form-group {
+    display: flex;                    /* Flex */
+    flex-direction: column;           /* Vertical */
+    gap: 0.35rem;                     /* Separacion entre label e input */
+}
+
+/* Etiqueta de campo */
+.form-label {
+    font-size: 0.875rem;              /* Tamano de fuente */
+    font-weight: 600;                 /* Semi negrita */
+    color: var(--text-main);          /* Color texto */
+}
+
+/* Campo de entrada de texto o numero */
+.form-input, .form-select {
+    padding: 0.6rem 0.85rem;          /* Espaciado comodo para dedos en celular */
+    border: 1px solid var(--border-color); /* Borde suave */
+    border-radius: 0.375rem;          /* Borde redondeado */
+    font-size: 1rem;                  /* Tamano legible */
+    color: var(--text-main);          /* Color de texto */
+    background-color: #ffffff;        /* Fondo blanco */
+    outline: none;                    /* Sin borde azul de foco predeterminado */
+    transition: border-color 0.2s;    /* Transicion */
+}
+
+/* Enfoque en campo de entrada */
+.form-input:focus, .form-select:focus {
+    border-color: var(--primary-color); /* Borde azul de foco */
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); /* Anillo de foco suave */
+}
+
+/* Boton principal */
+.btn {
+    display: inline-flex;             /* Flex en linea */
+    align-items: center;              /* Centrado vertical */
+    justify-content: center;          /* Centrado horizontal */
+    padding: 0.65rem 1.25rem;         /* Espaciado tactil */
+    font-size: 0.95rem;               /* Tamano de texto */
+    font-weight: 600;                 /* Semi negrita */
+    border-radius: 0.375rem;          /* Borde redondeado */
+    cursor: pointer;                  /* Cursor de mano */
+    border: none;                     /* Sin borde nativo */
+    text-decoration: none;            /* Sin subrayado */
+    transition: all 0.2s ease;        /* Transicion */
+    gap: 0.5rem;                      /* Espacio entre icono y texto */
+}
+
+/* Boton primario */
+.btn-primary {
+    background-color: var(--primary-color); /* Azul primario */
+    color: #ffffff;                         /* Blanco */
+}
+.btn-primary:hover {
+    background-color: var(--primary-hover); /* Azul oscuro */
+}
+
+/* Boton de exito */
+.btn-success {
+    background-color: var(--success-color); /* Verde */
+    color: #ffffff;                         /* Blanco */
+}
+
+/* Boton de peligro o parada */
+.btn-danger {
+    background-color: var(--danger-color);  /* Rojo */
+    color: #ffffff;                         /* Blanco */
+}
+
+/* Tablas industriales responsivas */
+.table-responsive {
+    width: 100%;                      /* Ancho total */
+    overflow-x: auto;                 /* Permite desplazamiento horizontal en celulares */
+    border-radius: 0.5rem;            /* Bordes redondeados */
+    border: 1px solid var(--border-color); /* Borde perimetral */
+    margin-bottom: 1.5rem;            /* Margen inferior */
+}
+
+/* Estructura de tabla */
+.table {
+    width: 100%;                      /* Ancho total */
+    border-collapse: collapse;        /* Colapso de bordes */
+    font-size: 0.9rem;                /* Tamano comodo */
+    background-color: #ffffff;        /* Fondo blanco */
+}
+
+/* Encabezados de tabla */
+.table th {
+    background-color: #f1f5f9;        /* Fondo gris suave */
+    color: var(--text-muted);         /* Color atenuado */
+    font-weight: 600;                 /* Semi negrita */
+    text-align: left;                 /* Alineado a la izquierda */
+    padding: 0.75rem 1rem;            /* Espaciado de celda */
+    border-bottom: 1px solid var(--border-color); /* Separador inferior */
+    white-space: nowrap;              /* Evita partir texto de cabecera */
+}
+
+/* Celdas de datos */
+.table td {
+    padding: 0.75rem 1rem;            /* Espaciado */
+    border-bottom: 1px solid var(--border-color); /* Borde */
+    color: var(--text-main);          /* Color de datos */
+    vertical-align: middle;           /* Centrado vertical */
+}
+
+/* Filas alternadas suaves */
+.table tbody tr:hover {
+    background-color: #f8fafc;        /* Resalte al pasar el cursor */
+}
+
+/* Mensajes de alerta flotantes / flash */
+.alert {
+    padding: 0.85rem 1.25rem;         /* Espaciado */
+    border-radius: 0.5rem;            /* Bordes */
+    margin-bottom: 1rem;              /* Margen */
+    font-weight: 500;                 /* Grosor */
+    font-size: 0.95rem;               /* Tamano */
+    display: flex;                    /* Flex */
+    justify-content: space-between;   /* Separacion */
+    align-items: center;              /* Centrado */
+}
+
+.alert-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.alert-warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.alert-danger { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-info { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+
+/* Pie de pagina */
+.footer {
+    background-color: #ffffff;        /* Fondo blanco */
+    border-top: 1px solid var(--border-color); /* Borde superior */
+    padding: 1rem 1.25rem;            /* Espaciado */
+    text-align: center;               /* Centrado */
+    font-size: 0.85rem;               /* Tamano */
+    color: var(--text-muted);         /* Atenuado */
+}
+
+/* ========================================================================= */
+/* COMPONENTE: MONITOREO VISUAL DE TANQUES EN CILINDROS 3D (ESTILO EXCEL)    */
+/* ========================================================================= */
+.oil-tanks-section {
+    background-color: var(--card-bg);
+    border-radius: 0.85rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.oil-tanks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.oil-tanks-title-group h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.oil-tanks-title-group p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.oil-global-summary {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.6rem 1rem;
+    border-radius: 0.5rem;
+}
+
+.oil-global-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.oil-global-item .lbl {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+.oil-global-item .val {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #b45309;
+}
+
+.oil-global-item .val-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.oil-capacity-pill {
+    background-color: #fef3c7;
+    color: #92400e;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 1px solid #fde68a;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.oil-tanks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 1.25rem;
+}
+
+.tank-3d-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.tank-3d-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.tank-3d-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f59e0b 0%, #ca8a04 100%);
+}
+
+.tank-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.tank-code-badge {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.375rem;
+    letter-spacing: 0.05em;
+}
+
+.tank-type-badge {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    border: 1px solid #e2e8f0;
+}
+
+.tank-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-top: 0.4rem;
+}
+
+.tank-dims {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.tank-cylinder-stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.75rem 0;
+    position: relative;
+}
+
+.cylinder-svg-horizontal {
+    max-width: 260px;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
+    transition: transform 0.3s ease;
+}
+
+.cylinder-svg-narrow {
+    max-width: 150px;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.04));
+    transition: transform 0.3s ease;
+}
+
+.cylinder-svg-wide {
+    max-width: 195px;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.04));
+    transition: transform 0.3s ease;
+}
+
+.tank-3d-card:hover .cylinder-svg-horizontal,
+.tank-3d-card:hover .cylinder-svg-narrow,
+.tank-3d-card:hover .cylinder-svg-wide {
+    transform: scale(1.02);
+}
+
+/* ========================================================================== */
+/* SECCION: MONITOREO FISICO DE SILOS 3D                                     */
+/* ========================================================================== */
+.silos-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.silos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.silos-title-group h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.silos-title-group p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.silos-global-summary {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.silos-global-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.silos-global-item .lbl {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+}
+
+.silos-global-item .val {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #15803d;
+}
+
+.silos-global-item .val-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.silos-capacity-pill {
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.silos-capacity-pill.seed-pill {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.silos-capacity-pill.expeller-pill {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.silos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+}
+
+.silo-3d-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.silo-3d-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.silo-3d-card.product-seed::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.silo-3d-card.product-expeller::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #d97706 0%, #b45309 100%);
+}
+
+.silo-stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.75rem 0;
+    position: relative;
+    min-height: 290px;
+}
+
+.silo-svg {
+    max-width: 210px;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
+    transition: transform 0.3s ease;
+}
+
+.silo-3d-card:hover .silo-svg {
+    transform: scale(1.02);
+}
+
+.silo-metrics-grid,
+.tank-metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.silo-metric-box,
+.tank-metric-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.silo-metric-box .m-lbl,
+.tank-metric-box .m-lbl {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.silo-metric-box .m-val,
+.tank-metric-box .m-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.silo-metric-box .m-sub,
+.tank-metric-box .m-sub {
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.tank-card-footer,
+.silo-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.tank-measure-link,
+.silo-measure-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease;
+}
+
+.tank-measure-link:hover,
+.silo-measure-link:hover {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+}
+
+/* ========================================================================== */
+/* ESTILOS DE DASHBOARD COCKPIT EJECUTIVO (PANTALLA UNICA SIN SCROLL)        */
+/* ========================================================================== */
+
+/* Disposicion principal del dashboard de alta densidad */
+.cockpit-dashboard {
+    display: flex; /* Disposicion flexible vertical */
+    flex-direction: column; /* Apila las secciones ordenadamente */
+    gap: 1rem; /* Espaciado compacto entre filas */
+    margin-bottom: 1rem; /* Margen inferior */
+}
+
+/* Fila superior de los tres pilares del proceso */
+.cockpit-kpis-grid {
+    display: grid; /* Cuadricula CSS */
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales para los 3 pilares */
+    gap: 1rem; /* Espaciado entre tarjetas de pilares */
+}
+
+/* Tarjeta individual de pilar de proceso */
+.cockpit-kpi-card {
+    background: #ffffff; /* Fondo blanco */
+    border: 1px solid var(--border-color); /* Borde sutil */
+    border-radius: 0.75rem; /* Esquinas redondeadas */
+    padding: 1rem 1.15rem; /* Relleno compacto */
+    box-shadow: var(--shadow-sm); /* Sombra suave */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Disposicion vertical */
+    justify-content: space-between; /* Distribuye el contenido */
+    position: relative; /* Para la barra superior de color */
+    overflow: hidden; /* Evita desbordes */
+}
+
+/* Franja superior de color distintivo */
+.cockpit-kpi-card::before {
+    content: ''; /* Elemento grafico */
+    position: absolute; /* Posicion fija superior */
+    top: 0; /* Al tope */
+    left: 0; /* Desde la izquierda */
+    right: 0; /* Hasta la derecha */
+    height: 4px; /* Grosor de la franja */
+}
+
+/* Color especifico para stocks */
+.cockpit-card-stocks::before {
+    background: linear-gradient(90deg, #d97706, #16a34a); /* Gradiente ambar a verde */
+}
+
+/* Color especifico para velocidades */
+.cockpit-card-speeds::before {
+    background: linear-gradient(90deg, #2563eb, #0284c7); /* Gradiente azul */
+}
+
+/* Color especifico para eficiencia y rendimiento */
+.cockpit-card-yield::before {
+    background: linear-gradient(90deg, #059669, #10b981); /* Gradiente verde esmeralda */
+}
+
+/* Titulo del pilar */
+.cockpit-kpi-header {
+    display: flex; /* Disposicion horizontal */
+    justify-content: space-between; /* Titulo e icono a los extremos */
+    align-items: center; /* Alineacion vertical */
+    margin-bottom: 0.5rem; /* Margen inferior */
+}
+
+/* Texto del titulo */
+.cockpit-kpi-title {
+    font-size: 0.85rem; /* Tamano compacto */
+    font-weight: 700; /* Negrita */
+    text-transform: uppercase; /* Mayusculas */
+    letter-spacing: 0.04em; /* Espaciado entre letras */
+    color: var(--text-muted); /* Color suave */
+}
+
+/* Filas de stock dentro de la tarjeta de stocks */
+.stock-item-row {
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Valores a los extremos */
+    align-items: center; /* Centrado */
+    margin-bottom: 0.2rem; /* Margen estrecho */
+}
+
+/* Barra de progreso de llenado en stocks */
+.mini-progress-bar {
+    width: 100%; /* Ancho completo */
+    height: 5px; /* Altura delgada */
+    background-color: #f1f5f9; /* Fondo gris claro */
+    border-radius: 9999px; /* Redondeado tipo capsula */
+    overflow: hidden; /* Oculta desbordes */
+    margin-top: 0.15rem; /* Separacion superior */
+    margin-bottom: 0.4rem; /* Separacion inferior */
+}
+
+/* Relleno de la barra de progreso */
+.mini-progress-fill {
+    height: 100%; /* Altura completa del riel */
+    border-radius: 9999px; /* Extremos redondeados */
+    transition: width 0.3s ease; /* Transicion suave */
+}
+
+/* Fila principal del cockpit (Equipos a la izquierda, Grafico a la derecha) */
+.cockpit-main-grid {
+    display: grid; /* Cuadricula CSS */
+    grid-template-columns: 1.15fr 0.85fr; /* 57% equipos, 43% grafico y muestreos */
+    gap: 1rem; /* Espaciado entre paneles */
+}
+
+/* Panel contenedor de equipos interactivos */
+.cockpit-equipments-card {
+    background: #ffffff; /* Fondo blanco */
+    border: 1px solid var(--border-color); /* Borde sutil */
+    border-radius: 0.75rem; /* Redondeado */
+    padding: 1rem 1.15rem; /* Espaciado interno */
+    box-shadow: var(--shadow-sm); /* Sombra suave */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+    gap: 0.85rem; /* Separacion entre tanques y silos */
+}
+
+/* Encabezado del bloque de equipos */
+.equipment-block-header {
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Distribucion a los extremos */
+    align-items: center; /* Alineacion centrada */
+    margin-bottom: 0.4rem; /* Margen inferior */
+}
+
+/* Titulo del bloque */
+.equipment-block-title {
+    font-size: 0.85rem; /* Tamano compacto */
+    font-weight: 700; /* Negrita */
+    color: var(--text-main); /* Color principal */
+    display: flex; /* Flexbox */
+    align-items: center; /* Centrado con icono */
+    gap: 0.4rem; /* Separacion del icono */
+}
+
+/* Indicador de ayuda al usuario */
+.equipment-block-hint {
+    font-size: 0.75rem; /* Letra pequena */
+    color: #2563eb; /* Color azul interactivo */
+    font-weight: 600; /* Semi negrita */
+}
+
+/* Grilla de tanques interactivos de tamano visual uniforme */
+.tank-compact-grid {
+    display: grid; /* Cuadricula */
+    grid-template-columns: repeat(3, 1fr); /* 3 columnas simetricas iguales */
+    gap: 0.65rem; /* Espaciado */
+}
+
+/* Tarjeta de tanque compacta uniforme */
+.tank-mini-card {
+    background: #f8fafc; /* Fondo gris suave */
+    border: 1.5px solid #e2e8f0; /* Borde visible */
+    border-radius: 0.5rem; /* Redondeado */
+    padding: 0.65rem; /* Relleno uniforme */
+    cursor: pointer; /* Cursor de mano interactivo */
+    transition: all 0.2s ease; /* Transicion suave al pasar el mouse */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+    justify-content: space-between; /* Distribucion uniforme */
+    height: 105px; /* Altura visual identica y simetrica */
+    position: relative; /* Posicion relativa */
+}
+
+/* Efecto hover al pasar el raton por el tanque */
+.tank-mini-card:hover {
+    background: #ffffff; /* Fondo blanco */
+    border-color: #f59e0b; /* Borde ambar */
+    transform: translateY(-2px); /* Elevacion sutil */
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15); /* Sombra ambar */
+}
+
+/* Encabezado superior del tanque mini */
+.tank-mini-top {
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Extremos */
+    align-items: center; /* Centrado */
+}
+
+/* Badge del codigo del tanque */
+.tank-mini-code {
+    background: #0f172a; /* Fondo oscuro */
+    color: #ffffff; /* Texto blanco */
+    font-size: 0.72rem; /* Tamano pequeno */
+    font-weight: 800; /* Muy negrita */
+    padding: 0.15rem 0.4rem; /* Relleno */
+    border-radius: 0.25rem; /* Bordes suaves */
+}
+
+/* Badge de porcentaje de llenado */
+.tank-mini-pct {
+    font-size: 0.8rem; /* Tamano destacado */
+    font-weight: 800; /* Negrita */
+    color: #b45309; /* Color ambar */
+}
+
+/* Nombre o tipo descriptivo del tanque */
+.tank-mini-name {
+    font-size: 0.75rem; /* Tamano */
+    font-weight: 600; /* Semi negrita */
+    color: #475569; /* Gris */
+    white-space: nowrap; /* Sin salto de linea */
+    overflow: hidden; /* Recorta */
+    text-overflow: ellipsis; /* Puntos suspensivos si desborda */
+}
+
+/* Metrica principal de masa en kg */
+.tank-mini-mass {
+    font-size: 1.05rem; /* Numero grande */
+    font-weight: 800; /* Negrita */
+    color: #b45309; /* Color ambar aceite */
+    line-height: 1.1; /* Altura de linea compacta */
+}
+
+/* Subtexto con nivel en metros y capacidad calculable */
+.tank-mini-sub {
+    font-size: 0.68rem; /* Letra pequena */
+    color: var(--text-muted); /* Gris */
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Distribucion */
+}
+
+/* Grilla de silos compacta */
+.silo-compact-grid {
+    display: grid; /* Cuadricula */
+    grid-template-columns: repeat(4, 1fr); /* 4 columnas en desktop */
+    gap: 0.5rem; /* Espaciado estrecho */
+}
+
+/* Tarjeta mini de silo interactiva */
+.silo-mini-card {
+    background: #f8fafc; /* Fondo gris suave */
+    border: 1.5px solid #e2e8f0; /* Borde */
+    border-radius: 0.5rem; /* Redondeado */
+    padding: 0.55rem; /* Relleno uniforme */
+    cursor: pointer; /* Cursor de mano */
+    transition: all 0.2s ease; /* Transicion */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+    justify-content: space-between; /* Distribucion */
+    height: 95px; /* Altura simetrica */
+}
+
+/* Hover en silo de semilla */
+.silo-mini-card.seed:hover {
+    background: #ffffff; /* Fondo blanco */
+    border-color: #16a34a; /* Borde verde */
+    transform: translateY(-2px); /* Elevacion */
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15); /* Sombra verde */
+}
+
+/* Hover en silo de expeller */
+.silo-mini-card.expeller:hover {
+    background: #ffffff; /* Fondo blanco */
+    border-color: #d97706; /* Borde tostado */
+    transform: translateY(-2px); /* Elevacion */
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15); /* Sombra naranja */
+}
+
+/* Top del silo mini */
+.silo-mini-top {
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Extremos */
+    align-items: center; /* Centrado */
+}
+
+/* Badge de codigo de silo */
+.silo-mini-code {
+    font-size: 0.7rem; /* Tamano */
+    font-weight: 800; /* Negrita */
+    padding: 0.12rem 0.35rem; /* Relleno */
+    border-radius: 0.25rem; /* Redondeado */
+}
+
+/* Badge de silo de semilla */
+.silo-mini-code.seed {
+    background: #dcfce7; /* Fondo verde claro */
+    color: #166534; /* Letra verde oscuro */
+}
+
+/* Badge de silo de expeller */
+.silo-mini-code.expeller {
+    background: #fef3c7; /* Fondo ambar claro */
+    color: #92400e; /* Letra marron tostado */
+}
+
+/* Porcentaje de ocupacion del silo */
+.silo-mini-pct {
+    font-size: 0.75rem; /* Tamano */
+    font-weight: 700; /* Negrita */
+    color: var(--text-muted); /* Color sutil */
+}
+
+/* Masa en toneladas del silo */
+.silo-mini-tons {
+    font-size: 0.95rem; /* Tamano */
+    font-weight: 800; /* Negrita */
+    line-height: 1.1; /* Linea compacta */
+}
+
+/* Color verde para semilla */
+.silo-mini-tons.seed {
+    color: #15803d; /* Verde girasol */
+}
+
+/* Color ambar para expeller */
+.silo-mini-tons.expeller {
+    color: #854d0e; /* Tostado expeller */
+}
+
+/* Detalle de chapas cubiertas */
+.silo-mini-sheets {
+    font-size: 0.68rem; /* Letra muy compacta */
+    color: var(--text-muted); /* Gris */
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Distribucion */
+}
+
+/* Panel derecho (Grafico de velocidad y ultimas pesadas) */
+.cockpit-charts-card {
+    background: #ffffff; /* Fondo blanco */
+    border: 1px solid var(--border-color); /* Borde */
+    border-radius: 0.75rem; /* Redondeado */
+    padding: 1rem 1.15rem; /* Relleno */
+    box-shadow: var(--shadow-sm); /* Sombra */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+    justify-content: space-between; /* Distribucion */
+    gap: 0.75rem; /* Separacion interna */
+}
+
+/* Contenedor del grafico con altura optimizada para no generar scroll */
+.cockpit-chart-container {
+    position: relative; /* Posicion relativa */
+    height: 180px; /* Altura compacta */
+    width: 100%; /* Ancho completo */
+}
+
+/* Mini tabla de ultimos muestreos */
+.mini-weighings-table {
+    width: 100%; /* Ancho completo */
+    border-collapse: collapse; /* Sin doble borde */
+    font-size: 0.75rem; /* Letra compacta */
+}
+
+/* Celdas de encabezado de la mini tabla */
+.mini-weighings-table th {
+    text-align: left; /* Alineado a izquierda */
+    padding: 0.25rem 0.4rem; /* Relleno minimo */
+    color: var(--text-muted); /* Texto secundario */
+    border-bottom: 1px solid #e2e8f0; /* Linea separadora */
+    font-weight: 600; /* Semi negrita */
+}
+
+/* Celdas de datos de la mini tabla */
+.mini-weighings-table td {
+    padding: 0.28rem 0.4rem; /* Relleno ajustado */
+    border-bottom: 1px solid #f1f5f9; /* Linea suave */
+    color: var(--text-main); /* Color de texto */
+}
+
+/* ========================================================================== */
+/* MODALES INTERACTIVOS DE INSPECCION 3D (AL HACER CLIC EN TANQUE O SILO)    */
+/* ========================================================================== */
+
+/* Capa de fondo oscuro traslucido del modal */
+.equipment-modal-overlay {
+    position: fixed; /* Posicion fija sobre toda la pantalla */
+    top: 0; /* Al tope superior */
+    left: 0; /* Al borde izquierdo */
+    right: 0; /* Al borde derecho */
+    bottom: 0; /* Al borde inferior */
+    background-color: rgba(15, 23, 42, 0.75); /* Fondo oscuro semitransparente */
+    backdrop-filter: blur(4px); /* Desenfoque de fondo moderno */
+    display: none; /* Oculto por defecto */
+    justify-content: center; /* Centrado horizontal */
+    align-items: center; /* Centrado vertical */
+    z-index: 1000; /* Muy por encima del contenido */
+    padding: 1rem; /* Margen perimetral */
+}
+
+/* Modal activo visible */
+.equipment-modal-overlay.active {
+    display: flex; /* Hace visible en modo flexbox */
+    animation: modalFadeIn 0.2s ease-out; /* Animacion suave de entrada */
+}
+
+/* Animacion de aparicion */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0; /* Inicia transparente */
+        transform: scale(0.96); /* Ligeramente reducido */
+    }
+    to {
+        opacity: 1; /* Completamente opaco */
+        transform: scale(1); /* Tamano normal */
+    }
+}
+
+/* Ventana de dialogo blanca del modal */
+.equipment-modal-dialog {
+    background: #ffffff; /* Fondo blanco */
+    border-radius: 0.75rem; /* Esquinas redondeadas */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25); /* Sombra pronunciada */
+    width: 100%; /* Ancho responsivo */
+    max-width: 760px; /* Ancho maximo ergonomico */
+    max-height: 90vh; /* Altura maxima para no desbordar pantalla */
+    overflow-y: auto; /* Scroll interno si la pantalla es muy pequena */
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+}
+
+/* Cabecera del modal */
+.equipment-modal-header {
+    padding: 1rem 1.25rem; /* Relleno */
+    border-bottom: 1px solid var(--border-color); /* Separador */
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Titulo y boton cerrar a los extremos */
+    align-items: center; /* Centrado vertical */
+}
+
+/* Titulo del modal */
+.equipment-modal-title {
+    font-size: 1.15rem; /* Tamano destacado */
+    font-weight: 800; /* Negrita */
+    color: var(--text-main); /* Color de texto */
+    display: flex; /* Flexbox */
+    align-items: center; /* Centrado */
+    gap: 0.5rem; /* Separacion */
+}
+
+/* Boton de cierre x */
+.equipment-modal-close {
+    background: #f1f5f9; /* Fondo gris claro */
+    border: none; /* Sin borde */
+    color: #475569; /* Gris oscuro */
+    width: 32px; /* Ancho cuadrado */
+    height: 32px; /* Alto cuadrado */
+    border-radius: 50%; /* Circular */
+    font-size: 1.25rem; /* Tamano de la x */
+    font-weight: 700; /* Negrita */
+    display: flex; /* Flexbox */
+    align-items: center; /* Centrado */
+    justify-content: center; /* Centrado */
+    cursor: pointer; /* Cursor de mano */
+    transition: all 0.15s ease; /* Transicion */
+}
+
+/* Hover en boton de cierre */
+.equipment-modal-close:hover {
+    background: #e2e8f0; /* Fondo mas oscuro */
+    color: #0f172a; /* Texto negro */
+}
+
+/* Cuerpo interno del modal */
+.equipment-modal-body {
+    padding: 1.25rem; /* Espaciado interno */
+    display: grid; /* Cuadricula */
+    grid-template-columns: 1fr 1fr; /* Mitad grafico 3D, mitad datos tecnicos */
+    gap: 1.25rem; /* Separacion */
+    align-items: center; /* Centrado vertical */
+}
+
+/* Marco visual uniforme para el modelo 3D en el modal */
+.modal-stage-frame {
+    display: flex; /* Flexbox */
+    justify-content: center; /* Centrado horizontal */
+    align-items: center; /* Centrado vertical */
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); /* Fondo suave */
+    border: 1px solid #e2e8f0; /* Borde suave */
+    border-radius: 0.5rem; /* Esquinas redondeadas */
+    padding: 1rem; /* Relleno */
+    min-height: 260px; /* Altura visual simetrica para todos los tanques y silos */
+}
+
+/* Columna de datos y detalles del equipo */
+.modal-details-col {
+    display: flex; /* Flexbox */
+    flex-direction: column; /* Apilado vertical */
+    gap: 0.75rem; /* Separacion entre bloques */
+}
+
+/* Caja de metrica destacada en el modal */
+.modal-metric-card {
+    background: #f8fafc; /* Fondo suave */
+    border: 1px solid #e2e8f0; /* Borde */
+    border-radius: 0.5rem; /* Redondeado */
+    padding: 0.75rem; /* Relleno */
+}
+
+/* Pie del modal */
+.equipment-modal-footer {
+    padding: 0.85rem 1.25rem; /* Relleno */
+    border-top: 1px solid var(--border-color); /* Separador superior */
+    background: #f8fafc; /* Fondo gris muy suave */
+    display: flex; /* Flexbox */
+    justify-content: space-between; /* Distribucion */
+    align-items: center; /* Centrado */
+    border-bottom-left-radius: 0.75rem; /* Esquina inferior izquierda redondeada */
+    border-bottom-right-radius: 0.75rem; /* Esquina inferior derecha redondeada */
+}
+
+/* Adaptabilidad a dispositivos moviles (Smartphones) */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;       /* Apilado vertical */
+        align-items: flex-start;      /* Alineacion a la izquierda */
+        gap: 0.75rem;                 /* Separacion */
+    }
+    .nav-links {
+        width: 100%;                  /* Ocupa todo el ancho */
+        flex-wrap: wrap;              /* Envoltura de botones */
+        gap: 0.35rem;                 /* Espaciado estrecho */
+    }
+    .nav-links a {
+        padding: 0.35rem 0.5rem;      /* Botones mas compactos */
+        font-size: 0.85rem;           /* Texto mas compacto */
+    }
+    .metric-value {
+        font-size: 1.85rem;           /* Ajusta el tamano de cifras en pantallas angostas */
+    }
+    .oil-global-summary {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{# Extiende la plantilla base de BioBalcarce #}
+
+{# Asigna el flag para ocultar la barra superior estandar y el footer clasico #}
+{% set hide_navbar = true %}
+
+{# Titulo de la pestana #}
+{% block title %}Ingreso al Sistema - BioBalcarce Control de Planta{% endblock %}
+
+{# Contenido inmersivo a pantalla completa inspirado en la estetica oficial de aceitera #}
+{% block full_content %}
+<!-- Contenedor inmersivo a pantalla completa con fondo de aceitera y curvas doradas -->
+<div class="oil-login-wrapper" style="position: relative; min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+
+    <!-- Imagen de fondo alusiva a la planta aceitera moderna con filtro de luminosidad -->
+    <div class="oil-bg-layer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('{{ url_for('static', filename='images/oil_plant_bg.jpg') }}'); background-size: cover; background-position: center; filter: blur(3px) brightness(1.08); transform: scale(1.03); z-index: 1;"></div>
+
+    <!-- Capa de brillo y degradado de luz calida de girasol -->
+    <div class="oil-light-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.72) 60%, rgba(254,243,199,0.65) 100%); z-index: 2;"></div>
+
+    <!-- Curva dorada decorativa superior izquierda (alusiva al flujo de aceite y girasol) -->
+    <svg class="decorative-arc-top" viewBox="0 0 500 500" style="position: absolute; top: -100px; left: -100px; width: 480px; height: 480px; z-index: 3; pointer-events: none; opacity: 0.9;" fill="none">
+        <!-- Arco exterior dorado calido -->
+        <circle cx="200" cy="200" r="180" stroke="url(#goldArcGrad)" stroke-width="28" stroke-linecap="round"/>
+        <!-- Arco interior sutil -->
+        <circle cx="200" cy="200" r="140" stroke="rgba(245, 158, 11, 0.25)" stroke-width="12"/>
+        <defs>
+            <!-- Degradado lineal dorado -->
+            <linearGradient id="goldArcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <!-- Color de inicio ambar intenso -->
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.9"/>
+                <!-- Color intermedio amarillo dorado -->
+                <stop offset="60%" stop-color="#fbbf24" stop-opacity="0.75"/>
+                <!-- Color de salida suave -->
+                <stop offset="100%" stop-color="#fef08a" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Curva dorada decorativa inferior derecha -->
+    <svg class="decorative-arc-bottom" viewBox="0 0 500 500" style="position: absolute; bottom: -120px; right: -120px; width: 520px; height: 520px; z-index: 3; pointer-events: none; opacity: 0.85;" fill="none">
+        <!-- Arco exterior inferior -->
+        <circle cx="300" cy="300" r="190" stroke="url(#goldArcGrad2)" stroke-width="32"/>
+        <defs>
+            <!-- Degradado lineal inferior -->
+            <linearGradient id="goldArcGrad2" x1="100%" y1="100%" x2="0%" y2="0%">
+                <!-- Color ambar -->
+                <stop offset="0%" stop-color="#d97706" stop-opacity="0.85"/>
+                <!-- Color dorado -->
+                <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.6"/>
+                <!-- Transparencia -->
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Columna Lateral Izquierda (visible en pantallas medianas y grandes) -->
+    <div class="login-side-left" style="position: absolute; left: 4rem; top: 38%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1.25rem;">
+        <!-- Bloque de palabras clave de origen de materia prima -->
+        <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: #475569; text-transform: uppercase;">
+            <!-- Semilla -->
+            <span>SEMILLA</span>
+            <!-- Aceite -->
+            <span>ACEITE</span>
+            <!-- Expeller -->
+            <span>EXPELLER</span>
+            <!-- Linea acento ambar -->
+            <div style="width: 28px; height: 3px; background: #f59e0b; border-radius: 9999px; margin-top: 0.4rem;"></div>
+        </div>
+
+        <!-- Frase institucional en letra cursiva estilo manuscrito -->
+        <div style="font-family: 'Brush Script MT', 'Segoe Script', cursive, sans-serif; font-size: 1.65rem; color: #64748b; line-height: 1.2; transform: rotate(-5deg); margin-top: 1rem; opacity: 0.85;">
+            <!-- Texto manuscrito -->
+            El valor de<br>estar presentes
+        </div>
+    </div>
+
+    <!-- Columna Lateral Derecha (visible en pantallas medianas y grandes) -->
+    <div class="login-side-right" style="position: absolute; right: 4rem; top: 38%; transform: translateY(-50%); z-index: 4; text-align: right;">
+        <!-- Bloque de pilares industriales -->
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: #475569; text-transform: uppercase;">
+            <!-- Proceso continuo -->
+            <span>PROCESO</span>
+            <!-- Eficiencia de planta -->
+            <span>EFICIENCIA</span>
+            <!-- Resultados -->
+            <span>RESULTADOS</span>
+            <!-- Linea acento ambar -->
+            <div style="width: 28px; height: 3px; background: #f59e0b; border-radius: 9999px; margin-top: 0.4rem;"></div>
+        </div>
+    </div>
+
+    <!-- Tarjeta Central de Ingreso al Sistema -->
+    <div class="login-center-container" style="position: relative; z-index: 5; width: 100%; max-width: 430px; margin: 1.5rem; display: flex; flex-direction: column; align-items: center;">
+
+        <!-- Logotipo Oficial de BioBalcarce sobre la tarjeta -->
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+            <!-- Imagen oficial completa del logo BioBalcarce (Girasol, gota dorada y hojas) -->
+            <img src="{{ url_for('static', filename='images/logo_full.png') }}" alt="BioBalcarce Aceite de Girasol" style="max-width: 240px; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));">
+        </div>
+
+        <!-- Tarjeta blanca de formulario con diseno ergonomico y bordes redondeados -->
+        <div style="background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(12px); border-radius: 1.25rem; box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.8); width: 100%; padding: 2rem 2.25rem;">
+
+            <!-- Titulo centrado de ingreso -->
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; text-align: center; margin: 0 0 1.5rem 0;">
+                Ingreso al sistema
+            </h2>
+
+            <!-- Mensajes flash de error o informacion -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                <!-- Si hay mensajes -->
+                {% if messages %}
+                    <!-- Itera alertas -->
+                    {% for category, message in messages %}
+                        <!-- Alerta individual -->
+                        <div class="alert alert-{{ category }}" style="margin-bottom: 1.25rem; padding: 0.65rem 0.85rem; font-size: 0.825rem; border-radius: 0.5rem;">
+                            <!-- Texto -->
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Formulario de envio POST -->
+            <form action="{{ url_for('dashboard.login') }}" method="POST">
+
+                <!-- Campo de Usuario -->
+                <div class="form-group" style="margin-bottom: 1.15rem;">
+                    <!-- Etiqueta con icono de persona -->
+                    <label for="username" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.825rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">
+                        <!-- Icono SVG de usuario -->
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span>Usuario o DNI</span>
+                    </label>
+                    <!-- Input de usuario estilizado -->
+                    <input class="form-input" type="text" id="username" name="username" placeholder="Ingrese su usuario o DNI" required autofocus
+                           style="width: 100%; padding: 0.7rem 0.9rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; font-size: 0.95rem; background: #ffffff; transition: border-color 0.2s;">
+                </div>
+
+                <!-- Campo de Contrasena / PIN -->
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <!-- Etiqueta con icono de candado -->
+                    <label for="pin" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.825rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem;">
+                        <!-- Icono SVG de candado -->
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span>Contraseña</span>
+                    </label>
+                    <!-- Contenedor con boton de ver/ocultar contrasena -->
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <!-- Input de clave -->
+                        <input class="form-input" type="password" id="pin" name="pin" placeholder="Ingrese su contraseña" required
+                               style="width: 100%; padding: 0.7rem 2.5rem 0.7rem 0.9rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; font-size: 0.95rem; background: #ffffff;">
+                        <!-- Boton interactivo para alternar visibilidad -->
+                        <button type="button" onclick="togglePasswordVisibility()" style="position: absolute; right: 0.75rem; background: none; border: none; cursor: pointer; color: #64748b; padding: 0.2rem;" title="Mostrar / Ocultar contraseña">
+                            <!-- Icono de ojo SVG -->
+                            <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Boton dorado ambar de ingreso con flecha (identico a la referencia del usuario) -->
+                <button type="submit" class="btn" style="width: 100%; padding: 0.85rem 1.25rem; font-size: 1rem; font-weight: 700; color: #ffffff; background: linear-gradient(90deg, #f59e0b, #d97706); border: none; border-radius: 0.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: transform 0.15s, box-shadow 0.15s;">
+                    <!-- Texto del boton -->
+                    <span>Ingresar</span>
+                    <!-- Flecha indicativa -->
+                    <span style="font-size: 1.1rem; line-height: 1;">&rarr;</span>
+                </button>
+            </form>
+
+            <!-- Lema institucional inferior -->
+            <div style="text-align: center; margin-top: 1.25rem; font-size: 0.75rem; color: #64748b;">
+                <!-- Descripcion -->
+                <span>Control de Planta & Rendimiento Industrial</span>
+            </div>
+
+            <!-- Separador sutil -->
+            <div style="height: 1px; background: #f1f5f9; margin: 1.25rem 0;"></div>
+
+            <!-- Enlaces de autogestion de cuenta -->
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; text-align: center; font-size: 0.8rem;">
+                <!-- Enlace para recuperar contrasena por WhatsApp / OTP -->
+                <a href="{{ url_for('dashboard.forgot_password') }}" style="color: #2563eb; text-decoration: none; font-weight: 600;">
+                    🔑 ¿Olvidó su contraseña? <strong>Recuperar clave</strong>
+                </a>
+                <!-- Enlace para autoregistro con aprobacion de administrador -->
+                <div style="color: #64748b;">
+                    ¿No tiene cuenta aún?
+                    <a href="{{ url_for('dashboard.register') }}" style="color: #15803d; text-decoration: none; font-weight: 700; margin-left: 0.2rem;">
+                        📝 Registrarme
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Watermark inferior derecho "powered by puntoAR" (exactamente como en la referencia del usuario) -->
+    <div class="login-footer-watermark" style="position: absolute; bottom: 1.5rem; right: 2rem; z-index: 4; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
+        <!-- Texto itálica powered by -->
+        <span style="font-family: Georgia, serif; font-style: italic; color: #64748b; font-size: 0.85rem;">powered by</span>
+        <!-- Logotipo puntoAR estilizado en SVG/CSS -->
+        <div style="display: inline-flex; align-items: center; background: rgba(30, 41, 59, 0.85); padding: 0.25rem 0.65rem; border-radius: 9999px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+            <!-- Palabra punto en blanco -->
+            <span style="color: #ffffff; font-weight: 700; font-size: 0.85rem; letter-spacing: -0.02em;">punto</span>
+            <!-- Letras AR en ambar brillante -->
+            <span style="color: #f59e0b; font-weight: 900; font-size: 0.92rem; margin-left: 1px; letter-spacing: 0.02em;">AR</span>
+            <!-- Indicador circular naranja de conexion -->
+            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; margin-left: 0.3rem;"></span>
+        </div>
+    </div>
+
+</div>
+
+<!-- Script interactivo para alternar visualizacion de contrasena -->
+<script>
+// Funcion para conmutar entre texto y asteriscos en el campo de clave
+function togglePasswordVisibility() {
+    // Obtiene el input del pin
+    const pinInput = document.getElementById('pin');
+    // Si esta oculto en modo password
+    if (pinInput.type === 'password') {
+        // Pasa a texto plano
+        pinInput.type = 'text';
+    } else {
+        // Vuelve a password
+        pinInput.type = 'password';
+    }
+}
+</script>
+
+<!-- Estilos responsivos para ocultar columnas laterales en telefonos y pantallas pequenas -->
+<style>
+/* Oculta textos laterales en pantallas menores a 960px para centrar el formulario */
+@media (max-width: 960px) {
+    .login-side-left, .login-side-right {
+        display: none !important;
+    }
+    .decorative-arc-top, .decorative-arc-bottom {
+        opacity: 0.5 !important;
+    }
+}
+</style>
+{% endblock %}

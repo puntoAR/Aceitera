@@ -1,0 +1,1440 @@
+{% extends "base.html" %}
+<!-- Extiende la plantilla base del sistema industrial BioBalcarce -->
+
+{% block title %}Dashboard Administrativo Ejecutivo - BioBalcarce{% endblock %}
+<!-- Titulo de la pestana del navegador -->
+
+{% block content %}
+<!-- Cabecera de la pagina con guardia activa y accesos rapidos compactos -->
+<div class="page-header" style="margin-bottom: 0.85rem;">
+    <!-- Contenedor del titulo y estado de guardia -->
+    <div>
+        <!-- Titulo principal del tablero -->
+        <h1 class="page-title" style="font-size: 1.35rem; margin-bottom: 0.15rem;">Tablero de Control de Planta</h1>
+        <!-- Detalle de guardia y operador activo -->
+        <p style="color: #64748b; font-size: 0.85rem; margin: 0;">
+            <!-- Indicador de turno -->
+            Guardia actual: <strong>{{ data.active_shift.shift_name }}</strong> &bull; Operador: <strong>{{ data.active_shift.operator_name }}</strong>
+        </p>
+    </div>
+    <!-- Botones de accion rapida compactos exclusivos para Administrador del Sistema (Gerente solo visualiza) -->
+    {% if g.user and g.user.role == 'admin_sistema' %}
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Acceso directo a registro de pesadas -->
+        <a href="{{ url_for('production.index') }}" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">+ Cargar Pesada</a>
+        <!-- Acceso directo a cubicaje de tanques y silos -->
+        <a href="{{ url_for('inventory.index') }}" class="btn" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 0.35rem 0.75rem; font-size: 0.85rem;">+ Cubicar Nivel</a>
+        <!-- Acceso directo a balance y conciliacion -->
+        <a href="{{ url_for('yield.index') }}" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Conciliar Turno</a>
+    </div>
+    {% elif g.user and g.user.role == 'administrador' %}
+    <div>
+        <!-- Indicador de modo exclusivo lectura para Gerente sin carga de datos -->
+        <span style="background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 0.35rem 0.65rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+            👁️ Monitoreo Ejecutivo (Solo Lectura)
+        </span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ========================================================================= -->
+<!-- CONTENEDOR PRINCIPAL DEL COCKPIT EJECUTIVO (PANTALLA UNICA SIN SCROLL)    -->
+<!-- ========================================================================= -->
+<div class="cockpit-dashboard">
+
+    <!-- ===================================================================== -->
+    <!-- FILA 1: LOS TRES PILARES FUNDAMENTALES DEL PROCESO EN UN GOLPE DE VISTA -->
+    <!-- ===================================================================== -->
+    <div class="cockpit-kpis-grid">
+        
+        <!-- PILAR 1: STOCKS DE PLANTA (ACEITE, SEMILLA Y EXPELLER) -->
+        <div class="cockpit-kpi-card cockpit-card-stocks">
+            <!-- Encabezado de la tarjeta de existencias -->
+            <div>
+                <!-- Titulo del pilar -->
+                <div class="cockpit-kpi-header">
+                    <!-- Etiqueta -->
+                    <span class="cockpit-kpi-title">1. Existencias de Planta</span>
+                    <!-- Icono o badge -->
+                    <span style="font-size: 0.72rem; color: #b45309; font-weight: 700; background: #fef3c7; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        Capacidad Total
+                    </span>
+                </div>
+
+                <!-- Fila de Stock de Aceite -->
+                <div class="stock-item-row" style="margin-top: 0.3rem;">
+                    <!-- Etiqueta de aceite -->
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #334155;">Aceite Crudo (Tanques):</span>
+                    <!-- Valor acumulado -->
+                    <span style="font-size: 0.95rem; font-weight: 800; color: #b45309;">
+                        {{ "{:,.0f}".format(data.stocks.total_oil_kg).replace(",", ".") }} kg
+                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_oil_liters).replace(",", ".") }} L)</small>
+                    </span>
+                </div>
+                <!-- Barra de llenado de aceite -->
+                <div class="mini-progress-bar">
+                    <!-- Relleno porcentual de aceite -->
+                    <div class="mini-progress-fill" style="width: {{ data.stocks.total_oil_pct_fill }}%; background-color: #f59e0b;"></div>
+                </div>
+
+                <!-- Fila de Stock de Semilla -->
+                <div class="stock-item-row">
+                    <!-- Etiqueta de semilla -->
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #334155;">Semilla Girasol (Silos):</span>
+                    <!-- Valor acumulado -->
+                    <span style="font-size: 0.95rem; font-weight: 800; color: #15803d;">
+                        {{ "{:,.1f}".format(data.stocks.total_seed_tons).replace(",", ".") }} Tn
+                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_seed_kg).replace(",", ".") }} kg)</small>
+                    </span>
+                </div>
+                <!-- Barra de llenado de semilla -->
+                <div class="mini-progress-bar">
+                    <!-- Relleno porcentual de semilla -->
+                    <div class="mini-progress-fill" style="width: {{ data.stocks.total_seed_pct_fill }}%; background-color: #16a34a;"></div>
+                </div>
+
+                <!-- Fila de Stock de Expeller -->
+                <div class="stock-item-row">
+                    <!-- Etiqueta de expeller -->
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #334155;">Expeller Acopiado:</span>
+                    <!-- Valor acumulado -->
+                    <span style="font-size: 0.95rem; font-weight: 800; color: #854d0e;">
+                        {{ "{:,.1f}".format(data.stocks.total_expeller_tons).replace(",", ".") }} Tn
+                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_expeller_kg).replace(",", ".") }} kg)</small>
+                    </span>
+                </div>
+                <!-- Barra de llenado de expeller -->
+                <div class="mini-progress-bar">
+                    <!-- Relleno porcentual de expeller -->
+                    <div class="mini-progress-fill" style="width: {{ data.stocks.total_expeller_pct_fill }}%; background-color: #d97706;"></div>
+                </div>
+            </div>
+            <!-- Pie informativo con resumen general -->
+            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between;">
+                <!-- Ocupacion de aceite -->
+                <span>Aceite: <strong>{{ data.stocks.total_oil_pct_fill }}%</strong></span>
+                <!-- Ocupacion de semilla -->
+                <span>Semilla: <strong>{{ data.stocks.total_seed_pct_fill }}%</strong></span>
+                <!-- Ocupacion de expeller -->
+                <span>Expeller: <strong>{{ data.stocks.total_expeller_pct_fill }}%</strong></span>
+            </div>
+        </div>
+
+        <!-- PILAR 2: VELOCIDADES DE PROCESO Y RITMO DE MARCHA -->
+        <div class="cockpit-kpi-card cockpit-card-speeds">
+            <!-- Contenido principal de velocidades -->
+            <div>
+                <!-- Encabezado del bloque -->
+                <div class="cockpit-kpi-header">
+                    <!-- Titulo -->
+                    <span class="cockpit-kpi-title">2. Velocidades y Marcha</span>
+                    <!-- Indicador de estado de linea -->
+                    <span style="font-size: 0.72rem; color: #1d4ed8; font-weight: 700; background: #eff6ff; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        Línea de Extrusión
+                    </span>
+                </div>
+
+                <!-- Velocidad actual y proyeccion -->
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.25rem;">
+                    <!-- Velocidad media de semilla -->
+                    <div>
+                        <!-- Etiqueta -->
+                        <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Ingreso Semilla</div>
+                        <!-- Valor principal en kg/h -->
+                        <div style="font-size: 1.6rem; font-weight: 900; color: #1d4ed8; line-height: 1.1;">
+                            {{ "{:,.0f}".format(data.speed_summary.seed_avg_speed).replace(",", ".") }}
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #64748b;">kg/h</span>
+                        </div>
+                    </div>
+                    <!-- Proyeccion del turno a 8h -->
+                    <div style="text-align: right;">
+                        <!-- Etiqueta -->
+                        <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Proy. Turno (8h)</div>
+                        <!-- Valor en Tn -->
+                        <div style="font-size: 1.2rem; font-weight: 800; color: #0f172a;">
+                            {{ "{:,.1f}".format(data.speed_summary.seed_proj_8h / 1000.0).replace(",", ".") }}
+                            <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Tn</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ritmo de salida de expeller y proyeccion 24h -->
+                <div style="margin-top: 0.6rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.375rem; border: 1px solid #f1f5f9; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <!-- Salida de expeller -->
+                    <div>
+                        <!-- Etiqueta -->
+                        <span style="font-size: 0.7rem; color: #64748b;">Salida Expeller:</span>
+                        <!-- Valor -->
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #854d0e;">
+                            {{ "{:,.0f}".format(data.speed_summary.expeller_avg_speed).replace(",", ".") }} kg/h
+                        </div>
+                    </div>
+                    <!-- Proyeccion 24 horas -->
+                    <div>
+                        <!-- Etiqueta -->
+                        <span style="font-size: 0.7rem; color: #64748b;">Ritmo Día (24h):</span>
+                        <!-- Valor -->
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #334155;">
+                            {{ "{:,.1f}".format(data.speed_summary.seed_proj_24h / 1000.0).replace(",", ".") }} Tn
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Pie de tarjeta con horas efectivas de marcha -->
+            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between;">
+                <!-- Horas efectivas -->
+                <span>Marcha efectiva: <strong>{{ data.speed_summary.effective_hours }} h</strong></span>
+                <!-- Paradas -->
+                <span>Paradas: <strong style="color: {{ '#ef4444' if data.speed_summary.stop_minutes > 0 else '#10b981' }};">{{ data.speed_summary.stop_minutes }} min</strong></span>
+            </div>
+        </div>
+
+        <!-- PILAR 3: EFICIENCIA Y RENDIMIENTO INDUSTRIAL -->
+        <div class="cockpit-kpi-card cockpit-card-yield">
+            <!-- Contenido principal de rendimiento -->
+            <div>
+                <!-- Encabezado del bloque -->
+                <div class="cockpit-kpi-header">
+                    <!-- Titulo -->
+                    <span class="cockpit-kpi-title">3. Eficiencia y Rendimiento</span>
+                    <!-- Indicador -->
+                    <span style="font-size: 0.72rem; color: #166534; font-weight: 700; background: #dcfce7; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        Balance de Masa
+                    </span>
+                </div>
+
+                {% if data.latest_yield %}
+                <!-- Grid con dos indicadores de rendimiento clave -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                    <!-- Rendimiento de extraccion de aceite -->
+                    <div style="background-color: #f0fdf4; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bbf7d0;">
+                        <!-- Etiqueta -->
+                        <div style="font-size: 0.68rem; text-transform: uppercase; color: #166534; font-weight: 700;">Rend. Aceite (Extr.)</div>
+                        <!-- Valor porcentual -->
+                        <div style="font-size: 1.45rem; font-weight: 900; color: #15803d; line-height: 1.1;">
+                            {{ data.latest_yield.oil_yield_pct }}%
+                        </div>
+                        <!-- Subtexto -->
+                        <div style="font-size: 0.68rem; color: #166534;">% de masa procesada</div>
+                    </div>
+                    <!-- Eficiencia de recuperacion de grasa disponible -->
+                    <div style="background-color: #eff6ff; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bfdbfe;">
+                        <!-- Etiqueta -->
+                        <div style="font-size: 0.68rem; text-transform: uppercase; color: #1e40af; font-weight: 700;">Recup. Disponible</div>
+                        <!-- Valor porcentual -->
+                        <div style="font-size: 1.45rem; font-weight: 900; color: #1d4ed8; line-height: 1.1;">
+                            {{ data.latest_yield.oil_recovery_pct }}%
+                        </div>
+                        <!-- Subtexto -->
+                        <div style="font-size: 0.68rem; color: #1e40af;">Eficiencia vs grasa semilla</div>
+                    </div>
+                </div>
+
+                <!-- Sub-datos de expeller y balance de masa -->
+                <div style="margin-top: 0.5rem; font-size: 0.72rem; color: #475569; background: #f8fafc; padding: 0.4rem 0.6rem; border-radius: 0.375rem; border: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
+                    <!-- Rendimiento expeller -->
+                    <span>Rend. Expeller: <strong>{{ data.latest_yield.expeller_yield_pct }}%</strong></span>
+                    <!-- Diferencia de balance -->
+                    <span>Dif. Balance: <strong>{{ data.latest_yield.mass_diff_pct }}%</strong></span>
+                </div>
+                {% else %}
+                <!-- Mensaje cuando no hay conciliacion previa -->
+                <div style="padding: 0.75rem 1rem; text-align: center; color: #64748b; background-color: #f8fafc; border-radius: 0.375rem; margin-top: 0.5rem;">
+                    <!-- Texto de aviso informativo -->
+                    <p style="font-size: 0.8rem; margin-bottom: 0.4rem;">Sin conciliación registrada en este turno.</p>
+                    <!-- Acciones segun perfil -->
+                    {% if g.user and g.user.role == 'admin_sistema' %}
+                    <!-- Boton de calculo exclusivo para Administrador -->
+                    <a href="{{ url_for('yield.index') }}" class="btn btn-success" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Calcular Eficiencia</a>
+                    {% else %}
+                    <!-- Boton para ver historial en modal sin recargar pantalla para Gerente -->
+                    <button type="button" onclick="openYieldHistoryModal()" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Ver Historial de Balances</button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <!-- Pie de tarjeta con turno evaluado y accesos rapidos a historial -->
+            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+                <!-- Turno de ultima conciliacion registrada -->
+                <span>Último balance: <strong>{{ data.latest_yield.date_shift if data.latest_yield else 'Pendiente' }}</strong></span>
+                <!-- Acciones combinadas de modal directo e informe completo -->
+                <div style="display: flex; gap: 0.45rem; align-items: center;">
+                    <!-- Boton interactivo para abrir historial completo en modal emergente -->
+                    <button type="button" onclick="openYieldHistoryModal()" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; font-size: 0.72rem;">
+                        📋 Ver Historial &rarr;
+                    </button>
+                    <!-- Enlace a pagina de rendimiento (autorizada para Gerente en solo lectura y Admin) -->
+                    {% if g.user and g.user.role in ['administrador', 'admin_sistema'] %}
+                    <a href="{{ url_for('yield.index') }}" style="color: #64748b; text-decoration: none; font-size: 0.68rem;" title="Abrir informe completo de balance">
+                        (Informe)
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- FILA 2: MONITOREO COMPACTO DE EQUIPOS (IZQ) Y CURVA HORARIA (DER)     -->
+    <!-- ===================================================================== -->
+    <div class="cockpit-main-grid">
+
+        <!-- PANEL IZQUIERDO: MONITOREO INTERACTIVO DE TANQUES Y SILOS COMPACTOS -->
+        <div class="cockpit-equipments-card">
+            
+            <!-- SECCION A: TANQUES DE ACEITE (TAMANO VISUAL UNIFORME Y SIMETRICO) -->
+            <div>
+                <!-- Encabezado de seccion de tanques -->
+                <div class="equipment-block-header">
+                    <!-- Titulo con icono de tanque -->
+                    <span class="equipment-block-title">
+                        <!-- Icono SVG de cilindro -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                        </svg>
+                        Tanques de Aceite (3)
+                    </span>
+                    <!-- Indicador interactivo para el usuario -->
+                    <span class="equipment-block-hint">👆 Clic en un tanque para ver 3D y cubicaje</span>
+                </div>
+
+                <!-- Grilla de 3 tanques con tamano visual simetrico e identico -->
+                <div class="tank-compact-grid">
+                    {% for t in data.stocks.tanks %}
+                    <!-- Tarjeta interactiva de tanque con tamano uniforme -->
+                    <div class="tank-mini-card" onclick="openTankModal('{{ t.code }}')" title="Ver modelo 3D y detalle de {{ t.name }}">
+                        <!-- Fila superior del tanque mini -->
+                        <div class="tank-mini-top">
+                            <!-- Codigo distintivo del tanque -->
+                            <span class="tank-mini-code">{{ t.code }}</span>
+                            <!-- Porcentaje de llenado -->
+                            <span class="tank-mini-pct">{{ "{:.1f}".format(t.pct_fill) }}%</span>
+                        </div>
+                        <!-- Tipo geometrico y capacidad calculable diferenciada -->
+                        <div class="tank-mini-name">
+                            {{ 'Horizontal' if t.is_horizontal else 'Vertical' }} &bull; {{ "{:,.0f}".format(t.max_liters).replace(",", ".") }} L
+                        </div>
+                        <!-- Masa calculada actual -->
+                        <div class="tank-mini-mass">
+                            {{ "{:,.0f}".format(t.oil_kg).replace(",", ".") }} <span style="font-size: 0.72rem; font-weight: 600; color: #64748b;">kg</span>
+                        </div>
+                        <!-- Barra de nivel mini dentro de la tarjeta -->
+                        <div class="mini-progress-bar" style="margin: 0.15rem 0;">
+                            <!-- Progreso segun porcentaje de llenado -->
+                            <div class="mini-progress-fill" style="width: {{ t.pct_fill }}%; background-color: #f59e0b;"></div>
+                        </div>
+                        <!-- Nivel medido en metros -->
+                        <div class="tank-mini-sub">
+                            <!-- Nivel actual en metros -->
+                            <span>Nivel: <strong>{{ "{:.2f}".format(t.level_m) }} m</strong></span>
+                            <!-- Capacidad util calculada -->
+                            <span>{{ "{:,.0f}".format(t.liters).replace(",", ".") }} L</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- SECCION B: SILOS DE CEREAL Y EXPELLER COMPACTOS -->
+            <div>
+                <!-- Encabezado de la seccion de silos -->
+                <div class="equipment-block-header">
+                    <!-- Titulo con icono de silo -->
+                    <span class="equipment-block-title">
+                        <!-- Icono SVG de tolva de silo -->
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z"/>
+                            <path d="M12 22V12"/>
+                            <path d="M3 7l9 5 9-5"/>
+                        </svg>
+                        Silos de Acopio de Planta ({{ data.stocks.silos|length }})
+                    </span>
+                    <!-- Indicador interactivo para el usuario -->
+                    <span class="equipment-block-hint">👆 Clic en un silo para ver 3D y chapas</span>
+                </div>
+
+                <!-- Grilla de silos compacta (semilla y expeller) -->
+                <div class="silo-compact-grid">
+                    {% for s in data.stocks.silos %}
+                    {% set is_exp = (s.product == 'expeller') %}
+                    <!-- Tarjeta interactiva de silo compacta -->
+                    <div class="silo-mini-card {{ 'expeller' if is_exp else 'seed' }}" onclick="openSiloModal('{{ s.code }}')" title="Ver modelo 3D y cubicaje de {{ s.name }}">
+                        <!-- Fila superior del silo mini -->
+                        <div class="silo-mini-top">
+                            <!-- Codigo distintivo -->
+                            <span class="silo-mini-code {{ 'expeller' if is_exp else 'seed' }}">{{ s.code }}</span>
+                            <!-- Porcentaje de llenado -->
+                            <span class="silo-mini-pct">{{ "{:.1f}".format(s.pct_fill) }}%</span>
+                        </div>
+                        <!-- Masa acumulada en toneladas -->
+                        <div class="silo-mini-tons {{ 'expeller' if is_exp else 'seed' }}">
+                            {{ "{:,.1f}".format(s.stock_tons).replace(",", ".") }} <span style="font-size: 0.72rem; font-weight: 600; color: #64748b;">Tn</span>
+                        </div>
+                        <!-- Barra de progreso de llenado del silo -->
+                        <div class="mini-progress-bar" style="margin: 0.15rem 0;">
+                            <!-- Barra coloreada segun producto -->
+                            <div class="mini-progress-fill" style="width: {{ s.pct_fill }}%; background-color: {{ '#d97706' if is_exp else '#16a34a' }};"></div>
+                        </div>
+                        <!-- Detalle de chapas cubiertas -->
+                        <div class="silo-mini-sheets">
+                            <!-- Chapas ocupadas -->
+                            <span>{{ s.covered_sheets }}/{{ s.total_sheets }} ch</span>
+                            <!-- Producto abreviado -->
+                            <span>{{ 'Expeller' if is_exp else 'Semilla' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+        <!-- PANEL DERECHO: CURVA HORARIA DE VELOCIDAD Y ULTIMAS PESADAS -->
+        <div class="cockpit-charts-card">
+            
+            <!-- BLOQUE SUPERIOR: GRAFICO INTERACTIVO DE VELOCIDADES DEL TURNO -->
+            <div>
+                <!-- Encabezado del grafico de evolucion horaria -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <!-- Titulo interactivo con cursor de clic para desplegar historial -->
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; cursor: pointer;" onclick="openSpeedHistoryModal()" title="Ver historial completo de pesadas y velocidades">
+                        📈 Evolución Horaria de Velocidad (kg/h)
+                    </span>
+                    <!-- Controles de accion rapida -->
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <!-- Acceso interactivo al modal de historial completo sin recargar pantalla -->
+                        <button type="button" onclick="openSpeedHistoryModal()" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; font-size: 0.72rem;">
+                            📋 Ver Historial
+                        </button>
+                        <!-- Acceso rapido a registrar pesada exclusivo para admin -->
+                        {% if g.user and g.user.role == 'admin_sistema' %}
+                        <!-- Enlace de nueva pesada -->
+                        <a href="{{ url_for('production.index') }}" style="font-size: 0.72rem; color: #16a34a; text-decoration: none; font-weight: 600;">
+                            + Nueva Pesada
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Contenedor ajustado a altura fija compacta para evitar scroll con interactividad de clic -->
+                <div class="cockpit-chart-container" onclick="openSpeedHistoryModal()" style="cursor: pointer;" title="Haga clic en el gráfico para inspeccionar el historial completo de pesadas">
+                    <!-- Canvas para la libreria Chart.js -->
+                    <canvas id="speedChart"></canvas>
+                </div>
+            </div>
+
+            <!-- BLOQUE INFERIOR: MINI TABLA DE ULTIMOS MUESTREOS -->
+            <div style="border-top: 1px solid #f1f5f9; padding-top: 0.5rem;">
+                <!-- Titulo de la mini tabla -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                    <!-- Etiqueta -->
+                    <span style="font-size: 0.78rem; font-weight: 700; color: #475569;">Últimos Muestreos de Línea</span>
+                    <!-- Boton para abrir modal de historial completo sin redirigir a rutas prohibidas para gerente -->
+                    <button type="button" onclick="openSpeedHistoryModal()" style="background: none; border: none; font-size: 0.72rem; color: #2563eb; text-decoration: none; font-weight: 700; cursor: pointer; padding: 0;">
+                        Ver Historial Completo &rarr;
+                    </button>
+                </div>
+                <!-- Tabla responsive compacta -->
+                <table class="mini-weighings-table">
+                    <!-- Encabezados de tabla -->
+                    <thead>
+                        <tr>
+                            <th>Hora</th>
+                            <th>Material</th>
+                            <th>Muestra</th>
+                            <th>Velocidad</th>
+                            <th>Proy 8h</th>
+                        </tr>
+                    </thead>
+                    <!-- Filas con las ultimas pesadas -->
+                    <tbody>
+                        {% for w in data.recent_weighings[:4] %}
+                        <tr>
+                            <!-- Hora -->
+                            <td><strong>{{ w.timestamp.split(' ')[-1][:5] }}</strong></td>
+                            <!-- Punto de muestra -->
+                            <td>
+                                {% if w.sample_point == 'ingreso_semilla' %}
+                                <span style="color: #15803d; font-weight: 600;">Semilla</span>
+                                {% else %}
+                                <span style="color: #854d0e; font-weight: 600;">Expeller</span>
+                                {% endif %}
+                            </td>
+                            <!-- Peso neto y tiempo -->
+                            <td>{{ w.net_weight_kg }} kg / {{ w.fill_time_seconds|int }}s</td>
+                            <!-- Velocidad horaria -->
+                            <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
+                            <!-- Proyeccion de turno -->
+                            <td>{{ "{:,.1f}".format(w.proj_8h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <!-- Mensaje cuando aun no hay registros -->
+                            <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.5rem;">Sin pesadas registradas en el turno.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODALES INTERACTIVOS DE INSPECCION 3D Y CUBICAJE (BAJO DEMANDA POR CLIC)  -->
+<!-- ========================================================================= -->
+
+<!-- 1. MODALES PARA CADA UNO DE LOS TANQUES DE ACEITE (TK-01, TK-02, TK-03) -->
+{% for t in data.stocks.tanks %}
+<div class="equipment-modal-overlay" id="modal-tank-{{ t.code }}" onclick="handleBackdropClick(event, 'modal-tank-{{ t.code }}')">
+    <!-- Ventana de dialogo blanca del modal -->
+    <div class="equipment-modal-dialog">
+        <!-- Cabecera del modal -->
+        <div class="equipment-modal-header">
+            <!-- Titulo y codigo del tanque -->
+            <div class="equipment-modal-title">
+                <!-- Badge de codigo -->
+                <span class="tank-code-badge">{{ t.code }}</span>
+                <!-- Nombre del equipo -->
+                <span>{{ t.name }}</span>
+            </div>
+            <!-- Boton de cierre x -->
+            <button type="button" class="equipment-modal-close" onclick="closeEquipmentModal('modal-tank-{{ t.code }}')">&times;</button>
+        </div>
+
+        <!-- Cuerpo con el modelo 3D y especificaciones tecnicas -->
+        <div class="equipment-modal-body">
+            
+            <!-- Columna Izquierda: Escenario 3D SVG del cilindro en marco visual uniforme -->
+            <div class="modal-stage-frame">
+                {% if t.is_horizontal %}
+                {# ============================================================= #}
+                {# TANQUE HORIZONTAL TK-01 (Cilindro acostado en 3D sobre cunas) #}
+                {# ============================================================= #}
+                {% set pct = t.pct_fill %}
+                {% set pct_h = (t.level_m / t.max_level_m * 100) if t.max_level_m > 0 else 0 %}
+                {% set h_liq = ((104.0 * pct_h) / 100.0)|round(1) %}
+                {% set y_surf = (144.0 - h_liq)|round(1) %}
+                <svg class="cylinder-svg-horizontal" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" style="max-width: 250px; height: auto;">
+                    <defs>
+                        <!-- Sombra base eliptica en el piso -->
+                        <radialGradient id="m_hShadow_{{ t.code }}" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="rgba(15,23,42,0.25)"/>
+                            <stop offset="70%" stop-color="rgba(15,23,42,0.06)"/>
+                            <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+                        </radialGradient>
+                        
+                        <!-- Tapa eliptica izquierda convexa -->
+                        <radialGradient id="m_hCapLeft_{{ t.code }}" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="25%" stop-color="#e2e8f0"/>
+                            <stop offset="60%" stop-color="#94a3b8"/>
+                            <stop offset="100%" stop-color="#475569"/>
+                        </radialGradient>
+
+                        <!-- Fluido de aceite amarillo dorado -->
+                        <linearGradient id="m_hOilGrad_{{ t.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fef08a"/>
+                            <stop offset="25%" stop-color="#facc15"/>
+                            <stop offset="65%" stop-color="#eab308"/>
+                            <stop offset="100%" stop-color="#b45309"/>
+                        </linearGradient>
+
+                        <!-- Sombra sobre el fluido -->
+                        <linearGradient id="m_hOilShade_{{ t.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="rgba(255,255,255,0.3)"/>
+                            <stop offset="25%" stop-color="rgba(255,255,255,0.05)"/>
+                            <stop offset="70%" stop-color="rgba(0,0,0,0.12)"/>
+                            <stop offset="100%" stop-color="rgba(0,0,0,0.45)"/>
+                        </linearGradient>
+
+                        <!-- Recorte cilindrico horizontal -->
+                        <clipPath id="m_hTankClip_{{ t.code }}">
+                            <path d="M 45,40 L 235,40 A 18 52 0 0 1 235,144 L 45,144 A 18 52 0 0 1 45,40 Z"/>
+                        </clipPath>
+                    </defs>
+
+                    <!-- Sombra proyectada en suelo -->
+                    <ellipse cx="140" cy="180" rx="115" ry="12" fill="url(#m_hShadow_{{ t.code }})"/>
+                    <!-- Cunas estructurales de apoyo inferiores -->
+                    <path d="M 75,140 L 70,175 L 105,175 L 100,140 Z" fill="#64748b" stroke="#334155" stroke-width="1.2"/>
+                    <path d="M 180,140 L 175,175 L 210,175 L 205,140 Z" fill="#64748b" stroke="#334155" stroke-width="1.2"/>
+                    <!-- Manhole -->
+                    <rect x="132" y="31" width="20" height="11" rx="2" fill="#64748b" stroke="#334155"/>
+                    <ellipse cx="142" cy="31" rx="12" ry="4" fill="#94a3b8" stroke="#475569"/>
+
+                    <!-- Interior del cilindro vacio -->
+                    <path d="M 45,40 L 235,40 A 18 52 0 0 1 235,144 L 45,144 A 18 52 0 0 1 45,40 Z" fill="#f8fafc"/>
+                    <path d="M 45,40 L 235,40 A 18 52 0 0 1 235,144 L 45,144 A 18 52 0 0 1 45,40 Z" fill="#e2e8f0" opacity="0.35"/>
+
+                    <!-- Fluido de aceite segun nivel medido -->
+                    {% if pct > 0 %}
+                    <g clip-path="url(#m_hTankClip_{{ t.code }})">
+                        <rect x="25" y="{{ y_surf }}" width="230" height="{{ h_liq + 10 }}" fill="url(#m_hOilGrad_{{ t.code }})"/>
+                        <rect x="25" y="{{ y_surf }}" width="230" height="{{ h_liq + 10 }}" fill="url(#m_hOilShade_{{ t.code }})"/>
+                        <!-- Menisco del liquido -->
+                        <ellipse cx="140" cy="{{ y_surf }}" rx="95" ry="6" fill="#fef9c3" opacity="0.75" stroke="#ca8a04" stroke-width="0.8"/>
+                    </g>
+                    {% endif %}
+
+                    <!-- Carcasa cilindrica metalica -->
+                    <path d="M 45,40 L 235,40 A 18 52 0 0 1 235,144 L 45,144 A 18 52 0 0 1 45,40 Z" fill="none" stroke="#64748b" stroke-width="2"/>
+                    <!-- Brillos metalicos -->
+                    <line x1="45" y1="52" x2="235" y2="52" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"/>
+                    <ellipse cx="45" cy="92" rx="18" ry="52" fill="url(#m_hCapLeft_{{ t.code }})" stroke="#475569" stroke-width="2"/>
+                    <path d="M 235,40 A 18 52 0 0 1 235,144" fill="none" stroke="#475569" stroke-width="2"/>
+
+                    <!-- Regla graduada lateral (diametro de 2.50 m) -->
+                    <line x1="250" y1="40" x2="250" y2="144" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="246" y1="40" x2="254" y2="40" stroke="#64748b" stroke-width="1.5"/>
+                    <text x="258" y="43" font-size="8" fill="#64748b" font-weight="600">2.5m</text>
+                    <line x1="247" y1="92" x2="253" y2="92" stroke="#94a3b8" stroke-width="1.2"/>
+                    <text x="258" y="95" font-size="7.5" fill="#94a3b8">1.25m</text>
+                    <line x1="246" y1="144" x2="254" y2="144" stroke="#64748b" stroke-width="1.5"/>
+                    <text x="258" y="147" font-size="8" fill="#64748b" font-weight="600">0m</text>
+
+                    <!-- Texto de nivel y porcentaje central -->
+                    <text x="145" y="94" font-size="20" font-weight="900" fill="{{ '#ffffff' if pct_h >= 30 else '#b45309' }}" text-anchor="middle">{{ "{:.1f}".format(pct) }}%</text>
+                    <text x="145" y="112" font-size="11" font-weight="700" fill="{{ '#ffffff' if pct_h >= 30 else '#64748b' }}" text-anchor="middle">{{ "{:.2f}".format(t.level_m) }} m</text>
+                </svg>
+
+                {% else %}
+                {# ============================================================= #}
+                {# TANQUES VERTICALES TK-02 Y TK-03 EN MARCO SIMETRICO UNIFORME  #}
+                {# ============================================================= #}
+                {% set vx_w = 100.0 %}
+                {% set vx_x1 = 50.0 %}
+                {% set vx_x2 = 150.0 %}
+                {% set vx_rx = 50.0 %}
+                {% set vx_ry = 15.0 %}
+                {% set vy_top = 45.0 %}
+                {% set vy_base = 215.0 %}
+                {% set vh_total = 170.0 %}
+
+                {% set pct = t.pct_fill %}
+                {% set pct_h = (t.level_m / t.max_level_m * 100) if t.max_level_m > 0 else 0 %}
+                {% set h_liq = ((vh_total * pct_h) / 100.0)|round(1) %}
+                {% set y_surf = (vy_base - h_liq)|round(1) %}
+
+                <svg viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg" style="max-width: 170px; height: auto;">
+                    <defs>
+                        <!-- Sombra base eliptica -->
+                        <radialGradient id="m_vShadow_{{ t.code }}" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="rgba(15,23,42,0.25)"/>
+                            <stop offset="70%" stop-color="rgba(15,23,42,0.06)"/>
+                            <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+                        </radialGradient>
+
+                        <!-- Fluido vertical -->
+                        <linearGradient id="m_vOilGrad_{{ t.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fef08a"/>
+                            <stop offset="30%" stop-color="#facc15"/>
+                            <stop offset="70%" stop-color="#eab308"/>
+                            <stop offset="100%" stop-color="#b45309"/>
+                        </linearGradient>
+
+                        <!-- Recorte vertical del cilindro -->
+                        <clipPath id="m_vClip_{{ t.code }}">
+                            <rect x="{{ vx_x1 }}" y="{{ vy_top }}" width="{{ vx_w }}" height="{{ vh_total }}"/>
+                        </clipPath>
+                    </defs>
+
+                    <!-- Sombra en suelo -->
+                    <ellipse cx="100" cy="235" rx="65" ry="12" fill="url(#m_vShadow_{{ t.code }})"/>
+                    <!-- Tapa superior metalica -->
+                    <ellipse cx="100" cy="{{ vy_top }}" rx="{{ vx_rx }}" ry="{{ vx_ry }}" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/>
+
+                    <!-- Cuerpo cilindrico vacio -->
+                    <rect x="{{ vx_x1 }}" y="{{ vy_top }}" width="{{ vx_w }}" height="{{ vh_total }}" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+
+                    <!-- Fluido de aceite medido -->
+                    {% if pct > 0 %}
+                    <rect x="{{ vx_x1 }}" y="{{ y_surf }}" width="{{ vx_w }}" height="{{ h_liq }}" fill="url(#m_vOilGrad_{{ t.code }})" clip-path="url(#m_vClip_{{ t.code }})"/>
+                    <!-- Menisco superficial -->
+                    <ellipse cx="100" cy="{{ y_surf }}" rx="{{ vx_rx }}" ry="6" fill="#fef9c3" stroke="#ca8a04" stroke-width="0.8"/>
+                    {% endif %}
+
+                    <!-- Fondo base del tanque -->
+                    <ellipse cx="100" cy="{{ vy_base }}" rx="{{ vx_rx }}" ry="{{ vx_ry }}" fill="none" stroke="#475569" stroke-width="2"/>
+                    <!-- Paredes laterales -->
+                    <line x1="{{ vx_x1 }}" y1="{{ vy_top }}" x2="{{ vx_x1 }}" y2="{{ vy_base }}" stroke="#64748b" stroke-width="2"/>
+                    <line x1="{{ vx_x2 }}" y1="{{ vy_top }}" x2="{{ vx_x2 }}" y2="{{ vy_base }}" stroke="#64748b" stroke-width="2"/>
+
+                    <!-- Regla graduada lateral -->
+                    <line x1="165" y1="{{ vy_top }}" x2="165" y2="{{ vy_base }}" stroke="#94a3b8" stroke-width="1.5"/>
+                    <line x1="162" y1="{{ vy_top }}" x2="168" y2="{{ vy_top }}" stroke="#64748b" stroke-width="1.5"/>
+                    <text x="172" y="{{ vy_top + 4 }}" font-size="7.5" fill="#64748b" font-weight="600">{{ t.max_level_m }}m</text>
+                    <line x1="162" y1="{{ vy_base }}" x2="168" y2="{{ vy_base }}" stroke="#64748b" stroke-width="1.5"/>
+                    <text x="172" y="{{ vy_base + 3 }}" font-size="7.5" fill="#64748b" font-weight="600">0m</text>
+
+                    <!-- Porcentaje de llenado y nivel -->
+                    <text x="100" y="130" font-size="20" font-weight="900" fill="{{ '#ffffff' if pct_h >= 50 else '#b45309' }}" text-anchor="middle">{{ "{:.1f}".format(pct) }}%</text>
+                    <text x="100" y="148" font-size="11" font-weight="700" fill="{{ '#ffffff' if pct_h >= 50 else '#64748b' }}" text-anchor="middle">{{ "{:.2f}".format(t.level_m) }} m</text>
+                </svg>
+                {% endif %}
+            </div>
+
+            <!-- Columna Derecha: Especificaciones Tecnicas y Capacidad Calculable -->
+            <div class="modal-details-col">
+                
+                <!-- Masa de aceite en el tanque -->
+                <div class="modal-metric-card" style="border-left: 4px solid #f59e0b;">
+                    <!-- Etiqueta -->
+                    <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Masa de Aceite Almacenada</div>
+                    <!-- Valor principal en kg -->
+                    <div style="font-size: 1.65rem; font-weight: 900; color: #b45309; line-height: 1.1;">
+                        {{ "{:,.0f}".format(t.oil_kg).replace(",", ".") }} <span style="font-size: 0.9rem; font-weight: 600; color: #64748b;">kg</span>
+                    </div>
+                    <!-- Volumen util en litros -->
+                    <div style="font-size: 0.85rem; color: #475569; margin-top: 0.2rem;">
+                        Volumen actual: <strong>{{ "{:,.0f}".format(t.liters).replace(",", ".") }} Litros</strong>
+                    </div>
+                </div>
+
+                <!-- Capacidad maxima y dimensiones tecnicas -->
+                <div class="modal-metric-card">
+                    <!-- Fila de dimensiones -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Dimensiones Físicas:</span>
+                        <strong>{{ t.dims_label }}</strong>
+                    </div>
+                    <!-- Fila de capacidad total -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Capacidad Máxima:</span>
+                        <strong>{{ "{:,.0f}".format(t.max_liters).replace(",", ".") }} L ({{ "{:,.0f}".format(t.max_oil_kg).replace(",", ".") }} kg)</strong>
+                    </div>
+                    <!-- Fila de nivel actual vs maximo -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Nivel Medido:</span>
+                        <strong>{{ "{:.2f}".format(t.level_m) }} m de {{ "{:.2f}".format(t.max_level_m) }} m máx</strong>
+                    </div>
+                    <!-- Fila de densidad aplicada -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                        <span style="color: #64748b;">Densidad de Aceite:</span>
+                        <strong>&rho; = 0.92 kg/L</strong>
+                    </div>
+                </div>
+
+                <!-- Marca de tiempo del ultimo registro -->
+                <div style="font-size: 0.75rem; color: #64748b;">
+                    Última medición registrada: <strong>{{ t.timestamp }}</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Pie del modal con boton para ir a cubicar -->
+        <div class="equipment-modal-footer">
+            <!-- Informacion de formula aplicada -->
+            <span style="font-size: 0.75rem; color: #64748b;">
+                Fórmula: <strong>{{ 'Cilíndrico Horizontal (Arcocoseno)' if t.is_horizontal else 'Cilíndrico Vertical (&pi;&middot;r&sup2;&middot;h)' }}</strong>
+            </span>
+            <!-- Boton de accion para registrar nueva medicion exclusivo para admin -->
+            {% if g.user and g.user.role == 'admin_sistema' %}
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
+                + Registrar Nueva Medición
+            </a>
+            {% else %}
+            <span style="font-size: 0.75rem; color: #64748b; font-style: italic;">
+                Modo lectura (inspección de tanque)
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- 2. MODALES PARA CADA UNO DE LOS SILOS (SILO-01 AL SILO-05, AEREO V Y AEREO R) -->
+{% for s in data.stocks.silos %}
+{% set is_exp = (s.product == 'expeller') %}
+{% set n_sheets = s.total_sheets if s.total_sheets else 4 %}
+{% set covered = s.covered_sheets if s.covered_sheets is not none else 0.0 %}
+{% set grain_h = ((130.0 * [covered, n_sheets]|min) / n_sheets)|round(1) %}
+{% set y_grain = (195.0 - grain_h)|round(1) %}
+
+<div class="equipment-modal-overlay" id="modal-silo-{{ s.code }}" onclick="handleBackdropClick(event, 'modal-silo-{{ s.code }}')">
+    <!-- Ventana de dialogo blanca del modal -->
+    <div class="equipment-modal-dialog">
+        <!-- Cabecera del modal -->
+        <div class="equipment-modal-header">
+            <!-- Titulo y codigo del silo -->
+            <div class="equipment-modal-title">
+                <!-- Badge de codigo coloreado segun producto -->
+                <span class="silo-mini-code {{ 'expeller' if is_exp else 'seed' }}" style="font-size: 0.85rem; padding: 0.2rem 0.5rem;">
+                    {{ s.code }}
+                </span>
+                <!-- Nombre del equipo -->
+                <span>{{ s.name }}</span>
+            </div>
+            <!-- Boton de cierre x -->
+            <button type="button" class="equipment-modal-close" onclick="closeEquipmentModal('modal-silo-{{ s.code }}')">&times;</button>
+        </div>
+
+        <!-- Cuerpo del modal con modelo 3D y especificaciones -->
+        <div class="equipment-modal-body">
+            
+            <!-- Columna Izquierda: Escenario 3D SVG del silo en marco visual uniforme -->
+            <div class="modal-stage-frame">
+                <svg class="silo-svg" viewBox="0 0 220 305" xmlns="http://www.w3.org/2000/svg" style="max-width: 175px; height: auto;">
+                    <defs>
+                        <!-- Sombra base en suelo -->
+                        <radialGradient id="m_siloShadow_{{ s.code }}" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="rgba(15,23,42,0.3)"/>
+                            <stop offset="70%" stop-color="rgba(15,23,42,0.06)"/>
+                            <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+                        </radialGradient>
+
+                        <!-- Techo conico superior -->
+                        <linearGradient id="m_siloRoofGrad_{{ s.code }}" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="35%" stop-color="#e2e8f0"/>
+                            <stop offset="70%" stop-color="#94a3b8"/>
+                            <stop offset="100%" stop-color="#475569"/>
+                        </linearGradient>
+
+                        <!-- Tolva conica inferior -->
+                        <linearGradient id="m_siloHopperGrad_{{ s.code }}" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#334155"/>
+                            <stop offset="30%" stop-color="#64748b"/>
+                            <stop offset="70%" stop-color="#94a3b8"/>
+                            <stop offset="100%" stop-color="#1e293b"/>
+                        </linearGradient>
+
+                        <!-- Grano (Semilla dorado vs Expeller tostado) -->
+                        {% if is_exp %}
+                        <linearGradient id="m_grainGrad_{{ s.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fed7aa"/>
+                            <stop offset="25%" stop-color="#fb923c"/>
+                            <stop offset="65%" stop-color="#c2410c"/>
+                            <stop offset="100%" stop-color="#7c2d12"/>
+                        </linearGradient>
+                        {% else %}
+                        <linearGradient id="m_grainGrad_{{ s.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fef08a"/>
+                            <stop offset="25%" stop-color="#facc15"/>
+                            <stop offset="65%" stop-color="#ca8a04"/>
+                            <stop offset="100%" stop-color="#854d0e"/>
+                        </linearGradient>
+                        {% endif %}
+                    </defs>
+
+                    <!-- Sombra en suelo -->
+                    <ellipse cx="110" cy="285" rx="72" ry="11" fill="url(#m_siloShadow_{{ s.code }})"/>
+                    <!-- Patas estructurales -->
+                    <rect x="44" y="195" width="8" height="85" fill="#334155" stroke="#1e293b" stroke-width="1"/>
+                    <rect x="168" y="195" width="8" height="85" fill="#334155" stroke="#1e293b" stroke-width="1"/>
+                    <line x1="75" y1="195" x2="75" y2="280" stroke="#475569" stroke-width="5"/>
+                    <line x1="145" y1="195" x2="145" y2="280" stroke="#475569" stroke-width="5"/>
+
+                    <!-- Tolva conica inferior -->
+                    <polygon points="50,195 170,195 116,252 104,252" fill="url(#m_siloHopperGrad_{{ s.code }})" stroke="#334155" stroke-width="1.5"/>
+                    <rect x="102" y="252" width="16" height="8" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+
+                    <!-- Grano en la tolva si esta ocupada -->
+                    {% if s.cone_status != 'vacio' or covered > 0 %}
+                    <polygon points="52,195 168,195 115,250 105,250" fill="url(#m_grainGrad_{{ s.code }})"/>
+                    {% endif %}
+
+                    <!-- Cuerpo cilindrico de chapas vacio -->
+                    <rect x="50" y="65" width="120" height="130" fill="#f8fafc"/>
+                    <rect x="50" y="65" width="120" height="130" fill="#e2e8f0" opacity="0.4"/>
+
+                    <!-- Grano acopiado segun chapas cubiertas -->
+                    {% if covered > 0 %}
+                    <rect x="50" y="{{ y_grain }}" width="120" height="{{ grain_h }}" fill="url(#m_grainGrad_{{ s.code }})"/>
+                    <!-- Menisco conico superior -->
+                    <path d="M 50,{{ y_grain }} Q 110,{{ [y_grain - 18, 48]|max }} 170,{{ y_grain }} Z" fill="url(#m_grainGrad_{{ s.code }})" stroke="{{ '#c2410c' if is_exp else '#ca8a04' }}" stroke-width="1"/>
+                    {% endif %}
+
+                    <!-- Lineas divisorias de chapas de 0.99 m -->
+                    {% for i in range(1, n_sheets) %}
+                    {% set y_div = (195.0 - (130.0 * i / n_sheets))|round(1) %}
+                    <line x1="50" y1="{{ y_div }}" x2="170" y2="{{ y_div }}" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+                    {% endfor %}
+
+                    <!-- Bordes exteriores -->
+                    <line x1="50" y1="65" x2="50" y2="195" stroke="#64748b" stroke-width="2"/>
+                    <line x1="170" y1="65" x2="170" y2="195" stroke="#64748b" stroke-width="2"/>
+                    <ellipse cx="110" cy="195" rx="60" ry="7" fill="none" stroke="#475569" stroke-width="2"/>
+
+                    <!-- Marcadores de numeracion de chapas a la izquierda -->
+                    {% for i in range(1, n_sheets + 1) %}
+                    {% set y_num = (195.0 - (130.0 * (i - 0.5) / n_sheets) + 3)|round(1) %}
+                    <text x="44" y="{{ y_num }}" font-size="8" fill="{{ '#15803d' if covered >= i else '#94a3b8' }}" text-anchor="end" font-weight="{{ '700' if covered >= i else '500' }}">Ch {{ i }}</text>
+                    {% endfor %}
+
+                    <!-- Techo conico superior -->
+                    <polygon points="46,65 174,65 110,20" fill="url(#m_siloRoofGrad_{{ s.code }})" stroke="#475569" stroke-width="1.5"/>
+                    <ellipse cx="110" cy="65" rx="64" ry="7" fill="none" stroke="#64748b" stroke-width="1.8"/>
+                    <rect x="105" y="14" width="10" height="7" fill="#64748b" stroke="#334155"/>
+
+                    <!-- Texto de porcentaje y estado central -->
+                    <text x="110" y="142" font-size="20" font-weight="900" fill="{{ '#ffffff' if s.pct_fill >= 25 else '#334155' }}" text-anchor="middle">{{ "{:.1f}".format(s.pct_fill) }}%</text>
+                    <text x="110" y="160" font-size="11" font-weight="700" fill="{{ '#ffffff' if s.pct_fill >= 25 else '#64748b' }}" text-anchor="middle">{{ s.covered_sheets }} de {{ s.total_sheets }} ch</text>
+                </svg>
+            </div>
+
+            <!-- Columna Derecha: Especificaciones Tecnicas y Cubicaje Calculado -->
+            <div class="modal-details-col">
+                
+                <!-- Masa de cereal/expeller acopiado -->
+                <div class="modal-metric-card" style="border-left: 4px solid {{ '#d97706' if is_exp else '#16a34a' }};">
+                    <!-- Etiqueta -->
+                    <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Masa de Acopio Efectiva</div>
+                    <!-- Valor principal en toneladas -->
+                    <div style="font-size: 1.65rem; font-weight: 900; color: {{ '#854d0e' if is_exp else '#15803d' }}; line-height: 1.1;">
+                        {{ "{:,.1f}".format(s.stock_tons).replace(",", ".") }} <span style="font-size: 0.9rem; font-weight: 600; color: #64748b;">Tn</span>
+                    </div>
+                    <!-- Masa equivalente en kg y volumen m3 -->
+                    <div style="font-size: 0.85rem; color: #475569; margin-top: 0.2rem;">
+                        <strong>{{ "{:,.0f}".format(s.stock_kg).replace(",", ".") }} kg</strong> &bull; Volumen: <strong>{{ "{:,.1f}".format(s.volume_m3).replace(",", ".") }} m³</strong>
+                    </div>
+                </div>
+
+                <!-- Capacidad maxima y dimensiones tecnicas -->
+                <div class="modal-metric-card">
+                    <!-- Fila de dimensiones -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Diámetro y Altura:</span>
+                        <strong>&Oslash; {{ "{:.2f}".format(s.diameter_m) }} m &bull; {{ s.total_sheets }} Chapas ({{ "{:.2f}".format(s.cylinder_height_m) }} m)</strong>
+                    </div>
+                    <!-- Fila de cono y tolva -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Tolva / Cono Inferior:</span>
+                        <strong>H = {{ "{:.2f}".format(s.bottom_cone_height_m) }} m (Estado: {{ s.cone_status|capitalize }})</strong>
+                    </div>
+                    <!-- Fila de copete superior -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                        <span style="color: #64748b;">Copete Superior:</span>
+                        <strong>H = {{ "{:.2f}".format(s.copete_height_m) }} m (Máx: {{ "{:.2f}".format(s.copete_max_height_m) }} m)</strong>
+                    </div>
+                    <!-- Fila de capacidad total -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                        <span style="color: #64748b;">Capacidad Total Máx:</span>
+                        <strong>{{ "{:,.1f}".format(s.max_stock_tons).replace(",", ".") }} Tn ({{ "{:,.1f}".format(s.max_volume_m3).replace(",", ".") }} m³)</strong>
+                    </div>
+                </div>
+
+                <!-- Marca de tiempo de la medicion -->
+                <div style="font-size: 0.75rem; color: #64748b;">
+                    Último cubicaje registrado: <strong>{{ s.timestamp }}</strong>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Pie del modal con boton para ir a cubicar -->
+        <div class="equipment-modal-footer">
+            <!-- Informacion de formula aplicada -->
+            <span style="font-size: 0.75rem; color: #64748b;">
+                Cálculo: <strong>Chapas (&pi;&middot;r&sup2;&middot;H) + Cono (&pi;&middot;r&sup2;&middot;h/3) + Copete (&pi;&middot;r&sup2;&middot;h/3)</strong>
+            </span>
+            <!-- Boton de accion para registrar nuevo cubicaje exclusivo para admin -->
+            {% if g.user and g.user.role == 'admin_sistema' %}
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
+                + Registrar Cubicaje de Silo
+            </a>
+            {% else %}
+            <span style="font-size: 0.75rem; color: #64748b; font-style: italic;">
+                Modo lectura (inspección de silo)
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- ========================================================================= -->
+<!-- 3. MODAL DE HISTORIAL COMPLETO DE EFICIENCIA Y BALANCE DE MASA             -->
+<!-- ========================================================================= -->
+<!-- Overlay semitransparente con cierre por clic en el fondo -->
+<div class="equipment-modal-overlay" id="modal-yield-history" onclick="handleBackdropClick(event, 'modal-yield-history')">
+    <!-- Ventana de dialogo de ancho ergonomico para tablas historicas -->
+    <div class="equipment-modal-dialog" style="max-width: 950px;">
+        <!-- Cabecera del modal con tono verde de eficiencia industrial -->
+        <div class="equipment-modal-header" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-bottom: 1px solid #bbf7d0;">
+            <!-- Titulo distintivo y badge -->
+            <div class="equipment-modal-title">
+                <!-- Badge de clasificacion -->
+                <span class="tank-code-badge" style="background: #166534;">EFICIENCIA</span>
+                <!-- Denominacion del informe -->
+                <span style="color: #14532d; font-weight: 800;">Historial de Rendimiento y Balance de Masa</span>
+            </div>
+            <!-- Boton para cerrar la ventana -->
+            <button type="button" class="equipment-modal-close" onclick="closeEquipmentModal('modal-yield-history')">&times;</button>
+        </div>
+
+        <!-- Cuerpo del modal con descripcion y tabla con scroll independiente -->
+        <div class="equipment-modal-body" style="padding: 1.25rem; display: block;">
+            <!-- Fila superior informativa con enlace al modulo de balance -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <!-- Texto explicativo -->
+                <div>
+                    <!-- Detalle de los parametros -->
+                    <p style="margin: 0; font-size: 0.85rem; color: #475569;">
+                        Registro histórico de conciliaciones de turnos, rendimientos de extracción masica de aceite y eficiencia contra grasa de semilla.
+                    </p>
+                </div>
+                <!-- Si el usuario es gerente o admin muestra boton para ver el modulo completo -->
+                {% if g.user and g.user.role in ['administrador', 'admin_sistema'] %}
+                <!-- Boton hacia la pantalla completa de rendimiento -->
+                <a href="{{ url_for('yield.index') }}" class="btn" style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.78rem; padding: 0.35rem 0.75rem;">
+                    Abrir Pantalla de Rendimiento &rarr;
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Tabla de conciliaciones con scroll vertical controlado para evitar desbordes -->
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                <!-- Tabla formateada -->
+                <table class="table" style="font-size: 0.8rem; margin-bottom: 0;">
+                    <!-- Cabecera de columnas con posicion fija al scrollear -->
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                        <!-- Fila de titulos de columnas -->
+                        <tr>
+                            <!-- Columna Fecha y Turno -->
+                            <th>Fecha y Turno</th>
+                            <!-- Columna Semilla en Toneladas -->
+                            <th>Semilla (Tn)</th>
+                            <!-- Columna Aceite en Toneladas -->
+                            <th>Aceite (Tn)</th>
+                            <!-- Columna Expeller en Toneladas -->
+                            <th>Expeller (Tn)</th>
+                            <!-- Columna Rendimiento Masico -->
+                            <th>Extracción Aceite</th>
+                            <!-- Columna Recuperacion de Grasa -->
+                            <th>Recup. Grasa Disp.</th>
+                            <!-- Columna Grasa Residual -->
+                            <th>Grasa Residual</th>
+                            <!-- Columna Desvio de Balance -->
+                            <th>Dif. Balance</th>
+                            <!-- Columna Notas y Observaciones -->
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <!-- Filas con las conciliaciones historicas registradas -->
+                    <tbody>
+                        <!-- Itera sobre el historial de balances de masa -->
+                        {% for r in data.yield_history %}
+                        <!-- Fila individual de balance -->
+                        <tr>
+                            <!-- Identificador de turno con fecha -->
+                            <td><strong>{{ r.date_shift }}</strong></td>
+                            <!-- Semilla procesada en Tn -->
+                            <td>{{ "{:,.2f}".format(r.seed_processed_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            <!-- Aceite extraido en Tn -->
+                            <td>{{ "{:,.2f}".format(r.oil_produced_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            <!-- Expeller obtenido en Tn -->
+                            <td>{{ "{:,.2f}".format(r.expeller_produced_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            <!-- Porcentaje de extraccion masica de aceite -->
+                            <td>
+                                <!-- Badge verde de extraccion -->
+                                <span style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">
+                                    {{ r.oil_yield_pct }}%
+                                </span>
+                            </td>
+                            <!-- Porcentaje de recuperacion de grasa disponible -->
+                            <td>
+                                <!-- Badge azul de recuperacion -->
+                                <span style="background: #eff6ff; color: #1d4ed8; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">
+                                    {{ r.oil_recovery_pct }}%
+                                </span>
+                            </td>
+                            <!-- Grasa residual en expeller -->
+                            <td>{{ "{:,.0f}".format(r.residual_fat_kg).replace(",", ".") }} kg</td>
+                            <!-- Desvio de balance clasificado -->
+                            <td>
+                                <!-- Color rojo si el desvio supera el 5% -->
+                                <span style="color: {{ '#dc2626' if (r.mass_diff_pct|abs > 5.0) else '#16a34a' }}; font-weight: 600;">
+                                    {{ r.mass_diff_pct }}%
+                                </span>
+                            </td>
+                            <!-- Observaciones operativas -->
+                            <td style="color: #64748b; font-size: 0.75rem;">{{ r.notes or '-' }}</td>
+                        </tr>
+                        <!-- Estado cuando todavia no hay registros -->
+                        {% else %}
+                        <!-- Fila de aviso vacio -->
+                        <tr>
+                            <!-- Mensaje que abarca todas las columnas -->
+                            <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                                No hay conciliaciones de balance registradas todavía en el sistema.
+                            </td>
+                        </tr>
+                        <!-- Fin del bucle for -->
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pie del modal con boton de cierre -->
+        <div class="equipment-modal-footer" style="padding: 0.75rem 1.25rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end;">
+            <!-- Boton para cerrar ventana modal -->
+            <button type="button" class="btn" style="background: #64748b; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;" onclick="closeEquipmentModal('modal-yield-history')">
+                Cerrar Historial
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 4. MODAL DE HISTORIAL COMPLETO DE EVOLUCION HORARIA DE VELOCIDAD           -->
+<!-- ========================================================================= -->
+<!-- Overlay semitransparente con cierre interactivo -->
+<div class="equipment-modal-overlay" id="modal-speed-history" onclick="handleBackdropClick(event, 'modal-speed-history')">
+    <!-- Ventana de dialogo blanca para historial de velocidades -->
+    <div class="equipment-modal-dialog" style="max-width: 950px;">
+        <!-- Cabecera del modal con tono azul de marcha industrial -->
+        <div class="equipment-modal-header" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border-bottom: 1px solid #bfdbfe;">
+            <!-- Titulo y badge de velocidad -->
+            <div class="equipment-modal-title">
+                <!-- Badge azul -->
+                <span class="tank-code-badge" style="background: #1d4ed8;">VELOCIDAD</span>
+                <!-- Denominacion del modal -->
+                <span style="color: #1e3a8a; font-weight: 800;">Historial de Muestreos y Evolución Horaria</span>
+            </div>
+            <!-- Boton de cierre de ventana -->
+            <button type="button" class="equipment-modal-close" onclick="closeEquipmentModal('modal-speed-history')">&times;</button>
+        </div>
+
+        <!-- Cuerpo del modal de pesadas -->
+        <div class="equipment-modal-body" style="padding: 1.25rem; display: block;">
+            <!-- Controles de filtrado rapido por material -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <!-- Grupo de botones de filtro -->
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    <!-- Etiqueta -->
+                    <span style="font-size: 0.78rem; font-weight: 600; color: #475569;">Filtrar Material:</span>
+                    <!-- Boton todos -->
+                    <button type="button" class="btn filter-speed-btn active" id="filter-all" onclick="filterSpeedHistory('all')" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;">Todos</button>
+                    <!-- Boton solo semilla -->
+                    <button type="button" class="btn filter-speed-btn" id="filter-seed" onclick="filterSpeedHistory('semilla')" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;">Semilla</button>
+                    <!-- Boton solo expeller -->
+                    <button type="button" class="btn filter-speed-btn" id="filter-expeller" onclick="filterSpeedHistory('expeller')" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; background: #fffbeb; color: #92400e; border: 1px solid #fde68a;">Expeller</button>
+                </div>
+                <!-- Contador de registros disponibles -->
+                <div style="font-size: 0.78rem; color: #64748b;">
+                    Total registrados: <strong>{{ data.all_recent_weighings|length }}</strong> pesadas
+                </div>
+            </div>
+
+            <!-- Tabla de pesadas con scroll controlado para alta densidad -->
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem;">
+                <!-- Tabla de velocidades -->
+                <table class="table" style="font-size: 0.8rem; margin-bottom: 0;">
+                    <!-- Cabecera de columnas fijas -->
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 10;">
+                        <!-- Fila de encabezados -->
+                        <tr>
+                            <!-- Columna Fecha y hora -->
+                            <th>Fecha / Hora</th>
+                            <!-- Columna Turno de trabajo -->
+                            <th>Turno</th>
+                            <!-- Columna Material muestreado -->
+                            <th>Material</th>
+                            <!-- Columna Muestra bruta, neta y tiempo -->
+                            <th>Muestra (Neto / Tiempo)</th>
+                            <!-- Columna Velocidad instantanea calculada -->
+                            <th>Velocidad (kg/h)</th>
+                            <!-- Columna Proyeccion a 8 horas -->
+                            <th>Proy. 8h (Tn)</th>
+                            <!-- Columna Proyeccion diaria a 24 horas -->
+                            <th>Proy. 24h (Tn)</th>
+                            <!-- Columna Estado de la linea de proceso -->
+                            <th>Estado Línea</th>
+                            <!-- Columna Operario responsable -->
+                            <th>Operario</th>
+                        </tr>
+                    </thead>
+                    <!-- Cuerpo con los datos de las pesadas -->
+                    <tbody id="speed-history-tbody">
+                        <!-- Bucle sobre el historial extendido de pesadas -->
+                        {% for w in data.all_recent_weighings %}
+                        <!-- Fila individual de pesada con atributo data-material para filtrado rapido -->
+                        <tr class="speed-row" data-material="{{ 'semilla' if w.sample_point == 'ingreso_semilla' else 'expeller' }}">
+                            <!-- Fecha y hora del muestreo -->
+                            <td><strong>{{ w.timestamp }}</strong></td>
+                            <!-- Identificador de turno -->
+                            <td><span style="background: #e2e8f0; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-weight: 600;">{{ w.shift_id }}</span></td>
+                            <!-- Identificacion visual del material -->
+                            <td>
+                                <!-- Si es semilla de girasol -->
+                                {% if w.sample_point == 'ingreso_semilla' %}
+                                <!-- Badge verde de semilla -->
+                                <span style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">
+                                    Semilla Girasol
+                                </span>
+                                <!-- Si es expeller de extraccion -->
+                                {% else %}
+                                <!-- Badge ambar de expeller -->
+                                <span style="background: #fef3c7; color: #854d0e; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 0.25rem;">
+                                    Expeller
+                                </span>
+                                <!-- Fin del condicional de material -->
+                                {% endif %}
+                            </td>
+                            <!-- Peso neto en kg y segundos cronometrados -->
+                            <td>{{ w.net_weight_kg }} kg en {{ w.fill_time_seconds|int }} seg</td>
+                            <!-- Velocidad instantanea en kg/h -->
+                            <td>
+                                <!-- Texto en negrita con color tematico -->
+                                <strong style="color: {{ '#1d4ed8' if w.sample_point == 'ingreso_semilla' else '#d97706' }}; font-size: 0.9rem;">
+                                    {{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h
+                                </strong>
+                            </td>
+                            <!-- Proyeccion de produccion en turno de 8 horas -->
+                            <td>{{ "{:,.2f}".format(w.proj_8h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            <!-- Proyeccion a ritmo de 24 horas continuas -->
+                            <td>{{ "{:,.2f}".format(w.proj_24h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            <!-- Estado de la maquina o parada -->
+                            <td>
+                                <!-- Si la linea esta operando con normalidad -->
+                                {% if w.line_status == 'operando' %}
+                                <!-- Indicador verde de operacion -->
+                                <span style="color: #16a34a; font-weight: 600;">✓ Operando</span>
+                                <!-- Si se registro una parada o anomalia -->
+                                {% else %}
+                                <!-- Indicador rojo de parada -->
+                                <span style="color: #dc2626; font-weight: 600;">⚠️ Parada</span>
+                                <!-- Fin de condicional de linea -->
+                                {% endif %}
+                            </td>
+                            <!-- Nombre del operario que tomo la muestra -->
+                            <td style="color: #475569;">{{ w.operator_name or '-' }}</td>
+                        </tr>
+                        <!-- Estado sin datos de pesadas -->
+                        {% else %}
+                        <!-- Fila informativa vacia -->
+                        <tr>
+                            <!-- Mensaje para toda la tabla -->
+                            <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                                No hay pesadas registradas en el historial de planta.
+                            </td>
+                        </tr>
+                        <!-- Fin del bucle for de pesadas -->
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pie del modal de velocidad con boton de cierre -->
+        <div class="equipment-modal-footer" style="padding: 0.75rem 1.25rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end;">
+            <!-- Boton de cierre -->
+            <button type="button" class="btn" style="background: #64748b; color: white; padding: 0.4rem 1rem; font-size: 0.85rem;" onclick="closeEquipmentModal('modal-speed-history')">
+                Cerrar Historial
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Funciones JavaScript para apertura y cierre de modales y renderizado de Chart.js -->
+<script>
+// Abre la ventana modal interactiva de un tanque especifico
+function openTankModal(code) {
+    // Busca el elemento del modal por su identificador unico
+    const modal = document.getElementById('modal-tank-' + code);
+    // Si el elemento existe en el documento HTML
+    if (modal) {
+        // Agrega la clase 'active' para desplegar la ventana con animacion
+        modal.classList.add('active');
+        // Previene el scroll del fondo mientras el modal este abierto
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Abre la ventana modal interactiva de un silo especifico
+function openSiloModal(code) {
+    // Busca el elemento del modal por su identificador unico
+    const modal = document.getElementById('modal-silo-' + code);
+    // Si el elemento existe en el documento HTML
+    if (modal) {
+        // Agrega la clase 'active' para desplegar la ventana con animacion
+        modal.classList.add('active');
+        // Previene el scroll del fondo
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Abre la ventana modal interactiva del historial de eficiencia y rendimiento
+function openYieldHistoryModal() {
+    // Busca el modal por su identificador unico
+    const modal = document.getElementById('modal-yield-history');
+    // Si el elemento existe en el DOM
+    if (modal) {
+        // Despliega la ventana modal agregando la clase active
+        modal.classList.add('active');
+        // Bloquea el scroll del fondo
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Abre la ventana modal interactiva del historial de evolucion horaria de velocidad
+function openSpeedHistoryModal() {
+    // Busca el modal por su identificador unico
+    const modal = document.getElementById('modal-speed-history');
+    // Si el elemento existe en el DOM
+    if (modal) {
+        // Despliega la ventana modal agregando la clase active
+        modal.classList.add('active');
+        // Bloquea el scroll del fondo
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+// Filtra las filas de la tabla de pesadas por material seleccionado (semilla, expeller o todos)
+function filterSpeedHistory(material) {
+    // Obtiene todas las filas de la tabla de velocidad
+    const rows = document.querySelectorAll('.speed-row');
+    // Itera sobre cada fila de la tabla
+    rows.forEach(row => {
+        // Comprueba si coincide el material o si se selecciono todos
+        if (material === 'all' || row.getAttribute('data-material') === material) {
+            // Muestra la fila
+            row.style.display = '';
+        } else {
+            // Oculta la fila no coincidente
+            row.style.display = 'none';
+        }
+    });
+    // Remueve clase active de todos los botones de filtro
+    document.querySelectorAll('.filter-speed-btn').forEach(btn => btn.classList.remove('active'));
+    // Asigna clase active al boton presionado
+    const activeBtn = document.getElementById('filter-' + material);
+    // Si existe el boton correspondiente
+    if (activeBtn) {
+        // Agrega estilo activo
+        activeBtn.classList.add('active');
+    }
+}
+
+// Cierra cualquier ventana modal abierta
+function closeEquipmentModal(modalId) {
+    // Busca el modal por su identificador
+    const modal = document.getElementById(modalId);
+    // Si el elemento existe
+    if (modal) {
+        // Remueve la clase active para ocultarlo
+        modal.classList.remove('active');
+        // Restablece el scroll natural del cuerpo del documento
+        document.body.style.overflow = '';
+    }
+}
+
+// Cierra el modal si el usuario hace clic fuera de la ventana blanca (sobre el backdrop oscuro)
+function handleBackdropClick(event, modalId) {
+    // Comprueba si el clic ocurrio directamente en el overlay oscuro exterior
+    if (event.target.classList.contains('equipment-modal-overlay')) {
+        // Invoca la funcion de cierre
+        closeEquipmentModal(modalId);
+    }
+}
+
+// Escucha la tecla Escape para cerrar cualquier modal abierto de forma inmediata
+document.addEventListener('keydown', (e) => {
+    // Si la tecla presionada es Escape
+    if (e.key === 'Escape') {
+        // Busca todos los modales que esten activos en este momento
+        document.querySelectorAll('.equipment-modal-overlay.active').forEach(modal => {
+            // Remueve la clase active
+            modal.classList.remove('active');
+        });
+        // Restablece el scroll de la pagina
+        document.body.style.overflow = '';
+    }
+});
+
+// Inicializacion del grafico de linea interactivo de Chart.js
+document.addEventListener('DOMContentLoaded', () => {
+    // Obtiene el canvas del grafico
+    const ctx = document.getElementById('speedChart');
+    // Si el canvas esta disponible en el documento
+    if (ctx) {
+        // Carga las etiquetas de tiempo enviadas desde Flask
+        const labels = {{ data.chart_labels|tojson }};
+        // Carga los puntos medidos de ingreso de semilla
+        const seedPoints = {{ data.seed_chart_data|tojson }};
+        // Carga los puntos medidos de salida de expeller
+        const expellerPoints = {{ data.expeller_chart_data|tojson }};
+
+        // Mapea los valores alineados con las marcas de tiempo
+        const seedValues = labels.map(l => {
+            const match = seedPoints.find(p => p.time === l);
+            return match ? match.speed : null;
+        });
+
+        // Mapea los valores de expeller
+        const expellerValues = labels.map(l => {
+            const match = expellerPoints.find(p => p.time === l);
+            return match ? match.speed : null;
+        });
+
+        // Inicializa el grafico con Chart.js
+        new Chart(ctx, {
+            type: 'line', // Grafico de linea temporal
+            data: {
+                // Si no hay etiquetas del turno, provee un rango de referencia
+                labels: labels.length > 0 ? labels : ['06:00', '08:00', '10:00', '12:00', '14:00'],
+                datasets: [
+                    {
+                        label: 'Ingreso Semilla (kg/h)', // Serie de semilla
+                        data: seedValues.length > 0 ? seedValues : [1800, 1850, 1820, 1900, 1880], // Datos
+                        borderColor: '#2563eb', // Linea azul vibrante
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)', // Area rellena suave
+                        tension: 0.3, // Curvatura suave
+                        spanGaps: true, // Conecta puntos aunque haya horas intermedias sin muestra
+                        fill: true, // Rellena el area bajo la curva
+                        borderWidth: 2, // Grosor de linea
+                        pointRadius: 3 // Tamano de puntos medidos
+                    },
+                    {
+                        label: 'Salida Expeller (kg/h)', // Serie de expeller
+                        data: expellerValues.length > 0 ? expellerValues : [950, 980, 960, 1000, 990], // Datos
+                        borderColor: '#d97706', // Linea ambar industrial
+                        backgroundColor: 'rgba(217, 119, 6, 0.08)', // Area rellena suave
+                        tension: 0.3, // Curvatura
+                        spanGaps: true, // Conecta puntos
+                        fill: true, // Rellena
+                        borderWidth: 2, // Grosor
+                        pointRadius: 3 // Puntos
+                    }
+                ]
+            },
+            options: {
+                responsive: true, // Adapta automaticamente el ancho
+                maintainAspectRatio: false, // Respeta la altura fija del contenedor
+                plugins: {
+                    legend: {
+                        position: 'top', // Leyenda arriba compacta
+                        align: 'end', // Alineada a la derecha
+                        labels: { boxWidth: 10, font: { size: 10 } } // Fuentes pequenas
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { font: { size: 10 } }, // Etiquetas de hora compactas
+                        grid: { display: false } // Limpia las lineas verticales
+                    },
+                    y: {
+                        beginAtZero: false, // Escala enfocada en el rango operativo
+                        ticks: { font: { size: 10 } }, // Fuentes compactas
+                        title: { display: true, text: 'kg/h', font: { size: 10 } } // Titulo de eje
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

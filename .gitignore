@@ -1,0 +1,24 @@
+# Ignora el entorno virtual local de Python
+.venv/
+# Ignora los directorios de cache compilado de Python
+__pycache__/
+# Ignora archivos de bytecode compilado de Python
+*.pyc
+# Ignora archivos de bytecode optimizado de Python
+*.pyo
+# Ignora librerias de extension binarias de Python
+*.pyd
+# Ignora la cache de ejecucion de pruebas de pytest
+.pytest_cache/
+# Ignora paquetes y carpetas temporales de prueba
+test_staging_pkg/
+# Ignora archivos de logs y registros en tiempo de ejecucion
+logs/*.log
+# Ignora archivos de base de datos SQLite locales para preservar la privacidad de datos de planta
+data/*.db
+# Ignora archivos de diario de transacciones SQLite
+data/*.db-journal
+# Ignora archivos write-ahead log de transacciones SQLite
+data/*.db-wal
+# Ignora directorios de respaldos locales generados antes de actualizaciones
+backups/

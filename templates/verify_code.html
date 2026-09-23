@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+<!-- Extiende la plantilla base del sistema industrial -->
+{% block title %}Validar Código de Recuperación - BioBalcarce{% endblock %}
+<!-- Define el titulo de la pestana del navegador -->
+{% block content %}
+<!-- Bloque principal de contenido de la vista -->
+<div style="max-width: 440px; margin: 2.5rem auto; width: 100%; padding: 0 1rem;">
+<!-- Contenedor centrado responsive para telefonos y escritorios -->
+    <div class="form-card" style="box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12); border-radius: 1rem; border: 1px solid #e2e8f0;">
+    <!-- Tarjeta con sombra suave y bordes redondeados -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+        <!-- Cabecera centrada de la tarjeta -->
+            <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #d97706, #b45309); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; color: white;">
+            <!-- Circulo con degradado ambar que aloja el icono -->
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <!-- Icono vectorial SVG de escudo de seguridad -->
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <!-- Trazado del cuerpo del escudo de proteccion -->
+                </svg>
+                <!-- Cierre del SVG del icono -->
+            </div>
+            <!-- Cierre del contenedor circular del icono -->
+            <h2 style="color: #0f172a; font-weight: 700; margin-bottom: 0.25rem;">Validar Código OTP</h2>
+            <!-- Titulo principal de la pantalla de validacion -->
+            <p style="color: #64748b; font-size: 0.875rem;">Ingrese el código de 6 dígitos recibido</p>
+            <!-- Subtitulo explicativo de la accion -->
+        </div>
+        <!-- Cierre de cabecera -->
+        {% if wa_url %}
+        <!-- Condicional para verificar si existe URL de WhatsApp generada -->
+        <div style="margin-bottom: 1.25rem;">
+        <!-- Contenedor para el acceso rapido de envio por WhatsApp -->
+            <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; background: #25D366; color: white; border-radius: 0.5rem; font-weight: 600; text-decoration: none; font-size: 0.875rem;">
+            <!-- Boton de WhatsApp verde oficial -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <!-- Icono de WhatsApp -->
+                    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z"/>
+                    <!-- Trazado de WhatsApp -->
+                </svg>
+                <!-- Cierre del SVG -->
+                <span>Abrir Código en WhatsApp</span>
+                <!-- Texto del boton de mensajeria -->
+            </a>
+            <!-- Cierre del enlace de WhatsApp -->
+        </div>
+        <!-- Cierre del contenedor de boton WhatsApp -->
+        {% endif %}
+        <!-- Fin del bloque condicional de WhatsApp -->
+        <form action="{{ url_for('dashboard.verify_reset_code') }}" method="POST">
+        <!-- Formulario de envio del codigo OTP por metodo POST -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+            <!-- Grupo de formulario con espaciado inferior -->
+                <label class="form-label" for="code" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Código de Seguridad (6 dígitos)</label>
+                <!-- Etiqueta del campo de codigo -->
+                <input class="form-input" type="text" id="code" name="code" placeholder="123456" maxlength="6" pattern="[0-9]{6}" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; font-family: monospace; font-weight: 700; padding: 0.75rem;" required autofocus>
+                <!-- Casilla de texto centrada con espaciado amplio entre digitos -->
+                <small style="color: #64748b; font-size: 0.8rem; display: block; margin-top: 0.5rem; text-align: center;">El código tiene una validez estricta de 15 minutos.</small>
+                <!-- Texto aclaratorio sobre la vigencia del token OTP -->
+            </div>
+            <!-- Cierre del grupo de entrada -->
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; border-radius: 0.5rem; background: linear-gradient(135deg, #d97706, #b45309); border: none; font-weight: 600; color: white;">
+            <!-- Boton de accion para validar el codigo ingresado -->
+                Validar Código &rarr;
+                <!-- Texto con flecha indicativa -->
+            </button>
+            <!-- Cierre del boton de envio -->
+        </form>
+        <!-- Cierre del formulario POST -->
+        <div style="margin-top: 1.5rem; text-align: center; font-size: 0.875rem;">
+        <!-- Contenedor inferior de navegacion -->
+            <a href="{{ url_for('dashboard.forgot_password') }}" style="color: #64748b; text-decoration: none;">
+            <!-- Enlace para reiniciar la solicitud de codigo -->
+                &larr; Solicitar otro código
+                <!-- Texto del enlace de reintento -->
+            </a>
+            <!-- Cierre del enlace -->
+        </div>
+        <!-- Cierre del contenedor de navegacion -->
+    </div>
+    <!-- Cierre de la tarjeta de formulario -->
+</div>
+<!-- Cierre del contenedor principal -->
+{% endblock %}
+<!-- Fin del bloque de contenido -->

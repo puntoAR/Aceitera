@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base -->
+
+{% block title %}Cubicaje y Stock de Planta - BioBalcarce{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Cubicaje y Control de Existencias</h1>
+        <p style="color: #64748b;">
+            Gestión de niveles en tanques de aceite, cubicaje de silos y registro de movimientos de planta.
+        </p>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TARJETAS DE STOCKS TOTALES CONSOLIDADOS EN PLANTA                         -->
+<!-- ========================================================================= -->
+<div class="dashboard-grid">
+    <!-- ACEITE -->
+    <div class="metric-card card-oil">
+        <div class="metric-title">Stock Total de Aceite</div>
+        <div class="metric-value" style="color: #b45309;">
+            {{ "{:,.0f}".format(stocks.total_oil_kg).replace(",", ".") }}
+            <span class="metric-unit">kg</span>
+        </div>
+        <div class="metric-subtitle">
+            Volumen: <strong>{{ "{:,.0f}".format(stocks.total_oil_liters).replace(",", ".") }} Litros</strong>
+        </div>
+    </div>
+
+    <!-- SEMILLA -->
+    <div class="metric-card card-seed">
+        <div class="metric-title">Stock Total de Semilla</div>
+        <div class="metric-value" style="color: #15803d;">
+            {{ "{:,.0f}".format(stocks.total_seed_kg).replace(",", ".") }}
+            <span class="metric-unit">kg</span>
+        </div>
+        <div class="metric-subtitle">
+            Capacidad: <strong>{{ "{:,.1f}".format(stocks.total_seed_tons).replace(",", ".") }} Toneladas</strong>
+        </div>
+    </div>
+
+    <!-- EXPELLER -->
+    <div class="metric-card card-expeller">
+        <div class="metric-title">Stock Total de Expeller</div>
+        <div class="metric-value" style="color: #854d0e;">
+            {{ "{:,.0f}".format(stocks.total_expeller_kg).replace(",", ".") }}
+            <span class="metric-unit">kg</span>
+        </div>
+        <div class="metric-subtitle">
+            Acopio: <strong>{{ "{:,.1f}".format(stocks.total_expeller_tons).replace(",", ".") }} Toneladas</strong>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+    <!-- ===================================================================== -->
+    <!-- FORMULARIO 1: MEDICION DE NIVEL DE ACEITE                             -->
+    <!-- ===================================================================== -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #b45309; margin-bottom: 1rem;">
+            + Registrar Nivel de Tanque de Aceite
+        </h3>
+        <form action="{{ url_for('inventory.add_tank_reading') }}" method="POST">
+            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="tank_id">Tanque de Aceite</label>
+                <select class="form-select" id="tank_id" name="tank_id" required>
+                    {% for t in tanks %}
+                    <option value="{{ t.id }}">{{ t.code }} - {{ t.name }} ({{ 'Horizontal' if t.geometry_type == 'horizontal_cylinder' else 'Vertical' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="level_m">Nivel Medido (metros)</label>
+                <input class="form-input" type="number" step="0.01" id="level_m" name="level_m" placeholder="ej. 2.50" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="density_override">Densidad de Aceite (kg/L) - Opcional</label>
+                <input class="form-input" type="number" step="0.001" id="density_override" name="density_override" placeholder="Predeterminada: 0.920">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; background-color: #d97706;">
+                Calcular y Guardar Stock de Aceite
+            </button>
+        </form>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- FORMULARIO 2: CUBICAJE DE SILO DE CEREAL / EXPELLER                  -->
+    <!-- ===================================================================== -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #15803d; margin-bottom: 1rem;">
+            + Cubicar Silo (Semilla / Expeller)
+        </h3>
+        <form action="{{ url_for('inventory.add_silo_reading') }}" method="POST">
+            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label class="form-label" for="silo_id">Silo</label>
+                <select class="form-select" id="silo_id" name="silo_id" required>
+                    {% for s in silos %}
+                    <option value="{{ s.id }}">{{ s.code }} - {{ s.name }} ({{ s.product_assigned.capitalize() }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" for="covered_sheets">Chapas Cubiertas</label>
+                    <input class="form-input" type="number" step="0.25" id="covered_sheets" name="covered_sheets" placeholder="ej. 3" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="partial_sheet_height_m">Alt. Adicional (m)</label>
+                    <input class="form-input" type="number" step="0.01" id="partial_sheet_height_m" name="partial_sheet_height_m" value="0.00">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" for="cone_occupied_status">Cono Inferior</label>
+                    <select class="form-select" id="cone_occupied_status" name="cone_occupied_status">
+                        <option value="lleno">Totalmente Lleno</option>
+                        <option value="parcial">Parcialmente Lleno (50%)</option>
+                        <option value="vacio">Vacío</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="copete_height_m">Altura Copete (m)</label>
+                    <input class="form-input" type="number" step="0.01" id="copete_height_m" name="copete_height_m" value="0.00">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="ph_override">Peso Hectolítrico (kg/hl) - Opcional</label>
+                <input class="form-input" type="number" step="0.1" id="ph_override" name="ph_override" placeholder="Predeterminado según silo (ej. 44.0)">
+            </div>
+
+            <button type="submit" class="btn btn-success" style="width: 100%;">
+                Calcular y Guardar Cubicaje
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- FORMULARIO 3: DESPACHOS, INGRESOS Y TRASVASES                             -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e3a8a; margin-bottom: 1rem;">
+        + Registrar Movimiento de Existencias (Despachos / Ingresos / Trasvases)
+    </h3>
+    <form action="{{ url_for('inventory.add_movement') }}" method="POST">
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" for="product">Producto</label>
+                <select class="form-select" id="product" name="product" required>
+                    <option value="aceite">Aceite Crudo</option>
+                    <option value="expeller">Expeller</option>
+                    <option value="semilla">Semilla de Girasol / Soja</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="movement_type">Tipo de Movimiento</label>
+                <select class="form-select" id="movement_type" name="movement_type" required>
+                    <option value="despacho">Despacho / Venta Externa (Salida)</option>
+                    <option value="ingreso">Ingreso de Materia Prima (Entrada)</option>
+                    <option value="trasvase">Trasvase Interno de Tanque</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="quantity_kg">Cantidad (kg)</label>
+                <input class="form-input" type="number" step="1" id="quantity_kg" name="quantity_kg" placeholder="ej. 28000" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="document_ref">Remito / Ticket Báscula</label>
+                <input class="form-input" type="text" id="document_ref" name="document_ref" placeholder="ej. R-0004523">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" for="origin">Origen</label>
+                <input class="form-input" type="text" id="origin" name="origin" placeholder="ej. Tanque 1 o Proveedor">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="destination">Destino</label>
+                <input class="form-input" type="text" id="destination" name="destination" placeholder="ej. Camión Patente AB123CD o Tanque 2">
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label" for="notes">Notas</label>
+                <input class="form-input" type="text" id="notes" name="notes" placeholder="Chofer, cliente, acoplado...">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+            Registrar Movimiento en Existencias
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base -->
+
+{% block title %}Calibración y Configuración de Equipos - BioBalcarce{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Calibración y Configuración de Planta</h1>
+        <p style="color: #64748b;">
+            Ajuste de dimensiones geométricas, densidades y capacidades de tanques y silos sin alterar el código fuente.
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('updater.index') }}" class="btn btn-primary" style="background: linear-gradient(135deg, #1e3a8a, #2563eb);">
+            Centro de Actualizaciones y Respaldos &rarr;
+        </a>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CONFIGURACION DE TANQUES DE ACEITE                                        -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.2rem; font-weight: 700; color: #b45309; margin-bottom: 1rem;">
+        Tanques de Aceite (Dimensiones y Geometría)
+    </h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Geometría</th>
+                    <th>Diámetro (m)</th>
+                    <th>Longitud (m)</th>
+                    <th>Altura (m)</th>
+                    <th>Talón (L)</th>
+                    <th>Densidad</th>
+                    <th>Versión</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tanks %}
+                <tr>
+                    <form action="{{ url_for('config.update_tank', tank_id=t.id) }}" method="POST">
+                        <td><strong>{{ t.code }}</strong></td>
+                        <td><input class="form-input" style="padding: 0.3rem;" type="text" name="name" value="{{ t.name }}" required></td>
+                        <td>
+                            <select class="form-select" style="padding: 0.3rem;" name="geometry_type">
+                                <option value="horizontal_cylinder" {% if t.geometry_type == 'horizontal_cylinder' %}selected{% endif %}>Horizontal</option>
+                                <option value="vertical_cylinder" {% if t.geometry_type == 'vertical_cylinder' %}selected{% endif %}>Vertical</option>
+                            </select>
+                        </td>
+                        <td><input class="form-input" style="width: 75px; padding: 0.3rem;" type="number" step="0.01" name="diameter_m" value="{{ t.diameter_m }}" required></td>
+                        <td><input class="form-input" style="width: 75px; padding: 0.3rem;" type="number" step="0.01" name="length_m" value="{{ t.length_m }}"></td>
+                        <td><input class="form-input" style="width: 75px; padding: 0.3rem;" type="number" step="0.01" name="height_m" value="{{ t.height_m }}"></td>
+                        <td><input class="form-input" style="width: 70px; padding: 0.3rem;" type="number" step="1" name="heel_volume_l" value="{{ t.heel_volume_l }}"></td>
+                        <td><input class="form-input" style="width: 70px; padding: 0.3rem;" type="number" step="0.001" name="default_density" value="{{ t.default_density }}"></td>
+                        <td>v{{ t.version }}</td>
+                        <td>
+                            <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                Guardar
+                            </button>
+                        </td>
+                    </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CONFIGURACION DE SILOS DE CEREAL Y EXPELLER                              -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.2rem; font-weight: 700; color: #15803d; margin-bottom: 1rem;">
+        Silos de Semilla y Expeller (Geometría y Chapas)
+    </h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Producto</th>
+                    <th>Diámetro (m)</th>
+                    <th>H. Chapa (m)</th>
+                    <th>Chapas Tot.</th>
+                    <th>H. Cono (m)</th>
+                    <th>H. Copete (m)</th>
+                    <th>PH Ref</th>
+                    <th>Versión</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in silos %}
+                <tr>
+                    <form action="{{ url_for('config.update_silo', silo_id=s.id) }}" method="POST">
+                        <td><strong>{{ s.code }}</strong></td>
+                        <td><input class="form-input" style="padding: 0.3rem;" type="text" name="name" value="{{ s.name }}" required></td>
+                        <td>
+                            <select class="form-select" style="padding: 0.3rem;" name="product_assigned">
+                                <option value="girasol" {% if s.product_assigned == 'girasol' %}selected{% endif %}>Girasol</option>
+                                <option value="soja" {% if s.product_assigned == 'soja' %}selected{% endif %}>Soja</option>
+                                <option value="expeller" {% if s.product_assigned == 'expeller' %}selected{% endif %}>Expeller</option>
+                            </select>
+                        </td>
+                        <td><input class="form-input" style="width: 70px; padding: 0.3rem;" type="number" step="0.01" name="diameter_m" value="{{ s.diameter_m }}" required></td>
+                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="sheet_height_m" value="{{ s.sheet_height_m }}" required></td>
+                        <td><input class="form-input" style="width: 55px; padding: 0.3rem;" type="number" step="1" name="total_sheets" value="{{ s.total_sheets }}" required></td>
+                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="bottom_cone_height_m" value="{{ s.bottom_cone_height_m }}" required></td>
+                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="copete_max_height_m" value="{{ s.copete_max_height_m }}"></td>
+                        <td><input class="form-input" style="width: 60px; padding: 0.3rem;" type="number" step="0.1" name="default_ph" value="{{ s.default_ph }}"></td>
+                        <td>v{{ s.version }}</td>
+                        <td>
+                            <button type="submit" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                Guardar
+                            </button>
+                        </td>
+                    </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

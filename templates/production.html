@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+<!-- Extiende plantilla base -->
+
+{% block title %}Control de Producción y Pesadas - BioBalcarce{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Control de Línea y Muestreo Horario</h1>
+        <p style="color: #64748b;">
+            Turno Activo: <strong>{{ active_shift.shift_name }}</strong> &bull; Operador: <strong>{{ active_shift.operator_name }}</strong>
+        </p>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TARJETAS DE RENDIMIENTO DE VELOCIDAD DEL TURNO ACTUAL                    -->
+<!-- ========================================================================= -->
+<div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+    <!-- Media Semilla -->
+    <div class="metric-card card-seed">
+        <div class="metric-title">Ingreso Semilla Promedio</div>
+        <div class="metric-value" style="color: #15803d;">
+            {{ "{:,.0f}".format(summary.seed_avg_speed).replace(",", ".") }}
+            <span class="metric-unit">kg/h</span>
+        </div>
+        <div class="metric-subtitle">
+            Agregada: <strong>{{ "{:,.0f}".format(summary.seed_agg_speed).replace(",", ".") }} kg/h</strong> &bull;
+            Proy 8h: <strong>{{ "{:,.1f}".format(summary.seed_proj_8h / 1000.0).replace(",", ".") }} Tn</strong>
+        </div>
+    </div>
+
+    <!-- Media Expeller -->
+    <div class="metric-card card-expeller">
+        <div class="metric-title">Salida Expeller Promedio</div>
+        <div class="metric-value" style="color: #854d0e;">
+            {{ "{:,.0f}".format(summary.expeller_avg_speed).replace(",", ".") }}
+            <span class="metric-unit">kg/h</span>
+        </div>
+        <div class="metric-subtitle">
+            Agregada: <strong>{{ "{:,.0f}".format(summary.expeller_agg_speed).replace(",", ".") }} kg/h</strong> &bull;
+            Proy 8h: <strong>{{ "{:,.1f}".format(summary.expeller_proj_8h / 1000.0).replace(",", ".") }} Tn</strong>
+        </div>
+    </div>
+
+    <!-- Horas Efectivas y Paradas -->
+    <div class="metric-card card-speed">
+        <div class="metric-title">Tiempo Efectivo de Marcha</div>
+        <div class="metric-value" style="color: #1d4ed8;">
+            {{ summary.effective_hours }}
+            <span class="metric-unit">horas</span>
+        </div>
+        <div class="metric-subtitle">
+            Detenciones registradas: <strong>{{ summary.stop_minutes }} min</strong>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+    <!-- FORMULARIO DE CARGA DE PESADA HORARIA -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+            + Registrar Muestra de Bolsa
+        </h3>
+        <form action="{{ url_for('production.add_weighing') }}" method="POST">
+            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="sample_point">Punto de Medición</label>
+                <select class="form-select" id="sample_point" name="sample_point" required>
+                    <option value="ingreso_semilla">Ingreso de Materia Prima (Semilla)</option>
+                    <option value="salida_expeller">Salida de Producto Terminado (Expeller)</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="gross_weight_kg">Peso Bolsa (kg)</label>
+                    <input class="form-input" type="number" step="0.01" id="gross_weight_kg" name="gross_weight_kg" placeholder="ej. 30.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="tare_weight_kg">Tara Recipiente (kg)</label>
+                    <input class="form-input" type="number" step="0.01" id="tare_weight_kg" name="tare_weight_kg" value="0.00">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="fill_time_seconds">Tiempo de Llenado (segundos)</label>
+                <input class="form-input" type="number" step="1" id="fill_time_seconds" name="fill_time_seconds" placeholder="ej. 60" required>
+            </div>
+
+            <!-- CUADRO DE PREVISUALIZACION EN VIVO -->
+            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 0.5rem; padding: 0.85rem; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 600;">Cálculo Instantáneo en Vivo:</div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.25rem;">
+                    <span id="preview_speed_kg_h" style="font-size: 1.35rem; font-weight: 800; color: #2563eb;">0.0 kg/h</span>
+                    <span id="preview_proj_8h" style="font-size: 0.95rem; font-weight: 600; color: #166534;">0.0 Tn (8h)</span>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="line_status">Estado de Línea</label>
+                <select class="form-select" id="line_status" name="line_status">
+                    <option value="operando">Operando Normalmente</option>
+                    <option value="detenida">Línea Detenida / Arranque</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="notes">Observaciones</label>
+                <input class="form-input" type="text" id="notes" name="notes" placeholder="ej. Muestra tomada en prensa 2">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                Guardar Pesada Horaria
+            </button>
+        </form>
+    </div>
+
+    <!-- REGISTRO DE PARADA DE LINEA -->
+    <div class="form-card" style="margin-bottom: 0;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #dc2626; margin-bottom: 1rem;">
+            + Registrar Parada / Detención
+        </h3>
+        <form action="{{ url_for('production.add_stop') }}" method="POST">
+            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="duration_minutes">Duración de Parada (minutos)</label>
+                <input class="form-input" type="number" step="1" id="duration_minutes" name="duration_minutes" placeholder="ej. 30" required>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="reason">Motivo de la Parada</label>
+                <select class="form-select" id="reason" name="reason" required>
+                    <option value="Atasco / Despeje de Prensa">Atasco / Despeje de Prensa</option>
+                    <option value="Mantenimiento Mecánico">Mantenimiento Mecánico</option>
+                    <option value="Mantenimiento Eléctrico">Mantenimiento Eléctrico</option>
+                    <option value="Corte de Energía / Suministro">Corte de Energía / Suministro</option>
+                    <option value="Falta de Materia Prima / Semilla">Falta de Materia Prima / Semilla</option>
+                    <option value="Limpieza y Calibración">Limpieza y Calibración</option>
+                    <option value="Cambio de Turno / Guardia">Cambio de Turno / Guardia</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-danger" style="width: 100%;">
+                Registrar Detención de Línea
+            </button>
+        </form>
+
+        <!-- Historial de paradas del turno -->
+        <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
+            <h4 style="font-size: 0.9rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Paradas en este turno:</h4>
+            {% for stop in stops %}
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.35rem 0; border-bottom: 1px dashed #f1f5f9;">
+                <span><strong>{{ stop.duration_minutes }} min</strong> - {{ stop.reason }}</span>
+                <span style="color: #94a3b8;">{{ stop.start_time.split(' ')[-1][:5] }}</span>
+            </div>
+            {% else %}
+            <p style="font-size: 0.85rem; color: #94a3b8;">Sin detenciones registradas en el turno.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TABLA DETALLADA DE PESADAS DEL TURNO                                      -->
+<!-- ========================================================================= -->
+<div class="form-card">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Historial de Muestreos del Turno
+    </h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Punto de Muestra</th>
+                    <th>Peso Neto</th>
+                    <th>Tiempo (seg)</th>
+                    <th>Velocidad (kg/h)</th>
+                    <th>Proy. 8h</th>
+                    <th>Proy. 24h</th>
+                    <th>Estado</th>
+                    <th>Operario</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in weighings %}
+                <tr>
+                    <td>{{ w.timestamp }}</td>
+                    <td>
+                        {% if w.sample_point == 'ingreso_semilla' %}
+                        <span style="color: #15803d; font-weight: 600;">Ingreso Semilla</span>
+                        {% else %}
+                        <span style="color: #854d0e; font-weight: 600;">Salida Expeller</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ w.net_weight_kg }} kg</td>
+                    <td>{{ w.fill_time_seconds }} s</td>
+                    <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
+                    <td>{{ "{:,.0f}".format(w.proj_8h_kg).replace(",", ".") }} kg</td>
+                    <td>{{ "{:,.1f}".format(w.proj_24h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                    <td>
+                        <span style="font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: {{ '#dcfce7' if w.line_status == 'operando' else '#fee2e2' }}; color: {{ '#166534' if w.line_status == 'operando' else '#991b1b' }};">
+                            {{ w.line_status }}
+                        </span>
+                    </td>
+                    <td>{{ w.operator_name }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay pesadas registradas en el turno actual.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

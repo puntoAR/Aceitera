@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+<!-- Extiende la plantilla base -->
+
+{% block title %}Registro de Errores - BioBalcarce{% endblock %}
+
+{% block content %}
+<!-- Cabecera del visor de errores tecnicos -->
+<div class="header-card" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; color: #0f172a; margin-bottom: 0.25rem;">Supervisión de Errores y Excepciones</h1>
+        <p style="color: #64748b; font-size: 0.875rem; margin: 0;">Registro a nivel de implementación para depuración técnica y estabilidad continua de planta.</p>
+    </div>
+    <!-- Boton para volver a administracion de usuarios -->
+    <a href="{{ url_for('admin.users_list') }}" class="btn" style="background: #2563eb; color: white; text-decoration: none; font-size: 0.85rem; padding: 0.5rem 0.85rem; border-radius: 0.375rem;">
+        👥 Volver a Usuarios
+    </a>
+</div>
+
+<!-- Listado de errores -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.25rem; color: #0f172a; margin: 0;">Incidentes Registrados ({{ errors|length }})</h2>
+    </div>
+
+    {% if errors %}
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for err in errors %}
+        <!-- Tarjeta de error individual con borde indicativo de resolucion -->
+        <div style="background: {% if err.resolved %}#f8fafc{% else %}#fff5f5{% endif %}; border: 1px solid {% if err.resolved %}#e2e8f0{% else %}#fca5a5{% endif %}; border-radius: 0.75rem; padding: 1.25rem;">
+            <!-- Fila superior: ID, Fecha, Modulo y Estado -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <!-- Badge del ID -->
+                    <span style="background: #e2e8f0; color: #334155; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.25rem;">
+                        #{{ err.id }}
+                    </span>
+                    <!-- Modulo donde ocurrio -->
+                    <strong style="color: #1e3a8a; font-size: 0.95rem;">{{ err.module }}</strong>
+                    <!-- Timestamp -->
+                    <span style="color: #64748b; font-size: 0.8rem;">{{ err.timestamp }}</span>
+                </div>
+
+                <!-- Estado y boton de resolucion -->
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {% if err.resolved %}
+                    <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px;">
+                        ✓ Resuelto ({{ err.resolved_at }})
+                    </span>
+                    {% else %}
+                    <span style="background: #fee2e2; color: #b91c1c; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px;">
+                        ⚠️ Pendiente
+                    </span>
+                    <!-- Formulario para marcar resuelto -->
+                    <form action="{{ url_for('admin.resolve_error_route', error_id=err.id) }}" method="POST" style="margin: 0;">
+                        <button type="submit" class="btn" style="background: #10b981; color: white; border: none; padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 0.25rem;">
+                            Marcar Resuelto
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Mensaje principal del error -->
+            <div style="font-size: 0.9rem; color: #b91c1c; font-weight: 600; margin-bottom: 0.5rem;">
+                {{ err.error_message }}
+            </div>
+
+            <!-- Traceback desplegable para inspeccion tecnica -->
+            {% if err.stack_trace %}
+            <details style="margin-top: 0.5rem;">
+                <summary style="font-size: 0.78rem; color: #475569; cursor: pointer; user-select: none;">
+                    🔍 Ver detalles técnicos de la excepción (Stack Trace)
+                </summary>
+                <pre style="background: #1e293b; color: #e2e8f0; padding: 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem; line-height: 1.4; white-space: pre-wrap;">{{ err.stack_trace }}</pre>
+            </details>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: #059669;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 0.5rem;">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 12l2 2 4-4"/>
+        </svg>
+        <p style="margin: 0; font-weight: 600;">No hay errores o excepciones registradas en el sistema. Todos los módulos operan con normalidad.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
