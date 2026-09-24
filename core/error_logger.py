@@ -20,9 +20,15 @@ def log_event(level, module_name, message, exc=None):
     # Formatea la linea de registro con fecha, nivel, modulo y mensaje
     log_line = f"[{now_str}] [{level.upper()}] [{module_name}] {message}{exc_details}\n"
     # Abre el archivo de registro en modo de anexo con codificacion utf-8
-    with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
-        # Escribe la linea de registro en el archivo persistente en disco
-        f.write(log_line)
+    try:
+        with open(LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_line)
+    except Exception:
+        # En entornos serverless con filesystem restringido, emite a stdout/stderr
+        try:
+            print(log_line.strip())
+        except Exception:
+            pass
 
     # Si el evento es un ERROR, tambien lo almacena en la tabla system_errors de la base de datos
     if level.upper() == 'ERROR':

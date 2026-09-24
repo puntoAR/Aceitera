@@ -18,24 +18,44 @@ if os.path.exists(_venv_sp_win) and _venv_sp_win not in sys.path:
 elif os.path.exists(_venv_sp_nix) and _venv_sp_nix not in sys.path:
     site.addsitedir(_venv_sp_nix)
 
-# Detecta si se esta ejecutando en entorno Serverless de Vercel
-IS_VERCEL = bool(os.environ.get('VERCEL'))
+# Detecta si se esta ejecutando en entorno Serverless (Vercel, AWS Lambda, Cloud Run, etc.)
+IS_VERCEL = bool(
+    os.environ.get('VERCEL')
+    or os.environ.get('VERCEL_ENV')
+    or os.environ.get('VERCEL_REGION')
+    or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    or os.environ.get('LAMBDA_TASK_ROOT')
+)
 
-if IS_VERCEL:
-    # En Vercel el unico directorio con permisos de escritura es /tmp
+# Prueba si un directorio tiene permisos reales de escritura en disco
+def _can_write_dir(test_path):
+    try:
+        os.makedirs(test_path, exist_ok=True)
+        probe = os.path.join(test_path, '.perm_probe')
+        with open(probe, 'w') as f:
+            f.write('1')
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
+# Si se detecta Vercel o el sistema de archivos local es de solo lectura, usar /tmp
+if IS_VERCEL or not _can_write_dir(os.path.join(str(BASE_DIR), 'data')):
     DATA_DIR = os.path.join('/tmp', 'data')
     LOGS_DIR = os.path.join('/tmp', 'logs')
 else:
-    # Define la ruta del directorio de almacenamiento de datos SQLite y respaldos
     DATA_DIR = os.path.join(BASE_DIR, 'data')
-    # Define la ruta del directorio de logs para el sistema de diagnostico
     LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 
-# Asegura que el directorio de datos exista, creandolo si no esta presente
-os.makedirs(DATA_DIR, exist_ok=True)
-
-# Asegura que el directorio de logs exista, creandolo si no esta presente
-os.makedirs(LOGS_DIR, exist_ok=True)
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
+except Exception:
+    # Fallback definitivo a /tmp si falla la creacion
+    DATA_DIR = os.path.join('/tmp', 'data')
+    LOGS_DIR = os.path.join('/tmp', 'logs')
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Define la ruta del archivo de base de datos principal de SQLite
 DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')
@@ -43,9 +63,9 @@ DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')
 # Define la ruta del archivo de log de eventos y diagnostico de errores
 LOG_FILE_PATH = os.path.join(LOGS_DIR, 'system.log')
 
-# En Vercel, copia la base de datos base si existe y aun no esta en /tmp
-if IS_VERCEL:
-    seed_db = os.path.join(BASE_DIR, 'data', 'biobalcarce.db')
+# En entornos temporales, copia la base de datos precargada si existe y aun no esta en /tmp
+if str(DATA_DIR).startswith('/tmp') or str(DATA_DIR).startswith('\\tmp'):
+    seed_db = os.path.join(str(BASE_DIR), 'data', 'biobalcarce.db')
     if os.path.exists(seed_db) and not os.path.exists(DATABASE_PATH):
         try:
             import shutil
