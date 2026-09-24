@@ -436,47 +436,49 @@
                         Ver Historial Completo &rarr;
                     </button>
                 </div>
-                <!-- Tabla responsive compacta -->
-                <table class="mini-weighings-table">
-                    <!-- Encabezados de tabla -->
-                    <thead>
-                        <tr>
-                            <th>Hora</th>
-                            <th>Material</th>
-                            <th>Muestra</th>
-                            <th>Velocidad</th>
-                            <th>Proy 8h</th>
-                        </tr>
-                    </thead>
-                    <!-- Filas con las ultimas pesadas -->
-                    <tbody>
-                        {% for w in data.recent_weighings[:4] %}
-                        <tr>
-                            <!-- Hora -->
-                            <td><strong>{{ w.timestamp.split(' ')[-1][:5] }}</strong></td>
-                            <!-- Punto de muestra -->
-                            <td>
-                                {% if w.sample_point == 'ingreso_semilla' %}
-                                <span style="color: #15803d; font-weight: 600;">Semilla</span>
-                                {% else %}
-                                <span style="color: #854d0e; font-weight: 600;">Expeller</span>
-                                {% endif %}
-                            </td>
-                            <!-- Peso neto y tiempo -->
-                            <td>{{ w.net_weight_kg }} kg / {{ w.fill_time_seconds|int }}s</td>
-                            <!-- Velocidad horaria -->
-                            <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
-                            <!-- Proyeccion de turno -->
-                            <td>{{ "{:,.1f}".format(w.proj_8h_kg / 1000.0).replace(",", ".") }} Tn</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <!-- Mensaje cuando aun no hay registros -->
-                            <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.5rem;">Sin pesadas registradas en el turno.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <!-- Tabla responsive compacta con scroll horizontal protegido -->
+                <div class="table-responsive" style="margin-bottom: 0; border: none;">
+                    <table class="mini-weighings-table">
+                        <!-- Encabezados de tabla -->
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Material</th>
+                                <th>Muestra</th>
+                                <th>Velocidad</th>
+                                <th>Proy 8h</th>
+                            </tr>
+                        </thead>
+                        <!-- Filas con las ultimas pesadas -->
+                        <tbody>
+                            {% for w in data.recent_weighings[:4] %}
+                            <tr>
+                                <!-- Hora -->
+                                <td><strong>{{ w.timestamp.split(' ')[-1][:5] }}</strong></td>
+                                <!-- Punto de muestra -->
+                                <td>
+                                    {% if w.sample_point == 'ingreso_semilla' %}
+                                    <span style="color: #15803d; font-weight: 600;">Semilla</span>
+                                    {% else %}
+                                    <span style="color: #854d0e; font-weight: 600;">Expeller</span>
+                                    {% endif %}
+                                </td>
+                                <!-- Peso neto y tiempo -->
+                                <td>{{ w.net_weight_kg }} kg / {{ w.fill_time_seconds|int }}s</td>
+                                <!-- Velocidad horaria -->
+                                <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
+                                <!-- Proyeccion de turno -->
+                                <td>{{ "{:,.1f}".format(w.proj_8h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <!-- Mensaje cuando aun no hay registros -->
+                                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.5rem;">Sin pesadas registradas en el turno.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>

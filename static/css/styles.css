@@ -1276,28 +1276,254 @@ body {
     border-bottom-right-radius: 0.75rem; /* Esquina inferior derecha redondeada */
 }
 
-/* Adaptabilidad a dispositivos moviles (Smartphones) */
+/* ========================================================================== */
+/* RESPONSIVIDAD Y ADAPTABILIDAD MULTIDISPOSITIVO (TABLETS Y CELULARES)       */
+/* ========================================================================== */
+
+/* Tablets y pantallas medianas (<= 992px) */
+@media (max-width: 992px) {
+    /* Apila los tres pilares de proceso verticalmente para lectura comoda */
+    .cockpit-kpis-grid {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    /* Apila panel de equipos y panel de graficos en columna unica */
+    .cockpit-main-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* Silos distribuidos en 3 columnas en pantallas medianas */
+    .silo-compact-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Telefonos moviles y pantallas angostas (<= 768px) */
 @media (max-width: 768px) {
+    /* Evita cualquier desborde o desplazamiento lateral no deseado */
+    html, body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    /* Contenedor principal con margen ergonomico para celulares */
+    .container {
+        padding: 0.75rem 0.65rem;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Barra de navegacion superior compacta */
     .navbar {
-        flex-direction: column;       /* Apilado vertical */
-        align-items: flex-start;      /* Alineacion a la izquierda */
-        gap: 0.75rem;                 /* Separacion */
+        padding: 0.6rem 0.75rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
     }
+
+    .navbar-brand {
+        font-size: 1.05rem;
+    }
+
     .nav-links {
-        width: 100%;                  /* Ocupa todo el ancho */
-        flex-wrap: wrap;              /* Envoltura de botones */
-        gap: 0.35rem;                 /* Espaciado estrecho */
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
     }
-    .nav-links a {
-        padding: 0.35rem 0.5rem;      /* Botones mas compactos */
-        font-size: 0.85rem;           /* Texto mas compacto */
+
+    .nav-links a, .nav-item {
+        padding: 0.35rem 0.55rem;
+        font-size: 0.8rem;
     }
+
+    /* Cabecera de pagina apilada verticalmente */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .page-title {
+        font-size: 1.25rem;
+    }
+
+    /* Tarjetas de pilares del cockpit */
+    .cockpit-kpis-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .cockpit-kpi-card {
+        padding: 0.85rem;
+    }
+
+    .cockpit-kpi-title {
+        font-size: 0.82rem;
+    }
+
+    /* Tarjetas de equipos y graficos */
+    .cockpit-equipments-card, .cockpit-charts-card {
+        padding: 0.85rem;
+    }
+
+    /* Grilla de tanques en 3 columnas ajustadas */
+    .tank-compact-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.45rem;
+    }
+
+    .tank-mini-card {
+        height: auto;
+        min-height: 98px;
+        padding: 0.5rem 0.4rem;
+    }
+
+    /* Grilla de silos en 2 columnas para no apretar chapas ni toneladas */
+    .silo-compact-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.45rem;
+    }
+
+    .silo-mini-card {
+        height: auto;
+        min-height: 92px;
+        padding: 0.5rem 0.45rem;
+    }
+
+    /* Altura ergonomica para el grafico en celulares */
+    .cockpit-chart-container {
+        height: 220px;
+    }
+
+    /* Modales interactivos de inspeccion 3D a pantalla completa */
+    .equipment-modal-overlay {
+        padding: 0.5rem;
+    }
+
+    .equipment-modal-dialog {
+        max-height: 95vh;
+        width: 100%;
+        margin: 0;
+    }
+
+    .equipment-modal-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .equipment-modal-title {
+        font-size: 1rem;
+    }
+
+    .equipment-modal-body {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        padding: 0.85rem;
+    }
+
+    .modal-stage-frame {
+        min-height: 190px;
+        padding: 0.5rem;
+    }
+
+    .equipment-modal-footer {
+        padding: 0.65rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Tablas responsivas con desplazamiento suave sin romper pantalla */
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Previene zoom automatico indeseado de iOS en inputs */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Botones mas faciles de pulsar con el dedo */
+    .btn {
+        touch-action: manipulation;
+    }
+
     .metric-value {
-        font-size: 1.85rem;           /* Ajusta el tamano de cifras en pantallas angostas */
+        font-size: 1.75rem;
     }
+
     .oil-global-summary {
         width: 100%;
         justify-content: space-between;
+    }
+}
+
+/* Pantallas muy pequenas / telefonos compactos (<= 480px) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0.5rem 0.45rem;
+    }
+
+    /* Filas de existencias con envoltura si el numero es muy largo */
+    .stock-item-row {
+        flex-wrap: wrap;
+        gap: 0.15rem;
+    }
+
+    /* Tanques compactos */
+    .tank-compact-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.3rem;
+    }
+
+    .tank-mini-card {
+        padding: 0.4rem 0.3rem;
+    }
+
+    .tank-mini-code {
+        font-size: 0.62rem;
+        padding: 0.1rem 0.25rem;
+    }
+
+    .tank-mini-pct {
+        font-size: 0.72rem;
+    }
+
+    .tank-mini-name {
+        font-size: 0.65rem;
+    }
+
+    .tank-mini-mass {
+        font-size: 0.85rem;
+    }
+
+    .tank-mini-sub {
+        font-size: 0.62rem;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    /* Silos compactos */
+    .silo-compact-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.35rem;
+    }
+
+    .silo-mini-card {
+        padding: 0.45rem 0.35rem;
+    }
+
+    .silo-mini-tons {
+        font-size: 0.88rem;
+    }
+
+    .silo-mini-sheets {
+        font-size: 0.62rem;
     }
 }
 
