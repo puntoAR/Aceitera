@@ -96,23 +96,27 @@ class TestInPlaceUpdater(unittest.TestCase):
         with zipfile.ZipFile(zip_path, 'w') as z:
             z.write(os.path.join(pkg_dir, 'version.json'), 'version.json')
 
-        # Aplica la actualizacion
-        result = apply_update_package(zip_path)
-        self.assertTrue(result['success'])
-        self.assertEqual(result['version'], '1.0.5')
+        # Guarda el contenido original de version.json para restaurarlo
+        version_file = os.path.join(BASE_DIR, 'version.json')
+        original_version_content = None
+        if os.path.exists(version_file):
+            with open(version_file, 'r', encoding='utf-8') as f:
+                original_version_content = f.read()
 
-        # Verifica que version.json en el proyecto ahora sea 1.0.5
-        curr_ver = get_current_version_info()
-        self.assertEqual(curr_ver['version'], '1.0.5')
+        try:
+            # Aplica la actualizacion
+            result = apply_update_package(zip_path)
+            self.assertTrue(result['success'])
+            self.assertEqual(result['version'], '1.0.5')
 
-        # Restaura a version 1.0.0
-        with open(os.path.join(BASE_DIR, 'version.json'), 'w', encoding='utf-8') as f:
-            json.dump({
-                'version': '1.0.0',
-                'release_date': '2026-09-21',
-                'app_name': 'BioBalcarce Control Industrial',
-                'changelog': ['v1.0.0 - Base']
-            }, f)
+            # Verifica que version.json en el proyecto ahora sea 1.0.5
+            curr_ver = get_current_version_info()
+            self.assertEqual(curr_ver['version'], '1.0.5')
+        finally:
+            # Restaura el contenido original de version.json
+            if original_version_content is not None:
+                with open(version_file, 'w', encoding='utf-8') as f:
+                    f.write(original_version_content)
 
 # Ejecucion de pruebas
 if __name__ == '__main__':
