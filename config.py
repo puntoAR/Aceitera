@@ -18,11 +18,18 @@ if os.path.exists(_venv_sp_win) and _venv_sp_win not in sys.path:
 elif os.path.exists(_venv_sp_nix) and _venv_sp_nix not in sys.path:
     site.addsitedir(_venv_sp_nix)
 
-# Define la ruta del directorio de almacenamiento de datos SQLite y respaldos
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+# Detecta si se esta ejecutando en entorno Serverless de Vercel
+IS_VERCEL = bool(os.environ.get('VERCEL'))
 
-# Define la ruta del directorio de logs para el sistema de diagnostico
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if IS_VERCEL:
+    # En Vercel el unico directorio con permisos de escritura es /tmp
+    DATA_DIR = os.path.join('/tmp', 'data')
+    LOGS_DIR = os.path.join('/tmp', 'logs')
+else:
+    # Define la ruta del directorio de almacenamiento de datos SQLite y respaldos
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    # Define la ruta del directorio de logs para el sistema de diagnostico
+    LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 
 # Asegura que el directorio de datos exista, creandolo si no esta presente
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -35,6 +42,16 @@ DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')
 
 # Define la ruta del archivo de log de eventos y diagnostico de errores
 LOG_FILE_PATH = os.path.join(LOGS_DIR, 'system.log')
+
+# En Vercel, copia la base de datos base si existe y aun no esta en /tmp
+if IS_VERCEL:
+    seed_db = os.path.join(BASE_DIR, 'data', 'biobalcarce.db')
+    if os.path.exists(seed_db) and not os.path.exists(DATABASE_PATH):
+        try:
+            import shutil
+            shutil.copy2(seed_db, DATABASE_PATH)
+        except Exception:
+            pass
 
 # Clave secreta para proteccion criptografica de sesiones en Flask
 SECRET_KEY = os.environ.get('SECRET_KEY', 'biobalcarce-clave-segura-industrial-2026')
