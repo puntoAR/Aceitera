@@ -690,9 +690,26 @@ body {
 }
 
 .silo-svg {
+    width: 100%;
     max-width: 210px;
     height: auto;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.05));
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.cylinder-svg-horizontal {
+    width: 100%;
+    max-width: 250px;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.cylinder-svg-vertical {
+    width: 100%;
+    max-width: 170px;
+    height: auto;
+    display: block;
     transition: transform 0.3s ease;
 }
 
@@ -1246,7 +1263,19 @@ body {
     border: 1px solid #e2e8f0; /* Borde suave */
     border-radius: 0.5rem; /* Esquinas redondeadas */
     padding: 1rem; /* Relleno */
-    min-height: 260px; /* Altura visual simetrica para todos los tanques y silos */
+    min-height: 250px; /* Altura visual simetrica para todos los tanques y silos */
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.modal-stage-frame svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 250px;
+    filter: none !important;
+    -webkit-filter: none !important;
 }
 
 /* Columna de datos y detalles del equipo */
@@ -1421,13 +1450,49 @@ body {
 
     .equipment-modal-body {
         grid-template-columns: 1fr;
-        gap: 1rem;
-        padding: 0.85rem;
+        gap: 0.75rem;
+        padding: 0.75rem;
     }
 
     .modal-stage-frame {
-        min-height: 190px;
+        min-height: 180px;
         padding: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .modal-stage-frame svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 185px;
+        margin: 0 auto;
+        filter: none !important;
+        -webkit-filter: none !important;
+    }
+
+    .modal-details-col {
+        gap: 0.5rem;
+    }
+
+    .modal-metric-card {
+        padding: 0.65rem 0.75rem;
+    }
+
+    /* Ocultar elementos clasificados como secundarios o complementarios para celulares */
+    .mobile-hidden {
+        display: none !important;
+    }
+
+    /* Ocultar formulas matematicas y notas explicativas de calculo en modales */
+    .modal-calc-info,
+    .modal-read-hint {
+        display: none !important;
+    }
+
+    /* Ocultar el pie de modal en perfil solo lectura (gerente) cuando ya no contiene botones de accion */
+    .equipment-modal-footer.read-only-footer {
+        display: none !important;
     }
 
     .equipment-modal-footer {

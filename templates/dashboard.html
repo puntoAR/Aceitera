@@ -68,7 +68,7 @@
                     <!-- Valor acumulado -->
                     <span style="font-size: 0.95rem; font-weight: 800; color: #b45309;">
                         {{ "{:,.0f}".format(data.stocks.total_oil_kg).replace(",", ".") }} kg
-                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_oil_liters).replace(",", ".") }} L)</small>
+                        <small class="mobile-hidden" style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_oil_liters).replace(",", ".") }} L)</small>
                     </span>
                 </div>
                 <!-- Barra de llenado de aceite -->
@@ -84,7 +84,7 @@
                     <!-- Valor acumulado -->
                     <span style="font-size: 0.95rem; font-weight: 800; color: #15803d;">
                         {{ "{:,.1f}".format(data.stocks.total_seed_tons).replace(",", ".") }} Tn
-                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_seed_kg).replace(",", ".") }} kg)</small>
+                        <small class="mobile-hidden" style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_seed_kg).replace(",", ".") }} kg)</small>
                     </span>
                 </div>
                 <!-- Barra de llenado de semilla -->
@@ -100,7 +100,7 @@
                     <!-- Valor acumulado -->
                     <span style="font-size: 0.95rem; font-weight: 800; color: #854d0e;">
                         {{ "{:,.1f}".format(data.stocks.total_expeller_tons).replace(",", ".") }} Tn
-                        <small style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_expeller_kg).replace(",", ".") }} kg)</small>
+                        <small class="mobile-hidden" style="font-size: 0.72rem; font-weight: 500; color: #64748b;">({{ "{:,.0f}".format(data.stocks.total_expeller_kg).replace(",", ".") }} kg)</small>
                     </span>
                 </div>
                 <!-- Barra de llenado de expeller -->
@@ -214,8 +214,8 @@
                         <div style="font-size: 1.45rem; font-weight: 900; color: #15803d; line-height: 1.1;">
                             {{ data.latest_yield.oil_yield_pct }}%
                         </div>
-                        <!-- Subtexto -->
-                        <div style="font-size: 0.68rem; color: #166534;">% de masa procesada</div>
+                        <!-- Subtexto (oculto en celulares para mantener foco en el KPI principal) -->
+                        <div class="mobile-hidden" style="font-size: 0.68rem; color: #166534;">% de masa procesada</div>
                     </div>
                     <!-- Eficiencia de recuperacion de grasa disponible -->
                     <div style="background-color: #eff6ff; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bfdbfe;">
@@ -225,8 +225,8 @@
                         <div style="font-size: 1.45rem; font-weight: 900; color: #1d4ed8; line-height: 1.1;">
                             {{ data.latest_yield.oil_recovery_pct }}%
                         </div>
-                        <!-- Subtexto -->
-                        <div style="font-size: 0.68rem; color: #1e40af;">Eficiencia vs grasa semilla</div>
+                        <!-- Subtexto (oculto en celulares) -->
+                        <div class="mobile-hidden" style="font-size: 0.68rem; color: #1e40af;">Eficiencia vs grasa semilla</div>
                     </div>
                 </div>
 
@@ -238,7 +238,7 @@
                     <span>Dif. Balance: <strong>{{ data.latest_yield.mass_diff_pct }}%</strong></span>
                 </div>
                 {% else %}
-                <!-- Mensaje cuando no hay conciliacion previa -->
+                <!-- Mensaje cuando aun no hay conciliacion previa -->
                 <div style="padding: 0.75rem 1rem; text-align: center; color: #64748b; background-color: #f8fafc; border-radius: 0.375rem; margin-top: 0.5rem;">
                     <!-- Texto de aviso informativo -->
                     <p style="font-size: 0.8rem; margin-bottom: 0.4rem;">Sin conciliación registrada en este turno.</p>
@@ -265,7 +265,7 @@
                     </button>
                     <!-- Enlace a pagina de rendimiento (autorizada para Gerente en solo lectura y Admin) -->
                     {% if g.user and g.user.role in ['administrador', 'admin_sistema'] %}
-                    <a href="{{ url_for('yield.index') }}" style="color: #64748b; text-decoration: none; font-size: 0.68rem;" title="Abrir informe completo de balance">
+                    <a class="mobile-hidden" href="{{ url_for('yield.index') }}" style="color: #64748b; text-decoration: none; font-size: 0.68rem;" title="Abrir informe completo de balance">
                         (Informe)
                     </a>
                     {% endif %}
@@ -297,8 +297,8 @@
                         </svg>
                         Tanques de Aceite (3)
                     </span>
-                    <!-- Indicador interactivo para el usuario -->
-                    <span class="equipment-block-hint">👆 Clic en un tanque para ver 3D y cubicaje</span>
+                    <!-- Indicador interactivo para el usuario (oculto en celulares) -->
+                    <span class="equipment-block-hint mobile-hidden">👆 Clic en un tanque para ver 3D y cubicaje</span>
                 </div>
 
                 <!-- Grilla de 3 tanques con tamano visual simetrico e identico -->
@@ -352,8 +352,8 @@
                         </svg>
                         Silos de Acopio de Planta ({{ data.stocks.silos|length }})
                     </span>
-                    <!-- Indicador interactivo para el usuario -->
-                    <span class="equipment-block-hint">👆 Clic en un silo para ver 3D y chapas</span>
+                    <!-- Indicador interactivo para el usuario (oculto en celulares) -->
+                    <span class="equipment-block-hint mobile-hidden">👆 Clic en un silo para ver 3D y chapas</span>
                 </div>
 
                 <!-- Grilla de silos compacta (semilla y expeller) -->
@@ -444,7 +444,7 @@
                             <tr>
                                 <th>Hora</th>
                                 <th>Material</th>
-                                <th>Muestra</th>
+                                <th class="mobile-hidden">Muestra</th>
                                 <th>Velocidad</th>
                                 <th>Proy 8h</th>
                             </tr>
@@ -463,8 +463,8 @@
                                     <span style="color: #854d0e; font-weight: 600;">Expeller</span>
                                     {% endif %}
                                 </td>
-                                <!-- Peso neto y tiempo -->
-                                <td>{{ w.net_weight_kg }} kg / {{ w.fill_time_seconds|int }}s</td>
+                                <!-- Peso neto y tiempo (oculto en celulares para mantener tabla legible) -->
+                                <td class="mobile-hidden">{{ w.net_weight_kg }} kg / {{ w.fill_time_seconds|int }}s</td>
                                 <!-- Velocidad horaria -->
                                 <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
                                 <!-- Proyeccion de turno -->
@@ -522,7 +522,7 @@
                 {% set pct_h = (t.level_m / t.max_level_m * 100) if t.max_level_m > 0 else 0 %}
                 {% set h_liq = ((104.0 * pct_h) / 100.0)|round(1) %}
                 {% set y_surf = (144.0 - h_liq)|round(1) %}
-                <svg class="cylinder-svg-horizontal" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" style="max-width: 250px; height: auto;">
+                <svg class="cylinder-svg-horizontal" width="280" height="200" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 250px; height: auto; display: block;">
                     <defs>
                         <!-- Sombra base eliptica en el piso -->
                         <radialGradient id="m_hShadow_{{ t.code }}" cx="50%" cy="50%" r="50%">
@@ -623,7 +623,7 @@
                 {% set h_liq = ((vh_total * pct_h) / 100.0)|round(1) %}
                 {% set y_surf = (vy_base - h_liq)|round(1) %}
 
-                <svg viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg" style="max-width: 170px; height: auto;">
+                <svg class="cylinder-svg-vertical" width="200" height="260" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 170px; height: auto; display: block;">
                     <defs>
                         <!-- Sombra base eliptica -->
                         <radialGradient id="m_vShadow_{{ t.code }}" cx="50%" cy="50%" r="50%">
@@ -715,8 +715,8 @@
                         <span style="color: #64748b;">Nivel Medido:</span>
                         <strong>{{ "{:.2f}".format(t.level_m) }} m de {{ "{:.2f}".format(t.max_level_m) }} m máx</strong>
                     </div>
-                    <!-- Fila de densidad aplicada -->
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                    <!-- Fila de densidad aplicada (oculta en celulares por ser parametro secundario de calculo) -->
+                    <div class="mobile-hidden" style="display: flex; justify-content: space-between; font-size: 0.8rem;">
                         <span style="color: #64748b;">Densidad de Aceite:</span>
                         <strong>&rho; = 0.92 kg/L</strong>
                     </div>
@@ -732,9 +732,9 @@
         </div>
 
         <!-- Pie del modal con boton para ir a cubicar -->
-        <div class="equipment-modal-footer">
-            <!-- Informacion de formula aplicada -->
-            <span style="font-size: 0.75rem; color: #64748b;">
+        <div class="equipment-modal-footer {% if not (g.user and g.user.role == 'admin_sistema') %}read-only-footer{% endif %}">
+            <!-- Informacion de formula aplicada (oculta en celulares) -->
+            <span class="modal-calc-info mobile-hidden" style="font-size: 0.75rem; color: #64748b;">
                 Fórmula: <strong>{{ 'Cilíndrico Horizontal (Arcocoseno)' if t.is_horizontal else 'Cilíndrico Vertical (&pi;&middot;r&sup2;&middot;h)' }}</strong>
             </span>
             <!-- Boton de accion para registrar nueva medicion exclusivo para admin -->
@@ -743,7 +743,7 @@
                 + Registrar Nueva Medición
             </a>
             {% else %}
-            <span style="font-size: 0.75rem; color: #64748b; font-style: italic;">
+            <span class="modal-read-hint mobile-hidden" style="font-size: 0.75rem; color: #64748b; font-style: italic;">
                 Modo lectura (inspección de tanque)
             </span>
             {% endif %}
@@ -783,7 +783,7 @@
             
             <!-- Columna Izquierda: Escenario 3D SVG del silo en marco visual uniforme -->
             <div class="modal-stage-frame">
-                <svg class="silo-svg" viewBox="0 0 220 305" xmlns="http://www.w3.org/2000/svg" style="max-width: 175px; height: auto;">
+                <svg class="silo-svg" width="220" height="305" viewBox="0 0 220 305" xmlns="http://www.w3.org/2000/svg" style="width: 100%; max-width: 175px; height: auto; display: block;">
                     <defs>
                         <!-- Sombra base en suelo -->
                         <radialGradient id="m_siloShadow_{{ s.code }}" cx="50%" cy="50%" r="50%">
@@ -906,13 +906,13 @@
                         <span style="color: #64748b;">Diámetro y Altura:</span>
                         <strong>&Oslash; {{ "{:.2f}".format(s.diameter_m) }} m &bull; {{ s.total_sheets }} Chapas ({{ "{:.2f}".format(s.cylinder_height_m) }} m)</strong>
                     </div>
-                    <!-- Fila de cono y tolva -->
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                    <!-- Fila de cono y tolva (oculta en celulares por ser parametro interno de calculo) -->
+                    <div class="mobile-hidden" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
                         <span style="color: #64748b;">Tolva / Cono Inferior:</span>
                         <strong>H = {{ "{:.2f}".format(s.bottom_cone_height_m) }} m (Estado: {{ s.cone_status|capitalize }})</strong>
                     </div>
-                    <!-- Fila de copete superior -->
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
+                    <!-- Fila de copete superior (oculta en celulares por ser parametro interno de calculo) -->
+                    <div class="mobile-hidden" style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.35rem;">
                         <span style="color: #64748b;">Copete Superior:</span>
                         <strong>H = {{ "{:.2f}".format(s.copete_height_m) }} m (Máx: {{ "{:.2f}".format(s.copete_max_height_m) }} m)</strong>
                     </div>
@@ -933,9 +933,9 @@
         </div>
 
         <!-- Pie del modal con boton para ir a cubicar -->
-        <div class="equipment-modal-footer">
-            <!-- Informacion de formula aplicada -->
-            <span style="font-size: 0.75rem; color: #64748b;">
+        <div class="equipment-modal-footer {% if not (g.user and g.user.role == 'admin_sistema') %}read-only-footer{% endif %}">
+            <!-- Informacion de formula aplicada (oculta en celulares) -->
+            <span class="modal-calc-info mobile-hidden" style="font-size: 0.75rem; color: #64748b;">
                 Cálculo: <strong>Chapas (&pi;&middot;r&sup2;&middot;H) + Cono (&pi;&middot;r&sup2;&middot;h/3) + Copete (&pi;&middot;r&sup2;&middot;h/3)</strong>
             </span>
             <!-- Boton de accion para registrar nuevo cubicaje exclusivo para admin -->
@@ -944,7 +944,7 @@
                 + Registrar Cubicaje de Silo
             </a>
             {% else %}
-            <span style="font-size: 0.75rem; color: #64748b; font-style: italic;">
+            <span class="modal-read-hint mobile-hidden" style="font-size: 0.75rem; color: #64748b; font-style: italic;">
                 Modo lectura (inspección de silo)
             </span>
             {% endif %}
