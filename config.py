@@ -43,19 +43,27 @@ def _can_write_dir(test_path):
 if IS_VERCEL or not _can_write_dir(os.path.join(str(BASE_DIR), 'data')):
     DATA_DIR = os.path.join('/tmp', 'data')
     LOGS_DIR = os.path.join('/tmp', 'logs')
+    BACKUPS_DIR = os.path.join('/tmp', 'backups')
 else:
     DATA_DIR = os.path.join(BASE_DIR, 'data')
     LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+    BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
 
 try:
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(LOGS_DIR, exist_ok=True)
+    os.makedirs(BACKUPS_DIR, exist_ok=True)
 except Exception:
     # Fallback definitivo a /tmp si falla la creacion
     DATA_DIR = os.path.join('/tmp', 'data')
     LOGS_DIR = os.path.join('/tmp', 'logs')
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(LOGS_DIR, exist_ok=True)
+    BACKUPS_DIR = os.path.join('/tmp', 'backups')
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+    except Exception:
+        pass
 
 # Define la ruta del archivo de base de datos principal de SQLite
 DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')

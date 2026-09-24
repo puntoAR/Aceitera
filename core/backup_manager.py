@@ -13,14 +13,15 @@ import json
 # Importa sqlite3 para copias de seguridad consistentes en caliente
 import sqlite3
 # Importa rutas desde la configuracion
-from config import BASE_DIR, DATABASE_PATH
+from config import BASE_DIR, DATABASE_PATH, BACKUPS_DIR
 # Importa logger
 from core.error_logger import log_info, log_error
 
-# Directorio donde se almacenaran los respaldos
-BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
-# Asegura que el directorio de respaldos exista
-os.makedirs(BACKUPS_DIR, exist_ok=True)
+# Asegura que el directorio de respaldos exista de manera segura
+try:
+    os.makedirs(BACKUPS_DIR, exist_ok=True)
+except Exception:
+    pass
 
 # Crea un respaldo completo del sistema (Base de datos SQLite + Codigo + Version)
 def create_backup(label="pre_update"):
