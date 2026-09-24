@@ -12,3 +12,6 @@ from run import app
 
 # Exporta la aplicacion como objeto app para que el runtime de Vercel lo ejecute
 app = app
+
+# Exporta tambien como handler para compatibilidad con ejecutores WSGI de Vercel
+handler = app
