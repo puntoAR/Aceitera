@@ -191,3 +191,65 @@ def resolve_system_error(error_id):
     # Registra en auditoria
     record_audit_event('CONFIG', 'ERROR_RESUELTO', f"Error ID {error_id} marcado como resuelto.")
     return True
+
+# Crea un nuevo perfil de usuario directamente por el Administrador del Sistema
+def admin_create_user(username, full_name, dni, phone, password, role, must_change=False):
+    # Limpia y valida el nombre de usuario
+    user_clean = str(username).strip()
+    # Limpia el nombre completo
+    name_clean = str(full_name).strip()
+    # Limpia el documento nacional de identidad
+    dni_clean = str(dni).strip() if dni else None
+    # Limpia el numero telefonico
+    phone_clean = str(phone).strip() if phone else None
+    # Limpia la clave de acceso
+    pwd_clean = str(password).strip()
+
+    # Valida que el nombre de usuario no este vacio
+    if not user_clean:
+        raise ValueError("El nombre de usuario es obligatorio.")
+    # Valida que el nombre completo no este vacio
+    if not name_clean:
+        raise ValueError("El nombre y apellido son obligatorios.")
+    # Valida la longitud minima de la contrasena
+    if len(pwd_clean) < 4:
+        raise ValueError("La contraseña debe contener al menos 4 caracteres.")
+    # Valida que el rol seleccionado sea uno de los tres oficiales
+    if role not in ('usuario', 'administrador', 'admin_sistema'):
+        raise ValueError(f"El rol '{role}' no es válido. Debe ser: usuario, administrador o admin_sistema.")
+
+    # Abre conexion para validar duplicados e insertar el nuevo usuario
+    with get_db_connection() as conn:
+        # Verifica si el nombre de usuario ya existe
+        existing_user = conn.execute("SELECT id FROM users WHERE username = ?;", (user_clean,)).fetchone()
+        # Si ya existe un usuario con ese nombre
+        if existing_user:
+            raise ValueError(f"El nombre de usuario '{user_clean}' ya está en uso. Por favor elija otro.")
+
+        # Verifica si el DNI ya esta registrado (si fue ingresado)
+        if dni_clean:
+            existing_dni = conn.execute("SELECT id FROM users WHERE dni = ?;", (dni_clean,)).fetchone()
+            if existing_dni:
+                raise ValueError(f"El DNI '{dni_clean}' ya se encuentra registrado en el sistema.")
+
+        # Determina la bandera de cambio obligatorio de clave
+        change_flag = 1 if must_change else 0
+
+        # Inserta el nuevo registro directamente como aprobado y activo
+        cursor = conn.execute("""
+            INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 'aprobado', ?, 1);
+        """, (user_clean, name_clean, role, pwd_clean, dni_clean, phone_clean, change_flag))
+        # Confirma la transaccion
+        conn.commit()
+        # Obtiene el ID asignado
+        new_id = cursor.lastrowid
+
+    # Registra la creacion del perfil en la bitacora de auditoria
+    record_audit_event(
+        category='USUARIOS',
+        action='ALTA_USUARIO',
+        details=f"Perfil creado directamente por Administrador: usuario '{user_clean}' ({name_clean}) con rol '{role}'."
+    )
+    # Retorna el identificador del nuevo usuario creado
+    return new_id

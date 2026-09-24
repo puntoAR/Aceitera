@@ -20,23 +20,37 @@ elif os.path.exists(_venv_sp_nix) and _venv_sp_nix not in sys.path:
 
 # Detecta si se esta ejecutando en entorno Serverless (Vercel, AWS Lambda, Cloud Run, etc.)
 IS_VERCEL = bool(
+    # Variable de entorno oficial provista por el entorno de ejecucion de Vercel
     os.environ.get('VERCEL')
+    # Variable indicadora del ambiente en ejecucion dentro de Vercel
     or os.environ.get('VERCEL_ENV')
+    # Region geografica asignada por la infraestructura de Vercel
     or os.environ.get('VERCEL_REGION')
+    # Nombre de funcion asignado en ejecucion AWS Lambda subyacente
     or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    # Directorio raiz de tareas asignado por contenedores serverless Lambda
     or os.environ.get('LAMBDA_TASK_ROOT')
 )
 
 # Prueba si un directorio tiene permisos reales de escritura en disco
 def _can_write_dir(test_path):
+    # Bloque de prueba de escritura protegida contra excepciones del SO
     try:
+        # Crea la ruta de directorios si aun no existe en el sistema
         os.makedirs(test_path, exist_ok=True)
+        # Define una ruta de archivo de prueba temporal en la ubicacion indicada
         probe = os.path.join(test_path, '.perm_probe')
+        # Abre el archivo temporal en modo escritura para verificar permisos
         with open(probe, 'w') as f:
+            # Escribe un dato minimo para confirmar operacion de escritura exitosa
             f.write('1')
+        # Elimina el archivo de prueba para limpiar el directorio
         os.remove(probe)
+        # Retorna verdadero indicando que el directorio admite escritura
         return True
+    # Captura cualquier error de permisos o sistema de archivos de solo lectura
     except Exception:
+        # Retorna falso cuando el sistema rechaza operaciones de escritura
         return False
 
 # Si se detecta Vercel o el sistema de archivos local es de solo lectura, usar /tmp
@@ -49,20 +63,33 @@ else:
     LOGS_DIR = os.path.join(BASE_DIR, 'logs')
     BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
 
+# Intento de creacion de carpetas de operacion en disco local o temporal
 try:
+    # Crea la carpeta de base de datos si no existe
     os.makedirs(DATA_DIR, exist_ok=True)
+    # Crea la carpeta de registros de logs si no existe
     os.makedirs(LOGS_DIR, exist_ok=True)
+    # Crea la carpeta de copias de seguridad si no existe
     os.makedirs(BACKUPS_DIR, exist_ok=True)
+# Manejo de error si el sistema de archivos actual no permite crear carpetas
 except Exception:
-    # Fallback definitivo a /tmp si falla la creacion
+    # Fallback definitivo a /tmp para datos si falla la creacion local
     DATA_DIR = os.path.join('/tmp', 'data')
+    # Fallback definitivo a /tmp para logs del sistema
     LOGS_DIR = os.path.join('/tmp', 'logs')
+    # Fallback definitivo a /tmp para respaldos
     BACKUPS_DIR = os.path.join('/tmp', 'backups')
+    # Segundo intento de creacion en el directorio temporal
     try:
+        # Crea la carpeta data dentro de /tmp
         os.makedirs(DATA_DIR, exist_ok=True)
+        # Crea la carpeta logs dentro de /tmp
         os.makedirs(LOGS_DIR, exist_ok=True)
+        # Crea la carpeta backups dentro de /tmp
         os.makedirs(BACKUPS_DIR, exist_ok=True)
+    # Captura silenciosa si ya existen o no pueden crearse
     except Exception:
+        # Continua la ejecucion sin detener el servidor
         pass
 
 # Define la ruta del archivo de base de datos principal de SQLite

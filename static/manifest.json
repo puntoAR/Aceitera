@@ -1,0 +1,43 @@
+{
+  "name": "BioBalcarce - Control de Planta",
+  "short_name": "BioBalcarce",
+  "description": "Sistema Industrial de Control de Proceso, Existencias y Rendimiento — BioBalcarce",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#d97706",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/images/pwa_icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/pwa_icon_maskable_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/images/pwa_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/pwa_icon_maskable_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/images/biobalcarce.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

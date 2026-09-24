@@ -7,7 +7,8 @@ from core.security import roles_required
 from modules.admin.service import (
     get_pending_users, get_all_users, approve_user, reject_user,
     admin_blanquear_password, change_user_role, toggle_user_active,
-    get_audit_logs, get_system_errors, resolve_system_error
+    get_audit_logs, get_system_errors, resolve_system_error,
+    admin_create_user
 )
 
 # Crea el blueprint de administracion
@@ -24,6 +25,43 @@ def users_list():
     users = get_all_users()
     # Renderiza la plantilla de gestion de usuarios
     return render_template('admin_users.html', pending=pending, users=users)
+
+# Endpoint para la creacion directa de un nuevo perfil de usuario por el Administrador
+@admin_bp.route('/users/create', methods=['POST'])
+@roles_required('admin_sistema')
+def create_user_route():
+    # Obtiene el nombre de usuario del formulario
+    username = request.form.get('username')
+    # Obtiene el nombre y apellido del operario
+    full_name = request.form.get('full_name')
+    # Obtiene el numero de documento nacional de identidad
+    dni = request.form.get('dni')
+    # Obtiene el telefono celular de contacto
+    phone = request.form.get('phone')
+    # Obtiene la clave inicial de acceso
+    password = request.form.get('password')
+    # Obtiene el rol asignado
+    role = request.form.get('role', 'usuario')
+    # Comprueba si se exige cambio forzoso de clave
+    must_change = request.form.get('must_change') == '1'
+
+    # Intenta realizar la creacion del perfil en la base de datos
+    try:
+        # Llama a la logica de servicio para insertar el usuario
+        admin_create_user(username, full_name, dni, phone, password, role, must_change)
+        # Emite mensaje flash de confirmacion exitosa
+        flash(f"Usuario '{username}' ({full_name}) creado exitosamente con rol '{role}'.", 'success')
+    # Captura errores de validacion como nombre repetido o longitud
+    except ValueError as ve:
+        # Emite alerta con el detalle especifico
+        flash(str(ve), 'danger')
+    # Captura errores no previstos
+    except Exception as e:
+        # Emite alerta de error general
+        flash(f"Error al crear usuario: {e}", 'danger')
+
+    # Redirige de regreso a la pantalla de gestion de usuarios
+    return redirect(url_for('admin.users_list'))
 
 # Endpoint para aprobar una solicitud de usuario y asignarle su rol
 @admin_bp.route('/users/approve/<int:user_id>', methods=['POST'])

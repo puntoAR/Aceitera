@@ -1,4 +1,4 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.0.5
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.0.6
 
 Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
@@ -6,44 +6,53 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 
 ---
 
-## Novedades y Capacidades en la Versión 1.0.5
+## Novedades y Capacidades en la Versión 1.0.6
 
-1. **Control de Acceso de 3 Niveles:**
-   - **Operario (`usuario`):** Carga de datos operativos de planta (pesadas por hora, paradas de línea), cubicaje de silos y tanques.
-   - **Administrador / Gerente (`administrador`):** Acceso exclusivo de solo lectura al **Dashboard Ejecutivo**, auditoría y métricas de rendimiento (sin carga de datos).
-   - **Administrador del Sistema (`admin_sistema`):** Acceso total a todos los módulos: calibración geométrica de equipos, administración y aprobación de usuarios, asignación de roles, gestión de turnos, diagnóstico del sistema y registros de auditoría.
+1. **PWA (Progressive Web App) para Celulares (Android e iOS):**
+   - Instalación directa en dispositivos móviles mediante **Web App Manifest** y **Service Worker**.
+   - Acceso con un solo toque desde la pantalla de inicio con los iconos oficiales en alta resolución (192x192 y 512x512 px) y soporte adaptativo *maskable*.
+   - **Enmascaramiento de URL en móviles:** Al abrirse desde el icono del celular, la aplicación se ejecuta en modo *standalone* (a pantalla completa), eliminando la barra de navegación del navegador web para brindar una experiencia 100% idéntica a una aplicación nativa.
+   - Banner de instalación inteligente en pantalla (*"📲 Instalar BioBalcarce"*).
 
-2. **Registro de Usuarios y Flujo de Aprobación:**
-   - Nuevos usuarios completan registro con Nombre y Apellido, DNI, Teléfono móvil y PIN/contraseña.
-   - Estado pendiente hasta su aprobación por el Administrador del Sistema.
+2. **Creación Directa de Perfiles de Usuario por el Administrador:**
+   - El Administrador del Sistema puede crear usuarios directamente desde el panel sin depender de solicitudes de registro previas.
+   - **Nombres de usuario comunes y personalizados:** Se puede asignar cualquier identificador (`jmartinez`, `carlos_gomez`, `supervisor1`, etc.), sin quedar restringido a las cuentas de prueba iniciales (`admin`, `gerente`, `operario`).
+   - **Asignación inmediata de los 3 niveles de acceso de planta:**
+     1. **Administrador del Sistema (`admin_sistema`):** Control irrestricto de todos los paneles, calibración de silos/tanques, gestión de usuarios, Turno Central y bitácora de auditoría.
+     2. **Gerente (`administrador`):** Monitoreo y solo lectura del Dashboard Ejecutivo y reportes de rendimiento. Sin carga de datos.
+     3. **Operario / Usuario Común (`usuario`):** Carga operativa de producción (pesadas y paradas), cubicaje de silos y tanques, determinaciones de laboratorio y despacho de camiones cisterna.
+   - Generador asistido de contraseñas seguras y casilla para exigir cambio obligatorio de clave en el primer ingreso.
 
-3. **Recuperación Automática de Contraseña (OTP):**
-   - Sistema de generación de token numérico seguro temporal (15 minutos).
-   - Envío simulado por WhatsApp / SMS para restablecimiento en planta.
-   - Obligatoriedad de cambio de contraseña en el primer inicio de sesión.
+3. **Despliegue Serverless en Vercel:**
+   - Archivo de configuración [vercel.json](file:///E:/PROYECTOS/biobalcarce-control-planta/vercel.json) y punto de entrada WSGI [api/index.py](file:///E:/PROYECTOS/biobalcarce-control-planta/api/index.py).
+   - Detección automática del entorno Vercel (`VERCEL=1`) redirigiendo la persistencia a `/tmp/data` y logs a `/tmp/logs`.
+   - Inicialización automática de esquema relacional y migraciones en caliente en cada despliegue.
 
-4. **Gestión de Turnos Industriales (4 Franjas Horarias):**
-   - **Turno Mañana (TM):** 06:00 a 14:00 (Operarios y Planta).
-   - **Turno Tarde (TT):** 14:00 a 22:00 (Operarios y Planta).
-   - **Turno Noche (TN):** 22:00 a 06:00 (Operarios y Planta).
-   - **Turno Central (TC):** 08:00 a 16:00 (Exclusivo para perfil Administrador).
-
-5. **Módulo de Laboratorio y Despacho de Camiones de Aceite:**
-   - Determinaciones de laboratorio: Humedad y Materia Grasa en semilla y expeller, Acidez libre en aceite, impurezas y notas.
-   - Control de carga de cisternas: inspección de estado del transporte, precintos colocados y su numeración, datos del chofer (nombre, DNI, patente chasis/acoplado), temperatura del lote y certificación de entrega de muestra testigo (SI/NO).
-
-6. **Instalador Automatizado y Acceso Directo de Escritorio:**
-   - Script de instalación desatendida (`instalar_aplicacion.bat`) para configurar el entorno en cualquier PC Windows con un solo clic.
-   - Acceso directo en el Escritorio con icono oficial multirresolución (`biobalcarce.ico`).
-
-7. **Interfaz Visual Industrial Inmersiva:**
-   - Pantalla de ingreso con fondo fotográfico alusivo a planta aceitera moderna, destellos dorados, emblema oficial de girasol y gota dorada, y sello de calidad *powered by puntoAR*.
+4. **Privacidad del Repositorio y Enmascaramiento de URL:**
+   - **Ocultamiento del código fuente:** El repositorio en GitHub puede configurarse como **Privado** (*Private*). Vercel soporta de forma nativa repositorios privados sin costos ni configuraciones adicionales.
+   - **Dominio propio:** En Vercel (*Project Settings -> Domains*) es posible configurar un subdominio institucional (ej. `planta.biobalcarce.com.ar` o `app.puntoar.com.ar`) para enmascarar la URL por defecto de Vercel.
 
 ---
 
-## Instalación Rápida desde GitHub
+## Cómo Instalar la App en el Celular (PWA)
 
-### Método 1: Instalación Automatizada con Turnkey Batch (Recomendado)
+### En Teléfonos Android (Google Chrome / Edge):
+1. Ingrese a la URL de la aplicación desde el navegador del celular.
+2. Aparecerá automáticamente un aviso en la parte inferior: **"Instalar BioBalcarce - Acceso directo en tu celular"**.
+3. Presione el botón **📲 Instalar** y confirme.
+4. El icono de BioBalcarce se agregará a la pantalla de inicio de su teléfono. Al abrirlo, se iniciará a pantalla completa sin barra de direcciones URL.
+
+### En Teléfonos Apple iPhone / iPad (Safari):
+1. Abra la URL de la aplicación en **Safari**.
+2. Toque el botón **Compartir** (icono de cuadrado con flecha hacia arriba ⎋ en la barra inferior).
+3. Seleccione la opción **"Agregar a la pantalla de inicio"** (o *"Add to Home Screen"* ➕).
+4. Confirme el nombre **BioBalcarce** y pulse **Agregar**.
+
+---
+
+## Instalación Rápida en PC (Windows)
+
+### Método Automatizado con Turnkey Batch (Recomendado)
 
 1. Clone o descargue el repositorio desde GitHub:
    ```bash
@@ -58,52 +67,6 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
    - Inicializa el esquema relacional de SQLite y aplica las migraciones automáticas.
    - Genera el acceso directo **"BioBalcarce - Control de Planta"** en el Escritorio de Windows con el icono oficial.
 
-### Método 2: Instalación Manual
-
-```bash
-# 1. Crear entorno virtual
-python -m venv .venv
-
-# 2. Instalar dependencias
-.venv\Scripts\pip install -r requirements.txt
-
-# 3. Inicializar base de datos y esquema
-.venv\Scripts\python -c "from core.database import init_db, apply_pending_migrations; init_db(); apply_pending_migrations()"
-
-# 4. Crear acceso directo con icono oficial en el Escritorio
-crear_acceso_directo.bat
-```
-
----
-
-## Cómo Iniciar la Aplicación
-
-- **Desde el Escritorio de Windows:**
-  Haga doble clic en el acceso directo **"BioBalcarce - Control de Planta"**.
-- **Desde la carpeta del proyecto:**
-  Haga doble clic en **`iniciar_sistema.bat`**.
-- **Desde la línea de comandos:**
-  ```bash
-  .venv\Scripts\python run.py
-  ```
-
-### Acceso Web:
-- **En la computadora de planta:** [http://localhost:5000](http://localhost:5000)
-- **Desde teléfonos móviles o tablets en la red Wi-Fi de la planta:** `http://<IP-DE-LA-PC>:5000` (ejemplo: `http://192.168.0.112:5000`).
-
----
-
-## Usuarios y Credenciales Iniciales
-
-El sistema se inicializa con los siguientes usuarios de demostración y puesta en marcha:
-
-| Usuario | Contraseña / PIN | Rol | Permisos y Alcance |
-| :--- | :--- | :--- | :--- |
-| `admin` | `1234` | Administrador del Sistema (`admin_sistema`) | Acceso irrestricto a todos los paneles, usuarios, calibración de silos/tanques, auditoría y diagnóstico |
-| `gerente` | `3333` | Administrador / Gerente (`administrador`) | Acceso exclusivo al Dashboard Ejecutivo y reportes gerenciales |
-| `operario` | `1111` | Operario de Planta (`usuario`) | Carga de pesadas horarias, paradas de línea y cubicaje de tanques/silos |
-| `laboratorio` | `2222` | Analista de Calidad (`usuario`) | Carga de análisis de laboratorio y despacho de camiones de aceite |
-
 ---
 
 ## Estructura del Código
@@ -111,13 +74,17 @@ El sistema se inicializa con los siguientes usuarios de demostración y puesta e
 ```
 biobalcarce-control-planta/
 │
-├── run.py                           # Servidor web industrial Flask y ruteo
-├── config.py                        # Configuración física, rutas y red
-├── version.json                     # Manifiesto de versión y notas de release
+├── run.py                           # Servidor web Flask, ruteo y endpoints PWA (/manifest.json, /sw.js)
+├── config.py                        # Configuración física, rutas locales y soporte serverless Vercel (/tmp)
+├── vercel.json                      # Configuración de despliegue y reescritura para Vercel
+├── api/
+│   └── index.py                     # Punto de entrada WSGI para Vercel Serverless
+├── version.json                     # Manifiesto de versión (v1.0.6) y notas de release
 ├── requirements.txt                 # Dependencias Python
-├── iniciar_sistema.bat              # Lanzador rápido del servidor
+├── iniciar_sistema.bat              # Lanzador rápido del servidor en Windows
 ├── instalar_aplicacion.bat          # Instalador llave en mano para nuevos clones
 ├── crear_acceso_directo.bat         # Creador de acceso directo con icono en Windows
+├── generate_pwa_icons.py            # Generador asistido de iconos PWA de alta resolución
 ├── diagnostico.bat                  # Auditor de salud y consistencia física
 ├── actualizar_sistema.bat           # Actualizador in-place desde repositorio
 ├── revertir_actualizacion.bat       # Restaurador automático ante contingencias
@@ -126,21 +93,16 @@ biobalcarce-control-planta/
 │   ├── database.py                  # Conexión SQLite, esquemas y tablas
 │   ├── migrations.py                # Motor de migraciones incrementales
 │   ├── security.py                  # Roles, sesiones, autenticación y OTP
-│   ├── backup_manager.py            # Copias de seguridad atómicas
+│   ├── backup_manager.py            # Copias de seguridad atómicas con SQLite Backup API
 │   └── error_logger.py              # Auditoría estructurada y logging
 │
 ├── modules/                         # Módulos de negocio desacoplados
-│   ├── admin/                       # Aprobación de usuarios, auditoría y panel admin
-│   ├── calculations/                # MOTOR FÍSICO-MATEMÁTICO PURO
-│   │   ├── speed_calc.py            # Fórmulas de bolsas, ritmos y velocidades
-│   │   ├── tank_calc.py             # Geometría vertical y horizontal (arccos)
-│   │   ├── silo_calc.py             # Cubicaje de silos, conos y copetes
-│   │   ├── lab_calc.py              # Cálculos analíticos de laboratorio
-│   │   └── yield_calc.py            # Rendimiento y balance de materia
+│   ├── admin/                       # Alta y aprobación de usuarios, asignación de roles, auditoría
+│   ├── calculations/                # MOTOR FÍSICO-MATEMÁTICO PURO (desacoplado)
 │   ├── configuration/               # Calibración de parámetros y dimensiones
 │   ├── dashboard/                   # Vista ejecutiva para gerencia
 │   ├── inventory/                   # Mediciones y cubicajes periódicos
-│   ├── laboratory/                  # Análisis de muestras y despacho de camiones
+│   ├── laboratory/                  # Análisis de muestras y despacho de camiones de aceite
 │   ├── production/                  # Registro horario de pesadas y paradas
 │   ├── updater/                     # Módulo de actualizaciones automáticas
 │   └── yield_balance/               # Conciliación y balance de turnos
@@ -148,57 +110,49 @@ biobalcarce-control-planta/
 ├── diagnostics/                     # Módulo de auditoría y diagnóstico autónomo
 │   └── system_diagnostics.py        # Comprobación de integridad, DB y red
 │
-├── static/                          # Recursos visuales
+├── static/                          # Recursos visuales y PWA
+│   ├── manifest.json                # Manifiesto PWA (nombre, colores, iconos, display standalone)
+│   ├── js/sw.js                     # Service Worker PWA para soporte offline y cacheo
 │   ├── css/styles.css               # Estilos industriales mobile-first
-│   ├── js/app.js                    # Interactividad y asistentes de cálculo
-│   └── images/                      # Logotipos, fondos e iconos (.ico, .png)
+│   ├── js/app.js                    # Interactividad, asistente de cálculo y detector de instalación PWA
+│   └── images/                      # Logotipos, fondos e iconos
 │       ├── biobalcarce.ico          # Icono multirresolución de Windows
+│       ├── pwa_icon_192.png         # Icono PWA estándar 192x192 px
+│       ├── pwa_icon_512.png         # Icono PWA estándar 512x512 px
+│       ├── pwa_icon_maskable_192.png # Icono PWA maskable 192x192 px para Android
+│       ├── pwa_icon_maskable_512.png # Icono PWA maskable 512x512 px para Android
 │       ├── logo_simple.png          # Logo de girasol y gota para navbar
 │       ├── logo_full.png            # Logo completo para pantallas de acceso
 │       └── oil_plant_bg.jpg         # Fondo industrial fotorrealista
 │
 ├── templates/                       # Plantillas HTML modulares
-│   ├── base.html                    # Layout principal con navbar e icono
-│   ├── login.html                   # Pantalla de acceso estilo AssistencIA
+│   ├── base.html                    # Layout maestro con etiquetas PWA y banner de instalación
+│   ├── admin_users.html             # Gestión, aprobación y alta directa de perfiles de usuario
+│   ├── login.html                   # Pantalla de acceso industrial estilo AssistencIA
 │   ├── register.html                # Formulario de solicitud de acceso
 │   ├── reset_password.html          # Solicitud de código OTP
-│   ├── verify_reset_code.html       # Verificación de código OTP
-│   ├── change_password.html         # Cambio obligatorio / voluntario de clave
-│   ├── admin_users.html             # Gestión y aprobación de usuarios
+│   ├── verify_code.html             # Verificación de código OTP
 │   ├── dashboard.html               # Tablero general ejecutivo
-│   ├── production.html              # Muestreo de línea de prensado
-│   ├── inventory.html               # Cubicaje de tanques y silos
-│   ├── laboratory.html              # Registro analítico y despacho de camiones
-│   ├── yield.html                   # Balances de masa
-│   ├── config.html                  # Dimensiones y calibración
-│   └── error.html                   # Pantalla de error con guía de soporte
+│   └── ...
 │
-└── tests/                           # Batería de pruebas automatizadas (41 tests)
+└── tests/                           # Batería de pruebas automatizadas (43 tests)
+    ├── test_roles_security.py       # Pruebas de roles, alta de usuarios personalizados y rutas PWA
     ├── test_calculations.py         # Validación del motor matemático
     ├── test_integration.py          # Pruebas integrales de flujo web
-    ├── test_auth.py                 # Pruebas de roles, recuperación y permisos
-    ├── test_truck_dispatch.py       # Pruebas de precintos y despacho de aceite
-    ├── test_shifts.py               # Pruebas de los 4 turnos operativos
-    └── test_updater.py              # Pruebas de actualización y respaldos
+    ├── test_shifts_and_laboratory.py # Pruebas de turnos, laboratorio y despacho de camiones
+    ├── test_remote_updater.py       # Pruebas de actualización remota
+    └── test_updater.py              # Pruebas de respaldos y restauración
 ```
 
 ---
 
 ## Verificación y Pruebas Automatizadas
 
-Para validar que todo el sistema matemático, las reglas de negocio y los flujos de seguridad funcionen al 100%:
+Para validar que todo el sistema matemático, las reglas de negocio, los flujos de seguridad y los endpoints de PWA funcionen al 100%:
 
 ```bash
 .venv\Scripts\python -m unittest discover -s tests -v
 ```
-
-Las 41 pruebas cubren:
-- Fórmulas geométricas exactas de cilindros horizontales con tapas toriesféricas y arcos de círculo.
-- Cubicaje de silos cónicos y copetes superiores.
-- Balances de masa y rendimiento extractivo.
-- Matriz de permisos de los 3 niveles de usuario.
-- Flujos de registro, aprobación y reseteo por código OTP.
-- Control de precintos y despacho de camiones de aceite.
 
 ---
 

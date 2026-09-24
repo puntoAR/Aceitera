@@ -46,4 +46,70 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tareInput) tareInput.addEventListener('input', updateSpeedPreview);
         timeInput.addEventListener('input', updateSpeedPreview);
     }
+
+    // 3. Manejo de instalacion PWA (Progressive Web App) en dispositivos moviles
+    let deferredPrompt = null; // Variable para almacenar el evento nativo de instalacion
+    const installBanner = document.getElementById('pwa-install-banner'); // Contenedor del banner
+    const installBtn = document.getElementById('pwa-install-btn'); // Boton de instalacion
+    const closeBtn = document.getElementById('pwa-close-btn'); // Boton de cierre
+
+    // Si los elementos del banner de instalacion existen en la pagina
+    if (installBanner && installBtn) {
+        // Escucha el evento del navegador cuando la app es elegible para instalacion
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Previene el aviso intrusivo por defecto
+            e.preventDefault();
+            // Guarda el evento para dispararlo al pulsar el boton
+            deferredPrompt = e;
+            // Si el usuario no descarto el aviso en esta sesion
+            if (!sessionStorage.getItem('pwa_dismissed')) {
+                // Hace visible el banner flotante
+                installBanner.style.display = 'flex';
+            }
+        });
+
+        // Evento de clic en el boton de instalacion
+        installBtn.addEventListener('click', async () => {
+            // Si se dispone del evento nativo
+            if (deferredPrompt) {
+                // Muestra la ventana nativa de instalacion del sistema operativo
+                deferredPrompt.prompt();
+                // Espera la respuesta del usuario
+                const choiceResult = await deferredPrompt.userChoice;
+                // Si la instalacion fue confirmada
+                if (choiceResult.outcome === 'accepted') {
+                    // Oculta el banner
+                    installBanner.style.display = 'none';
+                }
+                // Limpia la referencia al evento
+                deferredPrompt = null;
+            } else {
+                // Mensaje guiado para navegadores o dispositivos iOS
+                alert("Para instalar en tu celular:\n1. Toca el menú de tu navegador (3 puntos o botón Compartir ⎋).\n2. Selecciona 'Agregar a la pantalla principal' o 'Instalar aplicación' 📲.");
+                // Oculta el banner
+                installBanner.style.display = 'none';
+            }
+        });
+
+        // Evento de cierre manual del banner
+        if (closeBtn) {
+            // Escucha el clic sobre la cruz
+            closeBtn.addEventListener('click', () => {
+                // Oculta el contenedor del banner
+                installBanner.style.display = 'none';
+                // Guarda en la sesion actual que fue descartado
+                sessionStorage.setItem('pwa_dismissed', '1');
+            });
+        }
+
+        // Deteccion de dispositivos Apple iOS
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        // Verifica si ya se encuentra abierta en modo pantalla completa standalone
+        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+        // Si es dispositivo Apple, no esta instalada y no fue descartada
+        if (isIos && !isStandalone && !sessionStorage.getItem('pwa_dismissed')) {
+            // Despliega el banner con el boton informativo
+            installBanner.style.display = 'flex';
+        }
+    }
 });

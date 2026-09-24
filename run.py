@@ -9,9 +9,10 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Importa variables de configuracion (auto-vincula el entorno virtual local si existe)
 from config import SECRET_KEY, PORT, HOST, DEBUG
 
-# Importa Flask, render_template y redirect para estructurar la aplicacion
+# Bloque de captura para verificar disponibilidad de Flask
 try:
-    from flask import Flask, render_template, redirect, url_for, g
+    # Importa componentes principales de Flask para el servidor web y PWA
+    from flask import Flask, render_template, redirect, url_for, g, send_from_directory, make_response
 except ModuleNotFoundError:
     print("\n[ERROR CRITICO] Flask no esta instalado en este entorno de Python.")
     print(f"Python actual: {sys.executable}")
@@ -73,6 +74,29 @@ app.register_blueprint(config_bp)
 app.register_blueprint(updater_bp)
 # Registra el blueprint de administracion
 app.register_blueprint(admin_bp)
+
+# Ruta publica para servir el manifiesto PWA que permite la instalacion en celulares
+@app.route('/manifest.json')
+def manifest_json():
+    # Retorna el archivo manifest.json desde static con el mimetype oficial de aplicacion web
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
+
+# Ruta publica para servir el Service Worker con alcance global en toda la aplicacion
+@app.route('/sw.js')
+def service_worker_js():
+    # Obtiene la respuesta enviando el archivo sw.js desde static/js
+    response = make_response(send_from_directory(os.path.join('static', 'js'), 'sw.js', mimetype='application/javascript'))
+    # Cabecera que permite al Service Worker interceptar rutas en la raiz /
+    response.headers['Service-Worker-Allowed'] = '/'
+    # Retorna la respuesta configurada
+    return response
+
+# Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
+with app.app_context():
+    # Verifica y crea las tablas si no existen
+    init_db()
+    # Aplica las migraciones de esquema incrementales
+    apply_pending_migrations()
 
 # Manejador de error HTTP 404 (Pagina no encontrada)
 @app.errorhandler(404)

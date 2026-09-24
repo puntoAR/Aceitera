@@ -12,7 +12,11 @@ from run import app
 from core.database import init_db, get_db_connection
 # Importa servicios de seguridad y administracion
 from core.security import authenticate_user, register_user, generate_otp_code, verify_otp_code, reset_user_password
-from modules.admin.service import get_pending_users, approve_user, admin_blanquear_password, get_audit_logs, get_system_errors, resolve_system_error
+from modules.admin.service import (
+    get_pending_users, approve_user, admin_blanquear_password,
+    get_audit_logs, get_system_errors, resolve_system_error,
+    admin_create_user
+)
 from core.error_logger import log_error
 
 # Clase de pruebas de control de acceso por roles y ciclo de vida de usuarios
@@ -246,6 +250,80 @@ class TestRolesAndSecurity(unittest.TestCase):
         errors_after = get_system_errors(limit=10)
         target_after = next((err for err in errors_after if err['id'] == target['id']), None)
         self.assertEqual(target_after['resolved'], 1)
+
+    # Prueba 9: Creacion directa de perfiles de usuario por el Administrador con nombres comunes
+    def test_admin_create_user_custom_profile(self):
+        # 1. Inicia sesion como Administrador del Sistema
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+
+        # 2. Crea un perfil gerencial con nombre comun 'jmartinez'
+        resp_crear_gerente = self.client.post('/admin/users/create', data={
+            'username': 'jmartinez',
+            'full_name': 'Juan Martínez (Gerencia)',
+            'dni': '32111222',
+            'phone': '2266459999',
+            'password': 'ClaveGerente2026!',
+            'role': 'administrador',
+            'must_change': '0'
+        }, follow_redirects=True)
+        self.assertEqual(resp_crear_gerente.status_code, 200)
+        self.assertIn(b'jmartinez', resp_crear_gerente.data)
+
+        # 3. Crea un perfil operativo con nombre comun 'carlos_linea'
+        resp_crear_operario = self.client.post('/admin/users/create', data={
+            'username': 'carlos_linea',
+            'full_name': 'Carlos Planta',
+            'dni': '33444555',
+            'phone': '2266458888',
+            'password': 'ClaveOperario123!',
+            'role': 'usuario',
+            'must_change': '0'
+        }, follow_redirects=True)
+        self.assertEqual(resp_crear_operario.status_code, 200)
+        self.assertIn(b'carlos_linea', resp_crear_operario.data)
+
+        # 4. Intento de duplicar nombre de usuario debe ser rechazado
+        resp_duplicado = self.client.post('/admin/users/create', data={
+            'username': 'jmartinez',
+            'full_name': 'Otro Juan',
+            'dni': '99999999',
+            'password': 'otra_clave_123',
+            'role': 'usuario'
+        }, follow_redirects=True)
+        self.assertEqual(resp_duplicado.status_code, 200)
+        self.assertIn(b'ya est\xc3\xa1 en uso', resp_duplicado.data)
+
+        # 5. Cierra sesion de administrador
+        self.client.get('/logout', follow_redirects=True)
+
+        # 6. Prueba inicio de sesion con el nuevo usuario 'jmartinez'
+        resp_login_gerente = self.client.post('/login', data={'username': 'jmartinez', 'pin': 'ClaveGerente2026!'}, follow_redirects=True)
+        self.assertEqual(resp_login_gerente.status_code, 200)
+        # Verifica acceso al Dashboard Ejecutivo por rol administrador
+        self.assertIn(b'Dashboard Ejecutivo', resp_login_gerente.data)
+
+        # 7. Cierra sesion gerente
+        self.client.get('/logout', follow_redirects=True)
+
+        # 8. Prueba inicio de sesion con el nuevo usuario 'carlos_linea'
+        resp_login_operario = self.client.post('/login', data={'username': 'carlos_linea', 'pin': 'ClaveOperario123!'}, follow_redirects=True)
+        self.assertEqual(resp_login_operario.status_code, 200)
+        # Verifica acceso al panel operativo por rol usuario
+        self.assertIn(b'Registrar Muestra de Bolsa', resp_login_operario.data)
+
+    # Prueba 10: Disponibilidad de rutas y encabezados PWA (manifest y service worker)
+    def test_pwa_routes(self):
+        # Consulta el manifiesto de la aplicacion
+        r_manifest = self.client.get('/manifest.json')
+        self.assertEqual(r_manifest.status_code, 200)
+        self.assertIn(b'BioBalcarce', r_manifest.data)
+        self.assertIn(b'standalone', r_manifest.data)
+
+        # Consulta el Service Worker
+        r_sw = self.client.get('/sw.js')
+        self.assertEqual(r_sw.status_code, 200)
+        self.assertEqual(r_sw.headers.get('Service-Worker-Allowed'), '/')
+        self.assertIn(b'biobalcarce-pwa', r_sw.data)
 
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':

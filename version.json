@@ -1,1 +1,14 @@
-{"version": "1.0.0", "release_date": "2026-09-21", "app_name": "BioBalcarce Control Industrial", "changelog": ["v1.0.0 - Base"]}
+{
+  "version": "1.0.6",
+  "release_date": "2026-09-24",
+  "app_name": "BioBalcarce Control Industrial",
+  "changelog": [
+    "v1.0.0 - Base modular inicial",
+    "v1.0.1 - Calibracion geometrica de silos y tanques",
+    "v1.0.2 - Calculo de balance de masa y rendimiento",
+    "v1.0.3 - Control de turnos y diagnosticador",
+    "v1.0.4 - Sistema de actualizador y respaldos",
+    "v1.0.5 - Accesos 3 niveles, recuperacion OTP, turnos 4 franjas, precintado y despacho de camiones de aceite, interfaz industrial renovada con icono de escritorio",
+    "v1.0.6 - Soporte PWA movil (instalacion en celular, manifest, Service Worker, iconos de alta resolucion), compatibilidad serverless Vercel, y creacion directa de perfiles administrativos con nombres de usuario personalizados y seleccion entre los 3 roles oficiales"
+  ]
+}

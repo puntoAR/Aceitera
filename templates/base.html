@@ -12,6 +12,18 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <!-- Icono de acceso directo para navegadores clasicos -->
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <!-- Manifiesto de aplicacion web PWA para instalacion en celulares -->
+    <link rel="manifest" href="/manifest.json">
+    <!-- Color de tema para la barra superior del navegador movil y la barra de estado -->
+    <meta name="theme-color" content="#d97706">
+    <!-- Habilita la ejecucion a pantalla completa standalone en dispositivos Apple iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- Estilo de barra de estado en iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Titulo de la aplicacion al anadirse en pantalla de inicio de iOS -->
+    <meta name="apple-mobile-web-app-title" content="BioBalcarce">
+    <!-- Icono de inicio para dispositivos Apple iOS -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/pwa_icon_192.png') }}">
     <!-- Vinculo a la hoja de estilos CSS propia (con versionado para invalidar cache del navegador) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.0">
     <!-- Incorporacion de Chart.js desde CDN para visualizacion grafica de KPIs -->
@@ -112,6 +124,42 @@
     </footer>
     {% endif %}
 
+    <!-- Banner flotante para sugerir la instalacion de la aplicacion en el celular -->
+    <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #0f172a; color: white; padding: 0.85rem 1.15rem; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); border: 1px solid #d97706; align-items: center; gap: 0.75rem;">
+        <!-- Icono representativo de la aplicacion -->
+        <img src="{{ url_for('static', filename='images/pwa_icon_192.png') }}" style="width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;" alt="BioBalcarce Icon">
+        <!-- Bloque de texto informativo -->
+        <div style="flex: 1;">
+            <!-- Titulo del aviso de instalacion -->
+            <div style="font-weight: 700; color: #f59e0b; font-size: 0.9rem;">Instalar BioBalcarce</div>
+            <!-- Subtitulo explicativo para el usuario -->
+            <div style="font-size: 0.75rem; color: #94a3b8;">Acceso directo con icono en tu celular</div>
+        </div>
+        <!-- Boton de accion para iniciar la instalacion nativa -->
+        <button id="pwa-install-btn" type="button" style="background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 0.45rem 0.85rem; border-radius: 0.4rem; font-weight: 600; cursor: pointer; font-size: 0.8rem; white-space: nowrap;">
+            📲 Instalar
+        </button>
+        <!-- Boton para cerrar el aviso flotante -->
+        <button id="pwa-close-btn" type="button" style="background: transparent; border: none; color: #94a3b8; font-size: 1.25rem; cursor: pointer; padding: 0 0.25rem; line-height: 1;">
+            &times;
+        </button>
+    </div>
+
+    <!-- Script para registrar el Service Worker de la PWA -->
+    <script>
+        // Verifica si el navegador es compatible con Service Workers
+        if ('serviceWorker' in navigator) {
+            // Registra el Service Worker una vez cargada la ventana
+            window.addEventListener('load', function() {
+                // Registra sw.js con alcance general
+                navigator.serviceWorker.register('/sw.js')
+                    // Notifica en consola el registro exitoso
+                    .then(function(reg) { console.log('Service Worker PWA registrado:', reg.scope); })
+                    // Registra advertencia si el navegador bloquea la operacion
+                    .catch(function(err) { console.warn('Error al registrar Service Worker PWA:', err); });
+            });
+        }
+    </script>
     <!-- Script de interactividad comun -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <!-- Bloque para scripts especificos de cada pagina -->
