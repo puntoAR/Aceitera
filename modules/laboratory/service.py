@@ -119,28 +119,57 @@ def get_recent_analyses(product=None, limit=50):
         return [dict(row) for row in rows]
 
 # Obtiene los parametros analiticos promedio de calidad para un turno
-def get_shift_lab_averages(shift_id):
+def get_shift_lab_averages(shift_id=None):
     # Abre conexion a base de datos
     with get_db_connection() as conn:
-        # Promedios de semilla
-        seed_row = conn.execute("""
-            SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
-            FROM lab_analyses
-            WHERE shift_id = ? AND product = 'semilla';
-        """, (shift_id,)).fetchone()
-        # Promedios de expeller
-        exp_row = conn.execute("""
-            SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
-            FROM lab_analyses
-            WHERE shift_id = ? AND product = 'expeller';
-        """, (shift_id,)).fetchone()
-        # Promedio de acidez en aceite
-        oil_row = conn.execute("""
-            SELECT AVG(acidity_pct) as avg_acidity, AVG(moisture_pct) as avg_moist
-            FROM lab_analyses
-            WHERE shift_id = ? AND product = 'aceite';
-        """, (shift_id,)).fetchone()
-    # Retorna diccionario con medias analiticas
+        seed_row = None
+        exp_row = None
+        oil_row = None
+        # Si se paso un turno en particular, intenta promediar las muestras registradas en ese turno
+        if shift_id:
+            seed_row = conn.execute("""
+                SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
+                FROM lab_analyses
+                WHERE shift_id = ? AND product = 'semilla';
+            """, (shift_id,)).fetchone()
+            exp_row = conn.execute("""
+                SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
+                FROM lab_analyses
+                WHERE shift_id = ? AND product = 'expeller';
+            """, (shift_id,)).fetchone()
+            oil_row = conn.execute("""
+                SELECT AVG(acidity_pct) as avg_acidity, AVG(moisture_pct) as avg_moist
+                FROM lab_analyses
+                WHERE shift_id = ? AND product = 'aceite';
+            """, (shift_id,)).fetchone()
+
+        # Si en ese turno no hubo muestras (ej. laboratorio realiza 2 muestras al dia: mañana y tarde),
+        # recurre a la ultima determinacion analitica valida registrada en la planta para ese producto
+        if not seed_row or seed_row['avg_fat'] is None:
+            seed_row = conn.execute("""
+                SELECT fat_pct as avg_fat, moisture_pct as avg_moist, foreign_matter_pct as avg_fm
+                FROM lab_analyses
+                WHERE product = 'semilla'
+                ORDER BY timestamp DESC LIMIT 1;
+            """).fetchone()
+
+        if not exp_row or exp_row['avg_fat'] is None:
+            exp_row = conn.execute("""
+                SELECT fat_pct as avg_fat, moisture_pct as avg_moist
+                FROM lab_analyses
+                WHERE product = 'expeller'
+                ORDER BY timestamp DESC LIMIT 1;
+            """).fetchone()
+
+        if not oil_row or oil_row['avg_acidity'] is None:
+            oil_row = conn.execute("""
+                SELECT acidity_pct as avg_acidity, moisture_pct as avg_moist
+                FROM lab_analyses
+                WHERE product = 'aceite'
+                ORDER BY timestamp DESC LIMIT 1;
+            """).fetchone()
+
+    # Retorna diccionario con medias analiticas o valores estandar de contingencia
     return {
         'seed_fat_pct': round(seed_row['avg_fat'], 2) if seed_row and seed_row['avg_fat'] is not None else 45.0,
         'seed_moist_pct': round(seed_row['avg_moist'], 2) if seed_row and seed_row['avg_moist'] is not None else 9.0,
