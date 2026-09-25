@@ -332,7 +332,7 @@ def change_password():
 
 # Vista principal del Dashboard Administrativo Ejecutivo en un solo golpe de vista
 @dashboard_bp.route('/', methods=['GET'])
-@roles_required('administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def index():
     # Obtiene el paquete completo de datos consolidados
     data = get_executive_dashboard_data()
@@ -370,7 +370,7 @@ def shifts():
 
 # Endpoint API JSON para actualizacion automatica de KPIs en pantallas de planta o celular
 @dashboard_bp.route('/api/kpis', methods=['GET'])
-@roles_required('administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def api_kpis():
     # Retorna los datos ejecutivos en formato JSON
     return jsonify(get_executive_dashboard_data())

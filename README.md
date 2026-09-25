@@ -19,7 +19,7 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
    - **Nombres de usuario comunes y personalizados:** Se puede asignar cualquier identificador (`jmartinez`, `carlos_gomez`, `supervisor1`, etc.), sin quedar restringido a las cuentas de prueba iniciales (`admin`, `gerente`, `operario`).
    - **Asignación inmediata de los 3 niveles de acceso de planta:**
      1. **Administrador del Sistema (`admin_sistema`):** Control irrestricto de todos los paneles, calibración de silos/tanques, gestión de usuarios, Turno Central y bitácora de auditoría.
-     2. **Gerente (`administrador`):** Monitoreo y solo lectura del Dashboard Ejecutivo y reportes de rendimiento. Sin carga de datos.
+     2. **Gerencia (`gerencia`):** Monitoreo y solo lectura del Dashboard Ejecutivo y reportes de rendimiento. Sin carga de datos.
      3. **Operario / Usuario Común (`usuario`):** Carga operativa de producción (pesadas y paradas), cubicaje de silos y tanques, determinaciones de laboratorio y despacho de camiones cisterna.
    - Generador asistido de contraseñas seguras y casilla para exigir cambio obligatorio de clave en el primer ingreso.
 

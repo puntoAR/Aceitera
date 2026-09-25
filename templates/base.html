@@ -45,8 +45,8 @@
         <!-- Si el usuario esta autenticado muestra menu de navegacion adaptado a su perfil -->
         {% if g.user %}
         <div class="nav-links">
-            <!-- Navegacion exclusiva para Administrador (Solo Dashboard) -->
-            {% if g.user.role == 'administrador' %}
+            <!-- Navegacion exclusiva para Gerencia / Administrador (Solo Dashboard) -->
+            {% if g.user.role in ['administrador', 'gerencia'] %}
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
             {% endif %}
 
@@ -76,7 +76,7 @@
                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
                 <strong>{{ g.user.full_name.split(' ')[0] }}</strong>
                 <span style="opacity: 0.8; font-size: 0.72rem;">
-                    ({% if g.user.role == 'usuario' %}Operario{% elif g.user.role == 'administrador' %}Gerencia{% else %}Admin Sistema{% endif %})
+                    ({% if g.user.role == 'usuario' %}Operario{% elif g.user.role in ['administrador', 'gerencia'] %}Gerencia{% else %}Admin Sistema{% endif %})
                 </span>
             </span>
 

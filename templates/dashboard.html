@@ -27,7 +27,7 @@
         <!-- Acceso directo a balance y conciliacion -->
         <a href="{{ url_for('yield.index') }}" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Conciliar Turno</a>
     </div>
-    {% elif g.user and g.user.role == 'administrador' %}
+    {% elif g.user and g.user.role in ['administrador', 'gerencia'] %}
     <div>
         <!-- Indicador de modo exclusivo lectura para Gerente sin carga de datos -->
         <span style="background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 0.35rem 0.65rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
@@ -264,7 +264,7 @@
                         📋 Ver Historial &rarr;
                     </button>
                     <!-- Enlace a pagina de rendimiento (autorizada para Gerente en solo lectura y Admin) -->
-                    {% if g.user and g.user.role in ['administrador', 'admin_sistema'] %}
+                    {% if g.user and g.user.role in ['administrador', 'gerencia', 'admin_sistema'] %}
                     <a class="mobile-hidden" href="{{ url_for('yield.index') }}" style="color: #64748b; text-decoration: none; font-size: 0.68rem;" title="Abrir informe completo de balance">
                         (Informe)
                     </a>
@@ -985,7 +985,7 @@
                     </p>
                 </div>
                 <!-- Si el usuario es gerente o admin muestra boton para ver el modulo completo -->
-                {% if g.user and g.user.role in ['administrador', 'admin_sistema'] %}
+                {% if g.user and g.user.role in ['administrador', 'gerencia', 'admin_sistema'] %}
                 <!-- Boton hacia la pantalla completa de rendimiento -->
                 <a href="{{ url_for('yield.index') }}" class="btn" style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; font-size: 0.78rem; padding: 0.35rem 0.75rem;">
                     Abrir Pantalla de Rendimiento &rarr;

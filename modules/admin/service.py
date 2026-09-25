@@ -36,10 +36,10 @@ def get_all_users():
 
 # Aprueba una solicitud de registro y le asigna el nivel de acceso seleccionado
 def approve_user(user_id, role):
-    # Valida que el rol asignado sea uno de los tres oficiales
-    if role not in ('usuario', 'administrador', 'admin_sistema'):
+    # Valida que el rol asignado sea uno de los oficiales
+    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
         # Lanza excepcion si el rol no es valido
-        raise ValueError(f"El rol {role} no es válido. Debe ser: usuario, administrador o admin_sistema.")
+        raise ValueError(f"El rol {role} no es válido. Debe ser: usuario, gerencia o admin_sistema.")
     
     # Abre conexion para actualizar el usuario
     with get_db_connection() as conn:
@@ -112,8 +112,8 @@ def admin_blanquear_password(user_id):
 # Actualiza el rol de un usuario existente
 def change_user_role(user_id, new_role):
     # Valida el rol
-    if new_role not in ('usuario', 'administrador', 'admin_sistema'):
-        raise ValueError(f"Rol {new_role} no permitido.")
+    if new_role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
+        raise ValueError(f"Rol {new_role} no permitido. Debe ser: usuario, gerencia o admin_sistema.")
     # Actualiza en base de datos
     with get_db_connection() as conn:
         u = conn.execute("SELECT full_name, role FROM users WHERE id = ?;", (user_id,)).fetchone()
@@ -214,9 +214,9 @@ def admin_create_user(username, full_name, dni, phone, password, role, must_chan
     # Valida la longitud minima de la contrasena
     if len(pwd_clean) < 4:
         raise ValueError("La contraseña debe contener al menos 4 caracteres.")
-    # Valida que el rol seleccionado sea uno de los tres oficiales
-    if role not in ('usuario', 'administrador', 'admin_sistema'):
-        raise ValueError(f"El rol '{role}' no es válido. Debe ser: usuario, administrador o admin_sistema.")
+    # Valida que el rol seleccionado sea uno de los oficiales
+    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
+        raise ValueError(f"El rol '{role}' no es válido. Debe ser: usuario, gerencia o admin_sistema.")
 
     # Abre conexion para validar duplicados e insertar el nuevo usuario
     with get_db_connection() as conn:

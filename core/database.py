@@ -373,8 +373,8 @@ def seed_initial_data():
         if user_count == 0:
             # Inserta usuario Administrador del Sistema (acceso total a todos los modulos)
             conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('admin', 'Administrador del Sistema', 'admin_sistema', '1234', '10000000', '5492266000001', 'aprobado');")
-            # Inserta usuario Administrador / Gerencia (acceso exclusivo a Dashboard)
-            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('gerente', 'Gerencia General (Administrador)', 'administrador', '3333', '20000000', '5492266000002', 'aprobado');")
+            # Inserta usuario Gerencia (acceso exclusivo a Dashboard)
+            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('gerente', 'Gerencia General', 'gerencia', '3333', '20000000', '5492266000002', 'aprobado');")
             # Inserta usuario Operario de Planta (acceso a produccion y cubicaje)
             conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
             # Inserta usuario Analista de Laboratorio (acceso a laboratorio y cubicaje)

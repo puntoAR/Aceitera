@@ -183,6 +183,16 @@ REGISTERED_MIGRATIONS = [
                 FOREIGN KEY (tank_source_id) REFERENCES equipment_tanks(id) -- Vinculo con tanque de origen
             );
         """
+    },
+    {
+        # Version 6 de migracion para estandarizar el rol 'gerencia'
+        'version': 6,
+        'name': 'standardize_gerencia_role',
+        'description': 'Actualizacion del identificador de rol administrador a gerencia para el nivel de acceso ejecutivo',
+        'sql': """
+            -- Actualiza roles preexistentes 'administrador' a 'gerencia'
+            UPDATE users SET role = 'gerencia' WHERE role = 'administrador';
+        """
     }
 ]
 

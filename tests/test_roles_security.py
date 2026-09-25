@@ -325,6 +325,38 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertEqual(r_sw.headers.get('Service-Worker-Allowed'), '/')
         self.assertIn(b'biobalcarce-pwa', r_sw.data)
 
+    # Prueba 11: Validacion de asignacion de rol 'gerencia' y visualizacion de etiqueta
+    def test_gerencia_role_assignment_and_display(self):
+        # Inicia sesion como admin_sistema
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+
+        # Crea un nuevo usuario con rol directo 'gerencia'
+        resp_create = self.client.post('/admin/users/create', data={
+            'username': 'gerente_planta',
+            'full_name': 'Mariana Dirección',
+            'dni': '28999888',
+            'phone': '2266457777',
+            'password': 'ClaveGerencia2026!',
+            'role': 'gerencia',
+            'must_change': '0'
+        }, follow_redirects=True)
+        self.assertEqual(resp_create.status_code, 200)
+
+        # Consulta la pantalla de administracion de usuarios y comprueba que figure Gerencia
+        resp_admin = self.client.get('/admin/users')
+        self.assertIn('Gerencia', resp_admin.data.decode('utf-8'))
+
+        # Cierra sesion admin
+        self.client.get('/logout', follow_redirects=True)
+
+        # Inicia sesion con el nuevo usuario de gerencia
+        resp_login = self.client.post('/login', data={'username': 'gerente_planta', 'pin': 'ClaveGerencia2026!'}, follow_redirects=True)
+        self.assertEqual(resp_login.status_code, 200)
+        html_content = resp_login.data.decode('utf-8')
+        # Verifica que la insignia contenga (Gerencia) y el menu contenga Dashboard Ejecutivo
+        self.assertIn('Gerencia', html_content)
+        self.assertIn('Dashboard Ejecutivo', html_content)
+
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':
     unittest.main()

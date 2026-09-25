@@ -223,15 +223,21 @@ def roles_required(*allowed_roles):
                 return redirect(url_for('dashboard.change_password'))
 
             # Si el rol del usuario no esta en la lista de roles autorizados
-            if g.user['role'] not in allowed_roles:
+            # Soporte interoperable y transparente para rol gerencial ('gerencia' y 'administrador')
+            effective_roles = set(allowed_roles)
+            if 'administrador' in effective_roles or 'gerencia' in effective_roles:
+                effective_roles.add('administrador')
+                effective_roles.add('gerencia')
+
+            if g.user['role'] not in effective_roles:
                 # Emite mensaje de permisos insuficientes
                 flash('No posee permisos autorizados para acceder a esta sección.', 'danger')
                 # Redireccion inteligente segun el rol del usuario
                 if g.user['role'] == 'usuario':
                     # Operarios y tecnicos van a su panel de produccion
                     return redirect(url_for('production.index'))
-                elif g.user['role'] == 'administrador':
-                    # Administrador de direccion va al dashboard
+                elif g.user['role'] in ('administrador', 'gerencia'):
+                    # Gerencia de direccion va al dashboard
                     return redirect(url_for('dashboard.index'))
                 else:
                     # Otros casos van al login

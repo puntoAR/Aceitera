@@ -53,7 +53,7 @@
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.65rem;">
                     <select name="role" class="form-select" style="flex: 1; font-size: 0.85rem; padding: 0.4rem;" required>
                         <option value="usuario" selected>Usuario (Carga, Stock, Lab)</option>
-                        <option value="administrador">Administrador (Solo Dashboard)</option>
+                        <option value="gerencia">Gerencia (Solo Dashboard Ejecutivo y Rendimiento)</option>
                         <option value="admin_sistema">Admin del Sistema (Acceso Total)</option>
                     </select>
                 </div>
@@ -162,7 +162,7 @@
                 <!-- Menu desplegable con los tres perfiles del sistema -->
                     <option value="usuario" selected>Operario / Usuario Común — Carga de Producción, Stock, Lab y Despacho</option>
                     <!-- Opcion de rol operativo de planta -->
-                    <option value="administrador">Gerente (Administrador) — Solo Lectura del Dashboard Ejecutivo y Rendimiento</option>
+                    <option value="gerencia">Gerencia — Solo Lectura del Dashboard Ejecutivo y Rendimiento</option>
                     <!-- Opcion de rol gerencial de monitoreo -->
                     <option value="admin_sistema">Administrador del Sistema — Control Total, Calibración, Usuarios y Turno Central</option>
                     <!-- Opcion de administrador general del sistema -->
@@ -263,7 +263,7 @@
                         <form action="{{ url_for('admin.change_role_route', user_id=u.id) }}" method="POST" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                             <select name="role" class="form-select" style="font-size: 0.78rem; padding: 0.25rem 0.4rem; border-radius: 0.25rem;" onchange="this.form.submit()">
                                 <option value="usuario" {% if u.role == 'usuario' %}selected{% endif %}>Usuario (Operario)</option>
-                                <option value="administrador" {% if u.role == 'administrador' %}selected{% endif %}>Administrador</option>
+                                <option value="gerencia" {% if u.role in ['administrador', 'gerencia'] %}selected{% endif %}>Gerencia</option>
                                 <option value="admin_sistema" {% if u.role == 'admin_sistema' %}selected{% endif %}>Admin Sistema</option>
                             </select>
                         </form>

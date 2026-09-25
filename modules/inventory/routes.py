@@ -121,7 +121,7 @@ def add_movement():
 
 # API JSON de existencias para refresco dinamico del dashboard
 @inventory_bp.route('/api/stocks', methods=['GET'])
-@roles_required('usuario', 'administrador', 'admin_sistema')
+@roles_required('usuario', 'gerencia', 'administrador', 'admin_sistema')
 def api_stocks():
     # Retorna stocks en formato JSON
     return jsonify(get_total_plant_stocks())

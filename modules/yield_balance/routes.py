@@ -16,10 +16,10 @@ from core.audit import record_audit_event
 # Define Blueprint de rendimiento y balance
 yield_bp = Blueprint('yield', __name__, url_prefix='/yield')
 
-# Vista principal de rendimiento y balance de masa (autorizada para Gerente en solo lectura y Admin de sistema)
+# Vista principal de rendimiento y balance de masa (autorizada para Gerencia en solo lectura y Admin de sistema)
 @yield_bp.route('/', methods=['GET'])
 # Permite acceso de visualizacion a administradores (gerencia) y administradores de sistema
-@roles_required('administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def index():
     # Obtiene turno activo
     active_shift = get_active_shift()
