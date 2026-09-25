@@ -307,4 +307,36 @@
         </table>
     </div>
 </div>
+
+<!-- SECCION 3: MANTENIMIENTO DE BASE DE DATOS Y PUESTA A CERO PARA PRODUCCION -->
+<!-- Tarjeta con borde de advertencia para operaciones sensibles de base de datos -->
+<div class="card" style="border: 1px solid #fecaca; background: #fffaf0; margin-top: 2rem;">
+    <!-- Encabezado de la seccion con icono de advertencia -->
+    <h2 style="font-size: 1.15rem; color: #991b1b; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <!-- Icono de alerta -->
+        <span>⚠️</span> Puesta a Cero de Datos Operativos para Producción Real
+    </h2>
+    <!-- Texto explicativo detallando que se limpia y que se preserva -->
+    <p style="font-size: 0.85rem; color: #4b5563; margin-bottom: 1rem; line-height: 1.5;">
+        Esta herramienta permite dejar el sistema <strong>limpio a cero</strong> para el inicio operativo real en planta. 
+        Elimina las pesadas de prueba, paradas, cubicajes de silos/tanques, determinaciones de laboratorio y despachos de camiones simulados.<br>
+        <strong style="color: #047857;">GARANTÍA DE PRESERVACIÓN:</strong> Mantiene 100% intactos los usuarios oficiales, turnos de planta, calibraciones de silos/tanques y catálogo de repuestos.
+    </p>
+    <!-- Formulario de confirmacion protegida -->
+    <form action="{{ url_for('admin.reset_production_database') }}" method="POST" onsubmit="return confirm('ATENCION: ¿Esta completamente seguro de reiniciar a cero todos los registros operativos de prueba? Esta accion no se puede deshacer.');">
+        <!-- Fila con campo de texto de seguridad y boton de accion -->
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <!-- Instruccion para escribir la palabra de seguridad -->
+            <label for="confirm_text" style="font-size: 0.8rem; font-weight: 600; color: #7f1d1d;">
+                Escriba <code style="background: #fee2e2; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: bold;">CONFIRMAR_RESET_PRODUCCION</code> para autorizar:
+            </label>
+            <!-- Entrada de texto de confirmacion -->
+            <input type="text" id="confirm_text" name="confirm_text" placeholder="CONFIRMAR_RESET_PRODUCCION" required style="padding: 0.45rem 0.75rem; border: 1px solid #f87171; border-radius: 0.35rem; font-size: 0.85rem; font-family: monospace; font-weight: bold; width: 300px;">
+            <!-- Boton de envio de limpieza a cero -->
+            <button type="submit" class="btn" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.35rem; font-weight: bold; font-size: 0.85rem; cursor: pointer;">
+                🗑️ Ejecutar Limpieza a Cero
+            </button>
+        </div>
+    </form>
+</div>
 {% endblock %}

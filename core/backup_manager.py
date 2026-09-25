@@ -69,8 +69,10 @@ def create_backup(label="pre_update"):
     for folder in code_folders:
         src_folder = os.path.join(BASE_DIR, folder)
         if os.path.exists(src_folder):
+            # Ruta de destino del directorio en el paquete de respaldo
             dst_folder = os.path.join(backup_path, folder)
-            shutil.copytree(src_folder, dst_folder, dirs_exist_ok=True)
+            # Copia el arbol de archivos ignorando carpetas __pycache__ y binarios .pyc
+            shutil.copytree(src_folder, dst_folder, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.pyo'))
 
     # 4. Respaldo de archivos individuales clave
     single_files = ['run.py', 'config.py']
@@ -172,8 +174,10 @@ def restore_backup(backup_folder_path):
     for folder in code_folders:
         src_folder = os.path.join(backup_folder_path, folder)
         if os.path.exists(src_folder):
+            # Ruta de destino del directorio en la raiz del proyecto
             dst_folder = os.path.join(BASE_DIR, folder)
-            shutil.copytree(src_folder, dst_folder, dirs_exist_ok=True)
+            # Restaura el arbol de archivos ignorando archivos de cache temporal
+            shutil.copytree(src_folder, dst_folder, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.pyo'))
 
     # 4. Restaura archivos sueltos
     single_files = ['run.py', 'config.py']

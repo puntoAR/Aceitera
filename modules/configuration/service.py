@@ -127,3 +127,12 @@ def set_active_shift(shift_id, operator_name, user_role=None):
         conn.commit()
     # Registra en log el cambio de turno
     log_info('CONFIG', f'Cambio de guardia: Turno {shift_id}, Operario: {operator_name}')
+
+# Obtiene un diccionario consolidado de todos los equipos y sectores de planta
+def get_all_equipment():
+    # Obtiene lista de tanques de aceite
+    tanks = get_all_tanks()
+    # Obtiene lista de silos de cereal y expeller
+    silos = get_all_silos()
+    # Retorna diccionario consolidado para selectores
+    return {'tanks': tanks, 'silos': silos}

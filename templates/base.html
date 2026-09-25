@@ -50,25 +50,53 @@
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
             {% endif %}
 
+            <!-- Navegacion exclusiva para Administrador (Solo Dashboard y Mantenimiento) -->
+            {% if g.user.role in ['administrador', 'gerencia'] %}
+            <!-- Enlace al Dashboard Ejecutivo -->
+            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
+            <!-- Enlace al modulo de Mantenimiento y Pañol -->
+            <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
+            <!-- Cierra condicion de rol gerencia -->
+            {% endif %}
+
             <!-- Navegacion para Rol Operario / Usuario de Carga -->
             {% if g.user.role == 'usuario' %}
+            <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <!-- Enlace a Cubicaje y Stock -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
+            <!-- Enlace a Laboratorio -->
             <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
+            <!-- Enlace al modulo de Mantenimiento y Pañol -->
+            <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
+            <!-- Enlace a Guardias de Turno -->
             <a href="{{ url_for('dashboard.shifts') }}" class="nav-item">🔄 Guardias</a>
+            <!-- Cierra condicion de rol operario -->
             {% endif %}
 
             <!-- Navegacion completa para Administrador del Sistema -->
             {% if g.user.role == 'admin_sistema' %}
+            <!-- Enlace a Dashboard -->
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
+            <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <!-- Enlace a Cubicaje -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje</a>
+            <!-- Enlace a Laboratorio -->
             <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
+            <!-- Enlace a Mantenimiento Industrial -->
+            <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
+            <!-- Enlace a Rendimiento -->
             <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
+            <!-- Enlace a Equipos -->
             <a href="{{ url_for('config.index') }}" class="nav-item">⚙️ Equipos</a>
+            <!-- Enlace a Usuarios -->
             <a href="{{ url_for('admin.users_list') }}" class="nav-item" style="color: #60a5fa; font-weight: 600;">👥 Usuarios</a>
+            <!-- Enlace a Auditoria -->
             <a href="{{ url_for('admin.audit_view') }}" class="nav-item" style="color: #34d399;">📋 Auditoría</a>
+            <!-- Enlace a Errores -->
             <a href="{{ url_for('admin.errors_view') }}" class="nav-item" style="color: #f87171;">⚠️ Errores</a>
+            <!-- Cierra condicion de admin_sistema -->
             {% endif %}
 
             <!-- Indicador de usuario y rol activo -->

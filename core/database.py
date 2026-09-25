@@ -2,8 +2,10 @@
 import sqlite3
 # Importa json para serializar y deserializar los parametros aplicados en snapshots
 import json
-# Importa la ruta de la base de datos desde el archivo de configuracion
-from config import DATABASE_PATH
+# Importa el modulo de configuracion general del sistema
+import config
+# Exporta DATABASE_PATH para compatibilidad hacia atras
+DATABASE_PATH = config.DATABASE_PATH
 # Importa el registrador de eventos para auditar las operaciones sobre la base de datos
 from core.error_logger import log_info, log_error
 
@@ -13,8 +15,8 @@ import contextlib
 # Obtiene una conexion a la base de datos SQLite con contextmanager para cierre automatico
 @contextlib.contextmanager
 def get_db_connection():
-    # Establece la conexion con el archivo de base de datos en disco
-    conn = sqlite3.connect(DATABASE_PATH)
+    # Establece la conexion con el archivo de base de datos en disco usando la ruta dinamica
+    conn = sqlite3.connect(config.DATABASE_PATH)
     # Habilita el acceso a columnas por nombre asociativo tipo diccionario
     conn.row_factory = sqlite3.Row
     # Habilita el soporte de claves foraneas para mantener la integridad referencial
@@ -340,6 +342,70 @@ def init_db():
         );
         """)
 
+        # Crea la tabla de actividades de mantenimiento (operativas y planificadas)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS maintenance_activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         -- Identificador unico de la tarea
+            title TEXT NOT NULL,                          -- Titulo o sintesis de la intervencion
+            category TEXT NOT NULL,                       -- operativa, planificada_con_parada, planificada_sin_parada
+            equipment_tag TEXT,                           -- Equipo, sector o maquina intervenida
+            priority TEXT NOT NULL DEFAULT 'media',       -- baja, media, alta, critica
+            status TEXT NOT NULL DEFAULT 'pendiente',     -- pendiente, en_progreso, completada, cancelada
+            description TEXT,                             -- Descripcion tecnica del trabajo o falla
+            reported_by TEXT NOT NULL,                    -- Nombre del usuario u operario que reporto
+            assigned_to TEXT,                             -- Tecnico o responsable asignado
+            scheduled_date TEXT,                          -- Fecha programada para la realizacion
+            completed_at TIMESTAMP,                       -- Fecha y hora real de finalizacion
+            resolution_notes TEXT,                        -- Informe tecnico de la resolucion
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Fecha de creacion del registro
+        );
+        """)
+
+        # Crea la tabla de fotografias y registros visuales de reparaciones
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS maintenance_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         -- Identificador unico de la imagen
+            activity_id INTEGER NOT NULL,                 -- Tarea de mantenimiento asociada
+            filename TEXT NOT NULL,                       -- Nombre del archivo almacenado en disco
+            caption TEXT,                                 -- Epigrafe explicativo (antes, durante, repuesto, final)
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Fecha y hora de subida
+            FOREIGN KEY (activity_id) REFERENCES maintenance_activities(id) ON DELETE CASCADE
+        );
+        """)
+
+        # Crea la tabla de pañol y stock de repuestos e insumos industriales
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS spare_parts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         -- Identificador unico del repuesto
+            code TEXT UNIQUE NOT NULL,                    -- Codigo interno o de fabricante (ej. ROD-6205)
+            name TEXT NOT NULL,                           -- Denominacion descriptiva del repuesto
+            category TEXT NOT NULL,                       -- Rodamientos, Correas, Retenes, Filtros, Lubricantes, etc.
+            equipment_assigned TEXT,                      -- Equipo o linea donde se utiliza
+            is_consumable INTEGER DEFAULT 0,              -- 1 si es consumible, 0 si es repuesto mecanico
+            stock_quantity REAL NOT NULL DEFAULT 0.0,     -- Existencia fisica actual en stock
+            min_stock REAL NOT NULL DEFAULT 0.0,          -- Stock minimo de seguridad para alerta
+            unit TEXT NOT NULL DEFAULT 'unidades',        -- Unidad de medida: unidades, litros, metros, kg
+            location TEXT,                                -- Ubicacion fisica en pañol o estanteria
+            notes TEXT,                                   -- Observaciones, proveedor o especificaciones
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Ultima modificacion del registro
+        );
+        """)
+
+        # Crea la tabla de movimientos de inventario de repuestos
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS spare_parts_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,         -- Identificador unico del movimiento
+            spare_part_id INTEGER NOT NULL,               -- Repuesto afectado
+            activity_id INTEGER,                          -- Tarea de mantenimiento donde se aplico (opcional)
+            movement_type TEXT NOT NULL,                  -- ingreso, egreso_mantenimiento, ajuste
+            quantity REAL NOT NULL,                       -- Cantidad involucrada
+            operator_name TEXT NOT NULL,                  -- Responsable del movimiento
+            reason TEXT,                                  -- Motivo o justificacion del movimiento
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Momento del registro
+            FOREIGN KEY (spare_part_id) REFERENCES spare_parts(id)
+        );
+        """)
+
         # Confirma las transacciones de creacion de tablas
         conn.commit()
 
@@ -454,3 +520,77 @@ def seed_initial_data():
             """)
             # Confirma la insercion de los silos
             conn.commit()
+
+        # Inserta catalogo inicial de repuestos y consumibles base de planta si la tabla esta vacia
+        parts_count = conn.execute("SELECT COUNT(*) FROM spare_parts;").fetchone()[0]
+        # Si no existen repuestos cargados previamente
+        if parts_count == 0:
+            # Inserta rodamiento SKF de prensa principal
+            conn.execute("""
+            INSERT INTO spare_parts (code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit, location)
+            VALUES ('ROD-SKF-22218', 'Rodamiento Oscilante de Rodillos SKF 22218', 'Rodamientos', 'Prensa de Extracción 1', 0, 4.0, 2.0, 'unidades', 'Estante A1');
+            """)
+            # Inserta correa trapezoidal seccion B
+            conn.execute("""
+            INSERT INTO spare_parts (code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit, location)
+            VALUES ('CORR-B-75', 'Correa en V Sección B-75 Industrial', 'Correas', 'Molino Quebrador', 0, 8.0, 4.0, 'unidades', 'Estante B2');
+            """)
+            # Inserta grasa de alta temperatura para prensas (consumible)
+            conn.execute("""
+            INSERT INTO spare_parts (code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit, location)
+            VALUES ('LUB-GRASA-EP2', 'Grasa Litio Complejo EP2 Alta Temperatura', 'Lubricantes', 'Prensas y Reductores', 1, 35.0, 15.0, 'kg', 'Pañol Lubricantes');
+            """)
+            # Inserta tela filtrante para filtro prensa (consumible)
+            conn.execute("""
+            INSERT INTO spare_parts (code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit, location)
+            VALUES ('FILT-TELA-PP', 'Tela Filtrante Polipropileno 800x800mm', 'Filtros', 'Filtro Prensa de Aceite', 1, 24.0, 10.0, 'unidades', 'Estante C3');
+            """)
+            # Inserta reten de aceite para eje reductor
+            conn.execute("""
+            INSERT INTO spare_parts (code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit, location)
+            VALUES ('RET-65-90-10', 'Retén Doble Labio NBR 65x90x10 mm', 'Retenes', 'Reductor Principal', 0, 6.0, 2.0, 'unidades', 'Cajón R1');
+            """)
+            # Confirma la carga inicial de repuestos
+            conn.commit()
+
+# Limpia los datos operativos de prueba a cero para preparar la planta para produccion real
+def reset_production_operational_data():
+    # Registra inicio del proceso de limpieza en el log
+    log_info('DATABASE', 'Iniciando limpieza a cero de datos operativos para produccion')
+    # Abre conexion para ejecutar las sentencias de limpieza
+    with get_db_connection() as conn:
+        # Vacia pesadas de linea
+        conn.execute("DELETE FROM production_weighings;")
+        # Vacia paradas de linea
+        conn.execute("DELETE FROM line_stops;")
+        # Vacia cubicajes de tanques
+        conn.execute("DELETE FROM inventory_tanks;")
+        # Vacia cubicajes de silos
+        conn.execute("DELETE FROM inventory_silos;")
+        # Vacia existencias de expeller
+        conn.execute("DELETE FROM inventory_expeller;")
+        # Vacia movimientos de granos y aceite
+        conn.execute("DELETE FROM inventory_movements;")
+        # Vacia determinaciones de laboratorio
+        conn.execute("DELETE FROM lab_analyses;")
+        # Vacia conciliaciones de balance de masa
+        conn.execute("DELETE FROM shift_reconciliations;")
+        # Vacia despachos de camiones de aceite
+        conn.execute("DELETE FROM oil_truck_dispatches;")
+        # Vacia codigos de recuperacion de clave ya vencidos
+        conn.execute("DELETE FROM password_reset_codes;")
+        # Vacia errores historicos de prueba
+        conn.execute("DELETE FROM system_errors;")
+        # Vacia logs de auditoria anteriores
+        conn.execute("DELETE FROM audit_logs;")
+        # Inserta registro de auditoria documentando la puesta a cero oficial
+        conn.execute("""
+        INSERT INTO audit_logs (category, action, details, status)
+        VALUES ('SISTEMA', 'RESET_PRODUCCION', 'Limpieza general de datos operativos a cero completada para produccion.', 'OK');
+        """)
+        # Reinicia los contadores autoincrementales de las tablas operativas
+        conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('production_weighings', 'line_stops', 'inventory_tanks', 'inventory_silos', 'inventory_expeller', 'inventory_movements', 'lab_analyses', 'shift_reconciliations', 'oil_truck_dispatches', 'password_reset_codes', 'system_errors');")
+        # Confirma la operacion de limpieza en disco
+        conn.commit()
+    # Registra en log la finalizacion de la limpieza
+    log_info('DATABASE', 'Datos operativos reiniciados exitosamente. Parametros maestros preservados.')

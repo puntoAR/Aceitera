@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Importa variables de configuracion (auto-vincula el entorno virtual local si existe)
-from config import SECRET_KEY, PORT, HOST, DEBUG
+from config import SECRET_KEY, PORT, HOST, DEBUG, MAINTENANCE_UPLOADS_DIR
 
 # Bloque de captura para verificar disponibilidad de Flask
 try:
@@ -37,6 +37,8 @@ from modules.configuration.routes import config_bp
 from modules.updater.routes import updater_bp
 # Importa el blueprint de administracion de usuarios, auditoria y errores
 from modules.admin.routes import admin_bp
+# Importa el blueprint de mantenimiento industrial y pañol de repuestos
+from modules.maintenance.routes import maintenance_bp
 # Importa request para inspeccionar la ruta solicitada en before_request
 from flask import request
 # Importa el ejecutor de migraciones automaticas
@@ -74,6 +76,8 @@ app.register_blueprint(config_bp)
 app.register_blueprint(updater_bp)
 # Registra el blueprint de administracion
 app.register_blueprint(admin_bp)
+# Registra el blueprint de mantenimiento industrial y pañol de repuestos
+app.register_blueprint(maintenance_bp)
 
 # Ruta publica para servir el manifiesto PWA que permite la instalacion en celulares
 @app.route('/manifest.json')
@@ -90,6 +94,12 @@ def service_worker_js():
     response.headers['Service-Worker-Allowed'] = '/'
     # Retorna la respuesta configurada
     return response
+
+# Ruta publica para servir fotografias de intervenciones de mantenimiento
+@app.route('/static/uploads/maintenance/<path:filename>')
+def serve_maintenance_upload(filename):
+    # Retorna la fotografia almacenada en disco con envio optimizado
+    return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
 
 # Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
 with app.app_context():

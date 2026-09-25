@@ -1,6 +1,6 @@
 {
-  "version": "1.0.9",
-  "release_date": "2026-09-24",
+  "version": "1.1.0",
+  "release_date": "2026-09-25",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
     "v1.0.0 - Base modular inicial",
@@ -12,6 +12,7 @@
     "v1.0.6 - Soporte PWA movil (instalacion en celular, manifest, Service Worker, iconos de alta resolucion), compatibilidad serverless Vercel, y creacion directa de perfiles administrativos con nombres de usuario personalizados y seleccion entre los 3 roles oficiales",
     "v1.0.7 - Optimizacion movil responsiva: simplificacion de formulas y datos secundarios en celulares, correccion de renderizado SVG para iPhone/Safari y actualizacion de Service Worker con estrategia Network-First",
     "v1.0.8 - Actualizacion del nivel de acceso ejecutivo: renombrado del rol Gerente a Gerencia en gestion de usuarios, selector de asignacion, insignias de estado y soporte interoperable en base de datos",
-    "v1.0.9 - Modelo de caudales y balance de masa alineado a planillas de planta: muestreo estandarizado en 30s, Rendimiento de Expeller por relacion horaria ((Expeller/Semilla)*100), cruce de extraccion de aceite con analitica de laboratorio, y persistencia cronologica de muestras analiticas"
+    "v1.0.9 - Modelo de caudales y balance de masa alineado a planillas de planta: muestreo estandarizado en 30s, Rendimiento de Expeller por relacion horaria ((Expeller/Semilla)*100), cruce de extraccion de aceite con analitica de laboratorio, y persistencia cronologica de muestras analiticas",
+    "v1.1.0 - Modulo de Mantenimiento Industrial (actividades operativas y planificadas con/sin parada de planta, galeria fotografica de reparaciones), Pañol y Stock de Repuestos (control de consumibles, alertas automaticas de stock minimo, reportes para impresion y exportacion CSV) y mecanismo seguro de puesta a cero de datos operativos garantizando la preservacion estricta de datos estructurales y configuraciones en futuras actualizaciones"
   ]
 }

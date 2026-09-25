@@ -157,3 +157,30 @@ def resolve_error_route(error_id):
     except Exception as e:
         flash(f'Error al actualizar: {e}', 'danger')
     return redirect(url_for('admin.errors_view'))
+
+# Endpoint exclusivo para que el Administrador del Sistema reinicie datos operativos a cero para produccion
+@admin_bp.route('/database/reset_production', methods=['POST'])
+@roles_required('admin_sistema')
+def reset_production_database():
+    # Obtiene la confirmacion escrita ingresada por el administrador
+    confirm_text = request.form.get('confirm_text', '').strip()
+    # Verifica que el texto coincida exactamente con la frase de seguridad requerida
+    if confirm_text != 'CONFIRMAR_RESET_PRODUCCION':
+        # Emite mensaje flash de advertencia si no coincide
+        flash("La frase de confirmación es incorrecta. Ingrese 'CONFIRMAR_RESET_PRODUCCION' para autorizar el reinicio a cero.", "warning")
+        # Redirige de regreso a administracion
+        return redirect(url_for('admin.users_list'))
+    # Bloque de ejecucion segura
+    try:
+        # Importa la funcion de puesta a cero de datos operativos
+        from core.database import reset_production_operational_data
+        # Ejecuta la limpieza de datos operativos
+        reset_production_operational_data()
+        # Emite mensaje flash confirmando la puesta a cero para produccion
+        flash("Base de datos reiniciada a cero exitosamente para Producción Real. Se preservaron intactos los usuarios, turnos, equipos y repuestos.", "success")
+    # Captura cualquier excepcion durante el proceso
+    except Exception as e:
+        # Emite mensaje flash de error
+        flash(f"Error al reiniciar datos operativos: {e}", "danger")
+    # Redirige al panel de administracion
+    return redirect(url_for('admin.users_list'))

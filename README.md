@@ -1,4 +1,4 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.0.9
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.0
 
 Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
@@ -6,9 +6,25 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 
 ---
 
-## Novedades y Capacidades en la Versión 1.0.9
+## Novedades y Capacidades en la Versión 1.1.0
 
-1. **Cálculos de Planta Estandarizados (Caudales Horarios y Rendimiento de Expeller):**
+1. **Módulo de Mantenimiento Industrial:**
+   - **Registro de actividades en 3 categorías operativas oficiales:**
+     - **Operativa:** urgencias y desperfectos que surgen en el momento durante la marcha de la planta.
+     - **Planificada (Requiere Parada de Planta):** intervenciones mayores que exigen detener la molienda o la línea de prensado.
+     - **Planificada (Sin Parada de Planta):** tareas programables en paralelo mientras la planta continúa en plena operación.
+   - **Histórico Visual de Reparaciones:** Subida directa y visualización cronológica en galería de fotografías de intervenciones mecánicas y reemplazo de componentes.
+
+2. **Pañol y Stock de Repuestos:**
+   - **Control de existencias y tipificación de consumibles:** Diferenciación entre repuestos durables y consumibles de recambio periódico (grasas, lubricantes, precintos, filtros).
+   - **Alertas automáticas de stock mínimo:** Detección visual en tiempo real cuando la existencia actual cae por debajo del umbral crítico configurado.
+   - **Reporte Oficial de Pañol y Repuestos:** Formato imprimible optimizado con membrete institucional, firmas de responsables y exportación directa a formato CSV / Excel.
+
+3. **Puesta a Cero Segura para Inicio de Producción Real:**
+   - Herramienta administrativa para reiniciar a cero los datos operativos de prueba (pesadas, paradas, mediciones de silos y tanques, muestras de laboratorio y despachos de prueba).
+   - **Garantía estricta de preservación de datos:** En todas las actualizaciones presentes y futuras, los datos estructurales (usuarios, calibraciones de silos y tanques, catálogo de repuestos y registros de auditoría) se preservan intactos sin riesgo de borrado o sobreescritura accidental.
+
+4. **Cálculos de Planta Estandarizados (Caudales Horarios y Rendimiento de Expeller):**
    - **Muestreo físico en 30 segundos:** Formulario de pesadas optimizado con selector rápido `[⚡ 30 seg (Estándar)]` y `[60 seg]`, calculando en tiempo real:
      $$\text{Caudal (kg/h)} = \left(\frac{\text{Peso Neto (kg)}}{\text{Tiempo (seg)}}\right) \times 3600$$
    - **Promedio de Turno por Materia Prima:** Cálculo independiente del caudal horario promedio de Semilla y Expeller para las muestras de la guardia.

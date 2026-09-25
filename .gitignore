@@ -22,3 +22,7 @@ data/*.db-journal
 data/*.db-wal
 # Ignora directorios de respaldos locales generados antes de actualizaciones
 backups/
+# Ignora archivos de imagenes subidas en mantenimiento
+static/uploads/maintenance/*
+# Preserva el archivo de anclaje de directorio .gitkeep
+!static/uploads/maintenance/.gitkeep

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<!-- Declaracion de documento HTML5 para impresion limpia -->
+<html lang="es">
+<!-- Idioma espanol -->
+<head>
+    <!-- Codificacion universal de caracteres UTF-8 -->
+    <meta charset="UTF-8">
+    <!-- Viewport para compatibilidad visual -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Titulo del reporte para impresion -->
+    <title>BioBalcarce - Reporte Oficial de Repuestos e Insumos</title>
+    <!-- Estilos de impresion limpios con soporte para pantalla y papel -->
+    <style>
+        /* Estilos base para la tipografia del reporte */
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            color: #111827;
+            margin: 20mm 15mm;
+            background: #ffffff;
+        }
+        /* Cabecera institucional con logotipo y titulo */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #111827;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        /* Contenedor de la marca */
+        .brand-title {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #b45309;
+        }
+        /* Subtitulo de planta */
+        .brand-subtitle {
+            font-size: 9pt;
+            color: #4b5563;
+        }
+        /* Datos de fecha y emision */
+        .report-meta {
+            text-align: right;
+            font-size: 9pt;
+            color: #4b5563;
+        }
+        /* Cuadro de resumen metrico */
+        .summary-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        /* Tarjeta unitaria de resumen */
+        .summary-item {
+            flex: 1;
+            text-align: center;
+        }
+        /* Titulo de metrica */
+        .summary-item-label {
+            font-size: 8pt;
+            text-transform: uppercase;
+            color: #6b7280;
+            font-weight: bold;
+        }
+        /* Valor de metrica */
+        .summary-item-val {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #111827;
+        }
+        /* Tabla de repuestos */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        /* Celdas y cabeceras */
+        th, td {
+            border: 1px solid #d1d5db;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 9pt;
+        }
+        /* Cabecera de tabla sombreada */
+        th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 8pt;
+        }
+        /* Fila destacada cuando el stock es critico */
+        tr.critical-row {
+            background-color: #fee2e2;
+            font-weight: bold;
+        }
+        /* Seccion de firmas al pie del informe */
+        .signatures {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-around;
+            page-break-inside: avoid;
+        }
+        /* Linea de firma individual */
+        .sig-block {
+            text-align: center;
+            width: 220px;
+            border-top: 1px solid #111827;
+            padding-top: 6px;
+            font-size: 9pt;
+        }
+        /* Boton para imprimir en pantalla (oculto al imprimir) */
+        .no-print {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        /* Reglas especificas para soporte de impresora */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra interactiva para enviar orden de impresion o volver (oculta en papel) -->
+    <div class="no-print">
+        <!-- Texto explicativo -->
+        <span style="font-size: 10pt; color: #0369a1; font-weight: 600;">
+            Vista de Impresión Oficial — Configure márgenes normales y orientación horizontal si lo desea.
+        </span>
+        <!-- Botones de accion -->
+        <div>
+            <!-- Boton de impresion nativa -->
+            <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 8px;">
+                🖨️ Imprimir Ahora
+            </button>
+            <!-- Boton para cerrar ventana -->
+            <button onclick="window.close()" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- Encabezado corporativo del reporte -->
+    <div class="report-header">
+        <div>
+            <div class="brand-title">BioBalcarce S.A.</div>
+            <div class="brand-subtitle">Planta de Molienda y Extracción de Aceite Vegetal — Balcarce, Bs. As.</div>
+            <div style="font-size: 11pt; font-weight: bold; margin-top: 6px; color: #111827;">
+                REPORTE OFICIAL DE EXISTENCIAS DE PAÑOL Y STOCK DE REPUESTOS
+            </div>
+        </div>
+        <div class="report-meta">
+            <div><strong>Emisión:</strong> {{ report.generated_at }}</div>
+            <div><strong>Total Artículos:</strong> {{ report.total_items }}</div>
+            <div><strong>Alerta Reposición:</strong> {{ report.critical_items }}</div>
+        </div>
+    </div>
+
+    <!-- Cuadro consolidado de metricas de existencias -->
+    <div class="summary-box">
+        <div class="summary-item">
+            <div class="summary-item-label">Total en Catálogo</div>
+            <div class="summary-item-val">{{ report.total_items }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-item-label">Repuestos Mecánicos</div>
+            <div class="summary-item-val">{{ report.mechanical_items }}</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-item-label">Consumibles / Insumos</div>
+            <div class="summary-item-val">{{ report.consumables_items }}</div>
+        </div>
+        <div class="summary-item" style="border-left: 2px solid #ef4444;">
+            <div class="summary-item-label" style="color: #b91c1c;">Stock Crítico / Pedido</div>
+            <div class="summary-item-val" style="color: #b91c1c;">{{ report.critical_items }}</div>
+        </div>
+    </div>
+
+    <!-- Tabla detallada de repuestos e insumos -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 12%;">Código</th>
+                <th style="width: 25%;">Denominación del Repuesto</th>
+                <th style="width: 13%;">Categoría</th>
+                <th style="width: 15%;">Equipo Destino</th>
+                <th style="width: 10%;">Tipo</th>
+                <th style="width: 9%; text-align: right;">Stock Act.</th>
+                <th style="width: 8%; text-align: right;">Mínimo</th>
+                <th style="width: 8%;">Ubicación</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Itera sobre los repuestos del informe -->
+            {% for p in report.parts %}
+            <tr class="{% if p.is_critical %}critical-row{% endif %}">
+                <td style="font-family: monospace; font-weight: bold;">{{ p.code }}</td>
+                <td>
+                    {{ p.name }}
+                    {% if p.is_critical %}
+                        <span style="color: #b91c1c; font-size: 8pt; margin-left: 4px;">[⚠️ REPOSICIÓN]</span>
+                    {% endif %}
+                </td>
+                <td>{{ p.category }}</td>
+                <td>{{ p.equipment_assigned }}</td>
+                <td>{{ 'Consumible' if p.is_consumable == 1 else 'Mecánico' }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ "%.1f"|format(p.stock_quantity) }} {{ p.unit }}</td>
+                <td style="text-align: right; color: #4b5563;">{{ "%.1f"|format(p.min_stock) }} {{ p.unit }}</td>
+                <td>{{ p.location or 'Pañol' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Bloque de firmas de responsabilidad de pañol y direccion -->
+    <div class="signatures">
+        <div class="sig-block">
+            <strong>Responsable de Pañol</strong><br>
+            Control y Verificación Física
+        </div>
+        <div class="sig-block">
+            <strong>Jefe de Mantenimiento</strong><br>
+            Aprobación de Necesidades
+        </div>
+        <div class="sig-block">
+            <strong>Gerencia de Planta</strong><br>
+            Autorización de Compras
+        </div>
+    </div>
+</body>
+</html>

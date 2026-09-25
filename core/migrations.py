@@ -193,6 +193,72 @@ REGISTERED_MIGRATIONS = [
             -- Actualiza roles preexistentes 'administrador' a 'gerencia'
             UPDATE users SET role = 'gerencia' WHERE role = 'administrador';
         """
+    },
+    {
+        # Version 7 de migracion para el modulo de mantenimiento industrial y pañol de repuestos
+        'version': 7,
+        # Identificador descriptivo de la version
+        'name': 'maintenance_and_spare_parts_v1_2',
+        # Detalle de la funcionalidad incorporada
+        'description': 'Tablas de actividades de mantenimiento (operativas y planificadas), fotografias de reparaciones, stock de repuestos y movimientos de inventario',
+        # Sentencias SQL para crear las nuevas tablas si no existen
+        'sql': """
+            -- Crea la tabla de actividades de mantenimiento
+            CREATE TABLE IF NOT EXISTS maintenance_activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                category TEXT NOT NULL,
+                equipment_tag TEXT,
+                priority TEXT NOT NULL DEFAULT 'media',
+                status TEXT NOT NULL DEFAULT 'pendiente',
+                description TEXT,
+                reported_by TEXT NOT NULL,
+                assigned_to TEXT,
+                scheduled_date TEXT,
+                completed_at TIMESTAMP,
+                resolution_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Crea la tabla de imagenes de mantenimiento
+            CREATE TABLE IF NOT EXISTS maintenance_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_id INTEGER NOT NULL,
+                filename TEXT NOT NULL,
+                caption TEXT,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (activity_id) REFERENCES maintenance_activities(id) ON DELETE CASCADE
+            );
+
+            -- Crea la tabla de stock de repuestos e insumos
+            CREATE TABLE IF NOT EXISTS spare_parts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                equipment_assigned TEXT,
+                is_consumable INTEGER DEFAULT 0,
+                stock_quantity REAL NOT NULL DEFAULT 0.0,
+                min_stock REAL NOT NULL DEFAULT 0.0,
+                unit TEXT NOT NULL DEFAULT 'unidades',
+                location TEXT,
+                notes TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Crea la tabla de movimientos de repuestos
+            CREATE TABLE IF NOT EXISTS spare_parts_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                spare_part_id INTEGER NOT NULL,
+                activity_id INTEGER,
+                movement_type TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                operator_name TEXT NOT NULL,
+                reason TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (spare_part_id) REFERENCES spare_parts(id)
+            );
+        """
     }
 ]
 

@@ -55,13 +55,23 @@ def _can_write_dir(test_path):
 
 # Si se detecta Vercel o el sistema de archivos local es de solo lectura, usar /tmp
 if IS_VERCEL or not _can_write_dir(os.path.join(str(BASE_DIR), 'data')):
+    # Directorio de datos en /tmp para entornos de solo lectura
     DATA_DIR = os.path.join('/tmp', 'data')
+    # Directorio de logs en /tmp
     LOGS_DIR = os.path.join('/tmp', 'logs')
+    # Directorio de respaldos en /tmp
     BACKUPS_DIR = os.path.join('/tmp', 'backups')
+    # Directorio de fotografias de reparaciones de mantenimiento en /tmp
+    MAINTENANCE_UPLOADS_DIR = os.path.join('/tmp', 'uploads', 'maintenance')
 else:
+    # Directorio de datos local en la carpeta data
     DATA_DIR = os.path.join(BASE_DIR, 'data')
+    # Directorio de logs local en la carpeta logs
     LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+    # Directorio de respaldos local en backups
     BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
+    # Directorio de fotografias de mantenimiento en static/uploads/maintenance
+    MAINTENANCE_UPLOADS_DIR = os.path.join(str(BASE_DIR), 'static', 'uploads', 'maintenance')
 
 # Intento de creacion de carpetas de operacion en disco local o temporal
 try:
@@ -71,6 +81,8 @@ try:
     os.makedirs(LOGS_DIR, exist_ok=True)
     # Crea la carpeta de copias de seguridad si no existe
     os.makedirs(BACKUPS_DIR, exist_ok=True)
+    # Crea la carpeta de imagenes de reparaciones de mantenimiento
+    os.makedirs(MAINTENANCE_UPLOADS_DIR, exist_ok=True)
 # Manejo de error si el sistema de archivos actual no permite crear carpetas
 except Exception:
     # Fallback definitivo a /tmp para datos si falla la creacion local
@@ -79,6 +91,8 @@ except Exception:
     LOGS_DIR = os.path.join('/tmp', 'logs')
     # Fallback definitivo a /tmp para respaldos
     BACKUPS_DIR = os.path.join('/tmp', 'backups')
+    # Fallback definitivo para fotografias en /tmp
+    MAINTENANCE_UPLOADS_DIR = os.path.join('/tmp', 'uploads', 'maintenance')
     # Segundo intento de creacion en el directorio temporal
     try:
         # Crea la carpeta data dentro de /tmp
@@ -87,10 +101,18 @@ except Exception:
         os.makedirs(LOGS_DIR, exist_ok=True)
         # Crea la carpeta backups dentro de /tmp
         os.makedirs(BACKUPS_DIR, exist_ok=True)
+        # Crea la carpeta de uploads dentro de /tmp
+        os.makedirs(MAINTENANCE_UPLOADS_DIR, exist_ok=True)
     # Captura silenciosa si ya existen o no pueden crearse
     except Exception:
         # Continua la ejecucion sin detener el servidor
         pass
+
+# Extensiones de imagen autorizadas para fotografias de reparacion
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+# Limite maximo de tamano de archivo para subida de imagenes (16 MB)
+MAX_IMAGE_FILE_SIZE_BYTES = 16 * 1024 * 1024
 
 # Define la ruta del archivo de base de datos principal de SQLite
 DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')

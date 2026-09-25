@@ -1,0 +1,869 @@
+{% extends "base.html" %}
+<!-- Extiende de la plantilla base institucional de BioBalcarce -->
+
+{% block title %}BioBalcarce - Mantenimiento Industrial & Pañol de Repuestos{% endblock %}
+<!-- Titulo dinamico de la pestana de navegacion -->
+
+{% block content %}
+<!-- Inicio del bloque de contenido principal -->
+<div class="maintenance-container" style="max-width: 1400px; margin: 0 auto; padding-bottom: 2rem;">
+    <!-- Encabezado superior con titulo y resumen del pañol -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; background: linear-gradient(135deg, #1e293b, #0f172a); padding: 1.25rem 1.5rem; border-radius: 0.75rem; border-left: 5px solid #f59e0b; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);">
+        <!-- Bloque de titulo y subtitulo -->
+        <div>
+            <!-- Titulo principal del modulo -->
+            <h1 style="color: #f8fafc; font-size: 1.6rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <!-- Icono de herramienta -->
+                <span>🔧</span> Mantenimiento Industrial & Pañol
+            </h1>
+            <!-- Descripcion del proposito del modulo -->
+            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0.25rem 0 0 0;">
+                Gestión de actividades operativas y planificadas, histórico visual fotográfico y control de existencias de repuestos e insumos.
+            </p>
+        </div>
+        <!-- Botones de accion rapida -->
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <!-- Boton para abrir modal de nueva tarea -->
+            <button type="button" onclick="openNewActivityModal()" style="background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <!-- Icono mas -->
+                <span>➕</span> Nueva Actividad
+            </button>
+            <!-- Boton para abrir modal de nuevo repuesto -->
+            <button type="button" onclick="openNewPartModal()" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <!-- Icono paquete -->
+                <span>📦</span> Nuevo Repuesto
+            </button>
+            <!-- Enlace para abrir vista de impresion de reporte -->
+            <a href="{{ url_for('maintenance.print_report') }}" target="_blank" style="background: #334155; color: #f8fafc; text-decoration: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid #475569;">
+                <!-- Icono impresora -->
+                <span>🖨️</span> Imprimir Reporte
+            </a>
+            <!-- Enlace para descargar reporte en CSV -->
+            <a href="{{ url_for('maintenance.export_csv') }}" style="background: #10b981; color: white; text-decoration: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <!-- Icono descarga -->
+                <span>📥</span> Exportar CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjetas de indicadores clave (KPIs) del modulo de mantenimiento -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <!-- Tarjeta 1: Tareas Pendientes -->
+        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b;">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Tareas Pendientes</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.8rem; font-weight: 800; color: #f59e0b; margin-top: 0.25rem;">
+                {{ activities | selectattr('status', 'equalto', 'pendiente') | list | length }}
+            </div>
+            <!-- Subtitulo aclaratorio -->
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Intervenciones en espera</div>
+        </div>
+
+        <!-- Tarjeta 2: Tareas Operativas (Correctivas en marcha) -->
+        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444;">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Operativas (En Marcha)</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.8rem; font-weight: 800; color: #ef4444; margin-top: 0.25rem;">
+                {{ activities | selectattr('category', 'equalto', 'operativa') | list | length }}
+            </div>
+            <!-- Subtitulo aclaratorio -->
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Urgencias del momento</div>
+        </div>
+
+        <!-- Tarjeta 3: Planificadas con Parada de Planta -->
+        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6;">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Planificadas c/ Parada</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.8rem; font-weight: 800; color: #c084fc; margin-top: 0.25rem;">
+                {{ activities | selectattr('category', 'equalto', 'planificada_con_parada') | list | length }}
+            </div>
+            <!-- Subtitulo aclaratorio -->
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Requieren detener planta</div>
+        </div>
+
+        <!-- Tarjeta 4: Stock Critico en Pañol (Alerta de Reposicion) -->
+        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %};">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Stock Crítico Pañol</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.8rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.25rem;">
+                {{ report_data.critical_items }}
+            </div>
+            <!-- Subtitulo aclaratorio con alerta -->
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">
+                {% if report_data.critical_items > 0 %}
+                    <strong style="color: #f43f5e;">⚠️ Requiere compra urgente</strong>
+                {% else %}
+                    <span style="color: #10b981;">Niveles normales</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de navegacion por pestanas (Tabs) -->
+    <div style="display: flex; gap: 0.5rem; border-bottom: 2px solid #334155; margin-bottom: 1.5rem; overflow-x: auto;">
+        <!-- Pestana 1: Actividades -->
+        <button type="button" class="tab-btn active" onclick="switchTab('activities')" id="tab-btn-activities" style="background: none; border: none; border-bottom: 3px solid #f59e0b; color: #f59e0b; font-weight: 700; font-size: 0.95rem; padding: 0.75rem 1.25rem; cursor: pointer; white-space: nowrap;">
+            📋 Actividades de Mantenimiento
+        </button>
+        <!-- Pestana 2: Pañol de Repuestos -->
+        <button type="button" class="tab-btn" onclick="switchTab('spare-parts')" id="tab-btn-spare-parts" style="background: none; border: none; border-bottom: 3px solid transparent; color: #94a3b8; font-weight: 600; font-size: 0.95rem; padding: 0.75rem 1.25rem; cursor: pointer; white-space: nowrap;">
+            📦 Stock de Repuestos & Consumibles
+        </button>
+        <!-- Pestana 3: Galeria Fotografica -->
+        <button type="button" class="tab-btn" onclick="switchTab('gallery')" id="tab-btn-gallery" style="background: none; border: none; border-bottom: 3px solid transparent; color: #94a3b8; font-weight: 600; font-size: 0.95rem; padding: 0.75rem 1.25rem; cursor: pointer; white-space: nowrap;">
+            📸 Histórico Visual de Reparaciones ({{ recent_photos | length }})
+        </button>
+    </div>
+
+    <!-- SECCION 1: TABLA Y FILTROS DE ACTIVIDADES DE MANTENIMIENTO -->
+    <div id="tab-content-activities" class="tab-content">
+        <!-- Barra de filtros rapidos por categoria y estado -->
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
+            <!-- Etiqueta de filtros -->
+            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Filtrar por Categoría:</span>
+            <!-- Boton Todas -->
+            <a href="{{ url_for('maintenance.index') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if not selected_category %}background: #f59e0b; color: #0f172a;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                Todas ({{ activities | length }})
+            </a>
+            <!-- Boton Operativas -->
+            <a href="{{ url_for('maintenance.index', category='operativa') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'operativa' %}background: #ef4444; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                🔧 Operativas (En marcha)
+            </a>
+            <!-- Boton Planificadas con Parada -->
+            <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_con_parada' %}background: #8b5cf6; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                🛑 Planificadas c/ Parada
+            </a>
+            <!-- Boton Planificadas sin Parada -->
+            <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_sin_parada' %}background: #0ea5e9; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                🔄 Planificadas s/ Parada
+            </a>
+        </div>
+
+        <!-- Contenedor responsivo de la tabla de actividades -->
+        <div style="background: #1e293b; border-radius: 0.75rem; border: 1px solid #334155; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+            <!-- Tabla HTML con estilos industriales -->
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                    <!-- Cabecera de la tabla -->
+                    <thead>
+                        <tr style="background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; border-bottom: 2px solid #334155;">
+                            <th style="padding: 0.85rem 1rem;">ID</th>
+                            <th style="padding: 0.85rem 1rem;">Categoría</th>
+                            <th style="padding: 0.85rem 1rem;">Título & Descripción</th>
+                            <th style="padding: 0.85rem 1rem;">Equipo / Sector</th>
+                            <th style="padding: 0.85rem 1rem;">Prioridad</th>
+                            <th style="padding: 0.85rem 1rem;">Estado</th>
+                            <th style="padding: 0.85rem 1rem;">Asignado</th>
+                            <th style="padding: 0.85rem 1rem;">Fotos</th>
+                            <th style="padding: 0.85rem 1rem; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <!-- Cuerpo de la tabla -->
+                    <tbody>
+                        <!-- Si no hay actividades para mostrar -->
+                        {% if activities | length == 0 %}
+                        <tr>
+                            <!-- Mensaje de tabla vacia -->
+                            <td colspan="9" style="padding: 2.5rem; text-align: center; color: #64748b;">
+                                <span>🔍 No se encontraron actividades con los filtros seleccionados.</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <!-- Itera sobre cada actividad de mantenimiento -->
+                        {% for act in activities %}
+                        <tr style="border-bottom: 1px solid #334155; transition: background 0.15s ease;" onmouseover="this.style.background='#283548'" onmouseout="this.style.background='transparent'">
+                            <!-- Columna ID -->
+                            <td style="padding: 0.85rem 1rem; font-weight: 700; color: #cbd5e1;">#{{ act.id }}</td>
+                            <!-- Columna Categoria con badge distintivo -->
+                            <td style="padding: 0.85rem 1rem;">
+                                {% if act.category == 'operativa' %}
+                                    <span style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                        ⚡ Operativa
+                                    </span>
+                                {% elif act.category == 'planificada_con_parada' %}
+                                    <span style="background: rgba(139,92,246,0.2); color: #c084fc; border: 1px solid #8b5cf6; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                        🛑 Planif. c/ Parada
+                                    </span>
+                                {% else %}
+                                    <span style="background: rgba(14,165,233,0.2); color: #38bdf8; border: 1px solid #0ea5e9; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                        🔄 Planif. s/ Parada
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Titulo y Detalle -->
+                            <td style="padding: 0.85rem 1rem; max-width: 320px;">
+                                <!-- Titulo en negrita -->
+                                <div style="font-weight: 700; color: #f8fafc;">{{ act.title }}</div>
+                                <!-- Descripcion complementaria -->
+                                {% if act.description %}
+                                <div style="font-size: 0.78rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.15rem;">
+                                    {{ act.description }}
+                                </div>
+                                {% endif %}
+                                <!-- Notas de resolucion si esta completada -->
+                                {% if act.resolution_notes %}
+                                <div style="font-size: 0.72rem; color: #34d399; margin-top: 0.25rem;">
+                                    <strong>Resolución:</strong> {{ act.resolution_notes }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Equipo intervenido -->
+                            <td style="padding: 0.85rem 1rem; color: #e2e8f0; font-weight: 600;">
+                                {{ act.equipment_tag or 'General' }}
+                            </td>
+                            <!-- Columna Prioridad -->
+                            <td style="padding: 0.85rem 1rem;">
+                                {% if act.priority == 'critica' %}
+                                    <span style="background: #991b1b; color: #fecaca; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 800;">CRÍTICA</span>
+                                {% elif act.priority == 'alta' %}
+                                    <span style="background: #c2410c; color: #ffedd5; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">ALTA</span>
+                                {% elif act.priority == 'media' %}
+                                    <span style="background: #1e3a8a; color: #dbeafe; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">MEDIA</span>
+                                {% else %}
+                                    <span style="background: #334155; color: #94a3b8; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">BAJA</span>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Estado -->
+                            <td style="padding: 0.85rem 1rem;">
+                                {% if act.status == 'pendiente' %}
+                                    <span style="color: #f59e0b; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> Pendiente
+                                    </span>
+                                {% elif act.status == 'en_progreso' %}
+                                    <span style="color: #38bdf8; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #38bdf8;"></span> En Curso
+                                    </span>
+                                {% elif act.status == 'completada' %}
+                                    <span style="color: #34d399; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span> Resuelta
+                                    </span>
+                                {% else %}
+                                    <span style="color: #64748b; font-weight: 600;">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Tecnico Asignado y fecha -->
+                            <td style="padding: 0.85rem 1rem; font-size: 0.78rem; color: #cbd5e1;">
+                                <div>{{ act.assigned_to or 'Sin asignar' }}</div>
+                                {% if act.scheduled_date %}
+                                <div style="font-size: 0.7rem; color: #94a3b8;">📅 {{ act.scheduled_date }}</div>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Fotos vinculadas -->
+                            <td style="padding: 0.85rem 1rem; text-align: center;">
+                                {% if act.images_count > 0 %}
+                                    <!-- Boton para ver galeria de la actividad -->
+                                    <button type="button" onclick="viewActivityGallery({{ act.id }}, '{{ act.title | replace("'", "\\'") }}')" style="background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid #3b82f6; border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.75rem; cursor: pointer; font-weight: 600;">
+                                        📷 {{ act.images_count }} foto{{ 's' if act.images_count > 1 else '' }}
+                                    </button>
+                                {% else %}
+                                    <span style="color: #64748b; font-size: 0.75rem;">Sin fotos</span>
+                                {% endif %}
+                            </td>
+                            <!-- Columna Acciones -->
+                            <td style="padding: 0.85rem 1rem; text-align: right; white-space: nowrap;">
+                                <!-- Boton para agregar foto -->
+                                <button type="button" onclick="openAddPhotoModal({{ act.id }})" title="Cargar Fotografía" style="background: #334155; border: none; color: #f8fafc; padding: 0.35rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 0.25rem;">
+                                    📷+
+                                </button>
+                                <!-- Boton para cambiar estado o completar -->
+                                <button type="button" onclick="openUpdateStatusModal({{ act.id }}, '{{ act.status }}', '{{ act.title | replace("'", "\\'") }}')" title="Cambiar Estado / Resolver" style="background: #0284c7; border: none; color: white; padding: 0.35rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
+                                    ⚙️ Estado
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCION 2: CATALOGO Y STOCK DE REPUESTOS Y CONSUMIBLES -->
+    <div id="tab-content-spare-parts" class="tab-content" style="display: none;">
+        <!-- Filtros especificos para el pañol de repuestos -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+            <!-- Filtros de seleccion -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Filtros de Pañol:</span>
+                <!-- Ver todos -->
+                <a href="{{ url_for('maintenance.index') }}#tab-spare-parts" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if not low_stock_filter and not selected_part_category %}background: #2563eb; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                    Todos ({{ spare_parts | length }})
+                </a>
+                <!-- Solo stock critico -->
+                <a href="{{ url_for('maintenance.index', low_stock='1') }}#tab-spare-parts" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if low_stock_filter %}background: #ef4444; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                    ⚠️ Solo Críticos / Reposición ({{ report_data.critical_items }})
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabla de inventario de repuestos e insumos -->
+        <div style="background: #1e293b; border-radius: 0.75rem; border: 1px solid #334155; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: #0f172a; color: #94a3b8; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; border-bottom: 2px solid #334155;">
+                            <th style="padding: 0.85rem 1rem;">Código</th>
+                            <th style="padding: 0.85rem 1rem;">Denominación del Repuesto</th>
+                            <th style="padding: 0.85rem 1rem;">Categoría</th>
+                            <th style="padding: 0.85rem 1rem;">Equipo / Destino</th>
+                            <th style="padding: 0.85rem 1rem;">Tipo</th>
+                            <th style="padding: 0.85rem 1rem;">Existencia Actual</th>
+                            <th style="padding: 0.85rem 1rem;">Stock Mín.</th>
+                            <th style="padding: 0.85rem 1rem;">Estado</th>
+                            <th style="padding: 0.85rem 1rem;">Ubicación</th>
+                            <th style="padding: 0.85rem 1rem; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Si no hay repuestos cargados -->
+                        {% if spare_parts | length == 0 %}
+                        <tr>
+                            <td colspan="10" style="padding: 2.5rem; text-align: center; color: #64748b;">
+                                <span>📦 No hay repuestos registrados con este criterio.</span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <!-- Itera sobre cada repuesto del pañol -->
+                        {% for part in spare_parts %}
+                        <tr style="border-bottom: 1px solid #334155; transition: background 0.15s ease; {% if part.is_critical %}background: rgba(239,68,68,0.06);{% endif %}" onmouseover="this.style.background='#283548'" onmouseout="this.style.background='{% if part.is_critical %}rgba(239,68,68,0.06){% else %}transparent{% endif %}'">
+                            <!-- Codigo unico -->
+                            <td style="padding: 0.85rem 1rem; font-family: monospace; font-weight: 700; color: #f59e0b;">
+                                {{ part.code }}
+                            </td>
+                            <!-- Nombre descriptivo -->
+                            <td style="padding: 0.85rem 1rem;">
+                                <strong style="color: #f8fafc;">{{ part.name }}</strong>
+                                {% if part.notes %}
+                                <div style="font-size: 0.72rem; color: #94a3b8;">{{ part.notes }}</div>
+                                {% endif %}
+                            </td>
+                            <!-- Categoria de la pieza -->
+                            <td style="padding: 0.85rem 1rem; color: #cbd5e1;">{{ part.category }}</td>
+                            <!-- Equipo donde se monta -->
+                            <td style="padding: 0.85rem 1rem; color: #94a3b8;">{{ part.equipment_assigned }}</td>
+                            <!-- Indicador de Consumible vs Repuesto mecanico -->
+                            <td style="padding: 0.85rem 1rem;">
+                                {% if part.is_consumable == 1 %}
+                                    <span style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid #10b981; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">
+                                        Consumible
+                                    </span>
+                                {% else %}
+                                    <span style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid #3b82f6; padding: 0.2rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
+                                        Mecánico
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <!-- Stock actual -->
+                            <td style="padding: 0.85rem 1rem; font-weight: 700; font-size: 0.95rem; color: {% if part.is_critical %}#ef4444{% else %}#10b981{% endif %};">
+                                {{ "%.1f"|format(part.stock_quantity) }} {{ part.unit }}
+                            </td>
+                            <!-- Stock minimo de seguridad -->
+                            <td style="padding: 0.85rem 1rem; color: #94a3b8;">
+                                {{ "%.1f"|format(part.min_stock) }} {{ part.unit }}
+                            </td>
+                            <!-- Estado de reposicion -->
+                            <td style="padding: 0.85rem 1rem;">
+                                {% if part.is_critical %}
+                                    <span style="background: #dc2626; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 800; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                        ⚠️ REPOSICIÓN
+                                    </span>
+                                {% else %}
+                                    <span style="color: #10b981; font-size: 0.75rem; font-weight: 700;">✔ OK</span>
+                                {% endif %}
+                            </td>
+                            <!-- Ubicacion fisica -->
+                            <td style="padding: 0.85rem 1rem; color: #cbd5e1; font-size: 0.78rem;">
+                                {{ part.location or 'Pañol Central' }}
+                            </td>
+                            <!-- Acciones de stock -->
+                            <td style="padding: 0.85rem 1rem; text-align: right; white-space: nowrap;">
+                                <!-- Boton asentar movimiento -->
+                                <button type="button" onclick="openMovementModal({{ part.id }}, '{{ part.code }}', '{{ part.name | replace("'", "\\'") }}', {{ part.stock_quantity }}, '{{ part.unit }}')" title="Registrar Ingreso / Consumo" style="background: #0284c7; border: none; color: white; padding: 0.35rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem; font-weight: 600; margin-right: 0.25rem;">
+                                    ⚖️ Movimiento
+                                </button>
+                                <!-- Boton editar repuesto -->
+                                <button type="button" onclick="openEditPartModal({{ part.id }}, '{{ part.code }}', '{{ part.name | replace("'", "\\'") }}', '{{ part.category }}', '{{ part.equipment_assigned }}', {{ part.is_consumable }}, {{ part.stock_quantity }}, {{ part.min_stock }}, '{{ part.unit }}', '{{ part.location }}', '{{ part.notes | replace("'", "\\'") }}')" title="Editar Ficha" style="background: #475569; border: none; color: #f8fafc; padding: 0.35rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem;">
+                                    ✏️
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCION 3: HISTORICO VISUAL Y GALERIA FOTOGRAFICA -->
+    <div id="tab-content-gallery" class="tab-content" style="display: none;">
+        <!-- Cabecera de la galeria -->
+        <div style="background: #1e293b; padding: 1rem 1.25rem; border-radius: 0.6rem; margin-bottom: 1.25rem; border: 1px solid #334155;">
+            <h3 style="color: #f8fafc; margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>📷</span> Registro Visual Fotográfico de Reparaciones e Intervenciones
+            </h3>
+            <p style="color: #94a3b8; font-size: 0.8rem; margin: 0.25rem 0 0 0;">
+                Archivo fotográfico de fallas, desarmes de maquinaria y equipos reparados en la planta aceitera.
+            </p>
+        </div>
+
+        <!-- Si no hay fotos cargadas todavia -->
+        {% if recent_photos | length == 0 %}
+        <div style="background: #1e293b; padding: 3rem; text-align: center; border-radius: 0.75rem; border: 1px dashed #475569; color: #64748b;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📸</div>
+            <div style="font-weight: 600; color: #94a3b8;">Aún no se han cargado fotografías de reparaciones.</div>
+            <div style="font-size: 0.8rem; margin-top: 0.25rem;">Al crear o editar una actividad de mantenimiento podés subir fotos de la intervención.</div>
+        </div>
+        {% else %}
+        <!-- Grilla de fotografias responsiva -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem;">
+            <!-- Itera sobre cada fotografia reciente -->
+            {% for photo in recent_photos %}
+            <div style="background: #1e293b; border-radius: 0.6rem; overflow: hidden; border: 1px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                <!-- Contenedor de la imagen con recorte -->
+                <div style="height: 180px; overflow: hidden; background: #0f172a; position: relative;">
+                    <!-- Imagen de la reparacion -->
+                    <img src="{{ url_for('static', filename='uploads/maintenance/' + photo.filename) }}" alt="{{ photo.caption }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="openPhotoViewer('{{ url_for('static', filename='uploads/maintenance/' + photo.filename) }}', '{{ photo.activity_title | replace("'", "\\'") }} - {{ photo.caption }}')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <!-- Badge de equipo en esquina -->
+                    <span style="position: absolute; bottom: 8px; left: 8px; background: rgba(15,23,42,0.85); color: #f59e0b; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">
+                        {{ photo.equipment_tag or 'Equipo General' }}
+                    </span>
+                </div>
+                <!-- Bloque de texto inferior -->
+                <div style="padding: 0.75rem 1rem;">
+                    <!-- Titulo de la actividad asociada -->
+                    <div style="font-weight: 700; color: #f8fafc; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ photo.activity_title }}
+                    </div>
+                    <!-- Epigrafe de la foto -->
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem;">
+                        {{ photo.caption or 'Registro de mantenimiento' }}
+                    </div>
+                    <!-- Fecha y hora de subida -->
+                    <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.35rem;">
+                        📅 {{ photo.uploaded_at }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODALES DE INTERACCION DINAMICA -->
+<!-- ========================================================================= -->
+
+<!-- MODAL 1: NUEVA ACTIVIDAD DE MANTENIMIENTO -->
+<div id="modal-new-activity" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 600px; border-radius: 0.75rem; border: 1px solid #475569; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); overflow: hidden;">
+        <!-- Cabecera del modal -->
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 style="color: #f59e0b; margin: 0; font-size: 1.15rem; font-weight: 700;">➕ Registrar Actividad de Mantenimiento</h3>
+            <button type="button" onclick="closeModal('modal-new-activity')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <!-- Formulario de alta -->
+        <form action="{{ url_for('maintenance.create_activity') }}" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
+            <!-- Titulo de la intervencion -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Título de la Actividad *</label>
+                <input type="text" name="title" required placeholder="Ej. Cambio de rodamientos Prensa 1, Ajuste de correas..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+            </div>
+
+            <!-- Fila de Categoria y Prioridad -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <!-- Selector de Categoria Oficial -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Categoría Operativa *</label>
+                    <select name="category" required style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                        <option value="operativa">🔧 Operativa (En el momento / En marcha)</option>
+                        <option value="planificada_con_parada">🛑 Planificada con Parada de Planta</option>
+                        <option value="planificada_sin_parada">🔄 Planificada sin Parada de Planta</option>
+                    </select>
+                </div>
+                <!-- Prioridad -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Prioridad *</label>
+                    <select name="priority" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                        <option value="media">Media</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica (Urgente)</option>
+                        <option value="baja">Baja</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Fila de Equipo y Responsable -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <!-- Equipo o maquina -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Equipo o Sector *</label>
+                    <input type="text" name="equipment_tag" required placeholder="Ej. Prensa 1, Caldera, Noria 2, Silos..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <!-- Asignado a -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Técnico / Asignado</label>
+                    <input type="text" name="assigned_to" placeholder="Nombre del responsable" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <!-- Fecha programada y foto inicial -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <!-- Fecha programada -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Fecha Prevista (Si aplica)</label>
+                    <input type="date" name="scheduled_date" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <!-- Foto de falla o estado inicial -->
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">📷 Fotografía Inicial</label>
+                    <input type="file" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+                </div>
+            </div>
+
+            <!-- Descripcion de la falla -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Descripción Técnica del Trabajo o Desperfecto</label>
+                <textarea name="description" rows="3" placeholder="Detalle técnico de los síntomas, tareas requeridas, repuestos estimados..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- Botones de accion -->
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-new-activity')" style="padding: 0.6rem 1rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 0.6rem 1.25rem; background: linear-gradient(135deg, #d97706, #b45309); color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Registrar Actividad</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 2: ACTUALIZAR ESTADO Y RESOLUCION TECNICA -->
+<div id="modal-update-status" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 520px; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden;">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 id="update-modal-title" style="color: #38bdf8; margin: 0; font-size: 1.1rem; font-weight: 700;">⚙️ Actualizar Estado de Actividad</h3>
+            <button type="button" onclick="closeModal('modal-update-status')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form id="update-status-form" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
+            <!-- Selector de nuevo estado -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Nuevo Estado *</label>
+                <select id="update-status-select" name="status" required style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="en_progreso">🔄 En Curso / Reparando</option>
+                    <option value="completada">✔ Completada / Resuelta</option>
+                    <option value="pendiente">⏳ Pendiente</option>
+                    <option value="cancelada">❌ Cancelada</option>
+                </select>
+            </div>
+            <!-- Notas de resolucion tecnica -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Notas de Resolución Técnica / Cierre</label>
+                <textarea name="resolution_notes" rows="3" placeholder="Detalle técnico de la solución aplicada, repuestos utilizados, pruebas realizadas..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;"></textarea>
+            </div>
+            <!-- Fotografia de la reparacion -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">📷 Fotografía de la Reparación (Opcional)</label>
+                <input type="file" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+            </div>
+            <!-- Botones -->
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-update-status')" style="padding: 0.6rem 1rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 0.6rem 1.25rem; background: #0284c7; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Guardar Cambio</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 3: SUBIR FOTO ADICIONAL -->
+<div id="modal-add-photo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 450px; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden;">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 style="color: #f8fafc; margin: 0; font-size: 1.1rem; font-weight: 700;">📷 Cargar Fotografía de Reparación</h3>
+            <button type="button" onclick="closeModal('modal-add-photo')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form id="add-photo-form" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Seleccionar Imagen *</label>
+                <input type="file" name="photo" required accept="image/*" style="width: 100%; font-size: 0.8rem; color: #cbd5e1;">
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Epígrafe / Momento</label>
+                <input type="text" name="caption" placeholder="Ej. Daño previo, Repuesto instalado, Equipo armado..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-add-photo')" style="padding: 0.55rem 0.9rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 0.55rem 1.15rem; background: #10b981; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Subir Fotografía</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 4: ALTA O EDICION DE REPUESTO -->
+<div id="modal-part" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 580px; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden;">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 id="part-modal-title" style="color: #60a5fa; margin: 0; font-size: 1.1rem; font-weight: 700;">📦 Ficha de Repuesto / Insumo</h3>
+            <button type="button" onclick="closeModal('modal-part')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form action="{{ url_for('maintenance.save_spare_part') }}" method="POST" style="padding: 1.25rem;">
+            <input type="hidden" id="part-id" name="part_id" value="">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Código *</label>
+                    <input type="text" id="part-code" name="code" required placeholder="ROD-6205" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: #f59e0b; font-family: monospace; font-weight: 700; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Denominación *</label>
+                    <input type="text" id="part-name" name="name" required placeholder="Rodamiento SKF 6205-2RS" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Categoría</label>
+                    <input type="text" id="part-category" name="category" placeholder="Rodamientos, Correas, Lubricantes..." style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Equipo Asignado</label>
+                    <input type="text" id="part-equipment" name="equipment_assigned" placeholder="Prensa 1, Reductor, Molino..." style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Existencia Actual *</label>
+                    <input type="number" step="0.1" id="part-stock" name="stock_quantity" required value="0.0" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: #10b981; font-weight: 700; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Stock Mínimo *</label>
+                    <input type="number" step="0.1" id="part-min-stock" name="min_stock" required value="1.0" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: #ef4444; font-weight: 700; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Unidad</label>
+                    <select id="part-unit" name="unit" style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                        <option value="unidades">Unidades</option>
+                        <option value="litros">Litros</option>
+                        <option value="kg">Kilogramos</option>
+                        <option value="metros">Metros</option>
+                        <option value="juegos">Juegos</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Checkbox de consumible y ubicacion -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; align-items: center;">
+                <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Ubicación en Pañol</label>
+                    <input type="text" id="part-location" name="location" placeholder="Estante A3, Cajón 2..." style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div style="padding-top: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #e2e8f0; cursor: pointer;">
+                        <input type="checkbox" id="part-is-consumable" name="is_consumable" value="1">
+                        <span>¿Es un <strong>Consumible</strong>? (Grasa, aceite, estopa...)</span>
+                    </label>
+                </div>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.25rem;">Observaciones / Proveedor</label>
+                <input type="text" id="part-notes" name="notes" placeholder="Marca SKF, Proveedor habitual, Especificaciones..." style="width: 100%; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-part')" style="padding: 0.55rem 0.9rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 0.55rem 1.15rem; background: #2563eb; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Guardar Repuesto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 5: MOVIMIENTO DE STOCK (INGRESO / EGRESO) -->
+<div id="modal-movement" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 480px; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden;">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 id="mov-modal-title" style="color: #38bdf8; margin: 0; font-size: 1.1rem; font-weight: 700;">⚖️ Registrar Movimiento de Stock</h3>
+            <button type="button" onclick="closeModal('modal-movement')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form action="{{ url_for('maintenance.spare_part_movement') }}" method="POST" style="padding: 1.25rem;">
+            <input type="hidden" id="mov-part-id" name="spare_part_id" value="">
+            <div id="mov-part-info" style="background: #0f172a; padding: 0.75rem; border-radius: 0.5rem; border-left: 3px solid #38bdf8; margin-bottom: 1rem; font-size: 0.85rem; color: #e2e8f0;"></div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Tipo de Movimiento *</label>
+                <select name="movement_type" required style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="egreso_mantenimiento">🔻 Egreso (Consumo en Reparación / Salida)</option>
+                    <option value="ingreso">🔺 Ingreso (Recepción de Compra / Entrada)</option>
+                    <option value="ajuste">🔄 Ajuste Directo de Inventario Físico</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Cantidad *</label>
+                <input type="number" step="0.1" name="quantity" required placeholder="0.0" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.95rem; font-weight: 700; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Motivo / Destino del Repuesto</label>
+                <input type="text" name="reason" placeholder="Ej. Cambio de rodamientos Prensa 1, Factura de compra 1234..." style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-movement')" style="padding: 0.55rem 0.9rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 0.55rem 1.15rem; background: #0284c7; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Confirmar Movimiento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL 6: VISOR DE FOTOGRAFIA AMPLIADA -->
+<div id="modal-photo-viewer" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 10000; justify-content: center; align-items: center; padding: 1rem;" onclick="closeModal('modal-photo-viewer')">
+    <div style="max-width: 900px; max-height: 90vh; text-align: center;" onclick="event.stopPropagation()">
+        <img id="viewer-img" src="" alt="Fotografía" style="max-width: 100%; max-height: 80vh; border-radius: 0.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); border: 2px solid #f59e0b;">
+        <div id="viewer-caption" style="color: #f8fafc; font-size: 0.95rem; margin-top: 0.75rem; font-weight: 600;"></div>
+    </div>
+</div>
+
+<!-- MODAL 7: GALERIA DE FOTOS DE UNA ACTIVIDAD ESPECIFICA -->
+<div id="modal-activity-gallery" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 750px; max-height: 85vh; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 id="gallery-activity-title" style="color: #f59e0b; margin: 0; font-size: 1.1rem; font-weight: 700;"></h3>
+            <button type="button" onclick="closeModal('modal-activity-gallery')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <div id="gallery-activity-container" style="padding: 1.25rem; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
+    </div>
+</div>
+
+<!-- SCRIPTS DE INTERACTIVIDAD PARA MANTENIMIENTO -->
+<script>
+    // Funcion para alternar entre las pestanas principales
+    function switchTab(tabId) {
+        // Oculta todas las secciones de contenido
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        // Quita la clase activa y los estilos de todos los botones de pestana
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.style.borderBottomColor = 'transparent';
+            btn.style.color = '#94a3b8';
+            btn.classList.remove('active');
+        });
+        // Muestra la seccion seleccionada
+        const target = document.getElementById('tab-content-' + tabId);
+        if (target) target.style.display = 'block';
+        // Activa el boton correspondiente
+        const btn = document.getElementById('tab-btn-' + tabId);
+        if (btn) {
+            btn.style.borderBottomColor = '#f59e0b';
+            btn.style.color = '#f59e0b';
+            btn.classList.add('active');
+        }
+    }
+
+    // Comprueba el hash en la URL al cargar (ej. #tab-spare-parts)
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.location.hash === '#tab-spare-parts') {
+            switchTab('spare-parts');
+        } else if (window.location.hash === '#tab-gallery') {
+            switchTab('gallery');
+        }
+    });
+
+    // Abre el modal de nueva actividad
+    function openNewActivityModal() {
+        document.getElementById('modal-new-activity').style.display = 'flex';
+    }
+
+    // Abre el modal para actualizar estado de una tarea
+    function openUpdateStatusModal(actId, currentStatus, title) {
+        document.getElementById('update-modal-title').textContent = '⚙️ Actualizar Actividad #' + actId;
+        document.getElementById('update-status-form').action = '/maintenance/activity/' + actId + '/status';
+        document.getElementById('update-status-select').value = currentStatus;
+        document.getElementById('modal-update-status').style.display = 'flex';
+    }
+
+    // Abre el modal para adjuntar foto
+    function openAddPhotoModal(actId) {
+        document.getElementById('add-photo-form').action = '/maintenance/activity/' + actId + '/photo';
+        document.getElementById('modal-add-photo').style.display = 'flex';
+    }
+
+    // Abre modal para nuevo repuesto
+    function openNewPartModal() {
+        document.getElementById('part-modal-title').textContent = '📦 Nuevo Repuesto / Insumo';
+        document.getElementById('part-id').value = '';
+        document.getElementById('part-code').value = '';
+        document.getElementById('part-name').value = '';
+        document.getElementById('part-category').value = '';
+        document.getElementById('part-equipment').value = '';
+        document.getElementById('part-is-consumable').checked = false;
+        document.getElementById('part-stock').value = '0.0';
+        document.getElementById('part-min-stock').value = '1.0';
+        document.getElementById('part-unit').value = 'unidades';
+        document.getElementById('part-location').value = '';
+        document.getElementById('part-notes').value = '';
+        document.getElementById('modal-part').style.display = 'flex';
+    }
+
+    // Abre modal para editar repuesto existente
+    function openEditPartModal(id, code, name, cat, equip, isConsumable, stock, minStock, unit, loc, notes) {
+        document.getElementById('part-modal-title').textContent = '✏️ Editar Repuesto #' + id + ' (' + code + ')';
+        document.getElementById('part-id').value = id;
+        document.getElementById('part-code').value = code;
+        document.getElementById('part-name').value = name;
+        document.getElementById('part-category').value = cat;
+        document.getElementById('part-equipment').value = equip;
+        document.getElementById('part-is-consumable').checked = (isConsumable === 1);
+        document.getElementById('part-stock').value = stock;
+        document.getElementById('part-min-stock').value = minStock;
+        document.getElementById('part-unit').value = unit;
+        document.getElementById('part-location').value = loc;
+        document.getElementById('part-notes').value = notes;
+        document.getElementById('modal-part').style.display = 'flex';
+    }
+
+    // Abre modal de movimiento de stock
+    function openMovementModal(partId, code, name, currentStock, unit) {
+        document.getElementById('mov-part-id').value = partId;
+        document.getElementById('mov-part-info').innerHTML = '<strong>' + code + '</strong> — ' + name + '<br><span style="color: #94a3b8;">Existencia actual en pañol: <strong>' + currentStock + ' ' + unit + '</strong></span>';
+        document.getElementById('modal-movement').style.display = 'flex';
+    }
+
+    // Abre el visor de fotos ampliada
+    function openPhotoViewer(src, caption) {
+        document.getElementById('viewer-img').src = src;
+        document.getElementById('viewer-caption').textContent = caption;
+        document.getElementById('modal-photo-viewer').style.display = 'flex';
+    }
+
+    // Consulta y muestra la galeria de fotos de una actividad especifica mediante AJAX
+    function viewActivityGallery(actId, title) {
+        document.getElementById('gallery-activity-title').textContent = '📷 Fotografías: #' + actId + ' - ' + title;
+        const container = document.getElementById('gallery-activity-container');
+        container.innerHTML = '<div style="color: #94a3b8; text-align: center; grid-column: 1/-1;">Cargando fotografías...</div>';
+        document.getElementById('modal-activity-gallery').style.display = 'flex';
+
+        fetch('/maintenance/activity/' + actId + '/images')
+            .then(res => res.json())
+            .then(data => {
+                if (data.images && data.images.length > 0) {
+                    container.innerHTML = '';
+                    data.images.forEach(img => {
+                        const item = document.createElement('div');
+                        item.style.background = '#0f172a';
+                        item.style.borderRadius = '0.5rem';
+                        item.style.overflow = 'hidden';
+                        item.style.border = '1px solid #334155';
+                        item.innerHTML = '<img src="/static/uploads/maintenance/' + img.filename + '" style="width: 100%; height: 140px; object-fit: cover; cursor: pointer;" onclick="openPhotoViewer(\'/static/uploads/maintenance/' + img.filename + '\', \'' + (img.caption || title).replace(/'/g, "\\'") + '\')"><div style="padding: 0.5rem; font-size: 0.75rem; color: #cbd5e1;">' + (img.caption || 'Registro') + '</div>';
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div style="color: #64748b; text-align: center; grid-column: 1/-1;">No hay imágenes cargadas para esta tarea.</div>';
+                }
+            })
+            .catch(err => {
+                container.innerHTML = '<div style="color: #ef4444; text-align: center; grid-column: 1/-1;">Error al consultar imágenes.</div>';
+            });
+    }
+
+    // Cierra cualquier modal especificando su ID
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+</script>
+{% endblock %}
+<!-- Fin del bloque de contenido principal -->
