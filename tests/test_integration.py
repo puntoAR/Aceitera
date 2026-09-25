@@ -63,6 +63,12 @@ class TestBioBalcarceIntegration(unittest.TestCase):
         self.assertEqual(summary['effective_hours'], 7.5)
         # Verifica produccion estimada: 1860 * 7.5 = 13950 kg
         self.assertEqual(summary['seed_estimated'], 13950.0)
+        # Verifica rendimiento de expeller en linea: 900 / 1860 * 100 = 48.39%
+        self.assertEqual(summary['expeller_yield_pct'], 48.39)
+        # Verifica caudal masico horario estimado de aceite: 1860 - 900 = 960 kg/h
+        self.assertEqual(summary['oil_estimated_speed'], 960.0)
+        # Verifica produccion estimada de aceite del turno: 960 * 7.5 = 7200 kg
+        self.assertEqual(summary['oil_estimated_shift_kg'], 7200.0)
 
     # Prueba 2: Flujo completo de cubicaje de tanques y silos
     def test_inventory_flow(self):
@@ -106,6 +112,8 @@ class TestBioBalcarceIntegration(unittest.TestCase):
         rec = reconcile_shift('TM', 20000.0, 11200.0, 8000.0, seed_fat_pct=45.0, expeller_fat_pct=10.0)
         # Rendimiento de extraccion masico: 8000 / 20000 * 100 = 40.0%
         self.assertEqual(rec['oil_yield_pct'], 40.0)
+        # Rendimiento masico de expeller: 11200 / 20000 * 100 = 56.0%
+        self.assertEqual(rec['expeller_yield_pct'], 56.0)
         # Eficiencia de recuperacion del aceite disponible: 8000 / 9000 * 100 = 88.89%
         self.assertEqual(rec['oil_recovery_pct'], 88.89)
 

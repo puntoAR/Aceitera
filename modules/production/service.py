@@ -174,6 +174,12 @@ def get_shift_speed_summary(shift_id):
     expeller_proj_24h = project_daily_production(expeller_avg_arithmetic)
     # Produccion estimada real de expeller considerando paradas
     expeller_estimated = calculate_estimated_production(expeller_avg_arithmetic, effective_hours)
+    # Rendimiento de Expeller por relacion porcentual de caudales horarios: (Promedio Expeller / Promedio Semilla) * 100
+    expeller_yield_pct = round((expeller_avg_arithmetic / seed_avg_arithmetic * 100.0), 2) if seed_avg_arithmetic > 0 else 0.0
+    # Caudal masico horario estimado de aceite bruto: Promedio Semilla - Promedio Expeller
+    oil_estimated_speed = round(max(0.0, seed_avg_arithmetic - expeller_avg_arithmetic), 2) if seed_avg_arithmetic > 0 else 0.0
+    # Produccion estimada de aceite en el turno considerando horas efectivas
+    oil_estimated_shift_kg = round(oil_estimated_speed * effective_hours, 2)
     # Retorna el resumen consolidado de velocidad del turno
     return {
         'shift_id': shift_id,
@@ -190,5 +196,8 @@ def get_shift_speed_summary(shift_id):
         'expeller_agg_speed': expeller_agg_speed,
         'expeller_proj_8h': expeller_proj_8h,
         'expeller_proj_24h': expeller_proj_24h,
-        'expeller_estimated': expeller_estimated
+        'expeller_estimated': expeller_estimated,
+        'expeller_yield_pct': expeller_yield_pct,
+        'oil_estimated_speed': oil_estimated_speed,
+        'oil_estimated_shift_kg': oil_estimated_shift_kg
     }

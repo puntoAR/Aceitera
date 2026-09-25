@@ -54,6 +54,18 @@
             Detenciones registradas: <strong>{{ summary.stop_minutes }} min</strong>
         </div>
     </div>
+
+    <!-- Rendimiento de Expeller en Linea por relacion de caudales -->
+    <div class="metric-card card-expeller">
+        <div class="metric-title">Rendimiento Expeller Línea</div>
+        <div class="metric-value" style="color: #b45309;">
+            {{ summary.expeller_yield_pct }}%
+        </div>
+        <div class="metric-subtitle">
+            Aceite Est.: <strong>{{ "{:,.0f}".format(summary.oil_estimated_speed).replace(",", ".") }} kg/h</strong> &bull;
+            (Expeller / Semilla)
+        </div>
+    </div>
 </div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
@@ -77,7 +89,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                 <div class="form-group">
                     <label class="form-label" for="gross_weight_kg">Peso Bolsa (kg)</label>
-                    <input class="form-input" type="number" step="0.01" id="gross_weight_kg" name="gross_weight_kg" placeholder="ej. 30.00" required>
+                    <input class="form-input" type="number" step="0.01" id="gross_weight_kg" name="gross_weight_kg" placeholder="ej. 11.20" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="tare_weight_kg">Tara Recipiente (kg)</label>
@@ -86,8 +98,15 @@
             </div>
 
             <div class="form-group" style="margin-bottom: 1rem;">
-                <label class="form-label" for="fill_time_seconds">Tiempo de Llenado (segundos)</label>
-                <input class="form-input" type="number" step="1" id="fill_time_seconds" name="fill_time_seconds" placeholder="ej. 60" required>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label class="form-label" for="fill_time_seconds" style="margin: 0;">Tiempo de Llenado (segundos)</label>
+                    <span style="display: inline-flex; gap: 0.35rem;">
+                        <button type="button" onclick="document.getElementById('fill_time_seconds').value=30; if(typeof updateLiveSpeed==='function') updateLiveSpeed();" class="btn" style="padding: 0.15rem 0.45rem; font-size: 0.72rem; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 0.25rem; font-weight: 600;">⚡ 30 seg (Estándar)</button>
+                        <button type="button" onclick="document.getElementById('fill_time_seconds').value=60; if(typeof updateLiveSpeed==='function') updateLiveSpeed();" class="btn" style="padding: 0.15rem 0.45rem; font-size: 0.72rem; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 0.25rem;">60 seg</button>
+                    </span>
+                </div>
+                <input class="form-input" type="number" step="1" id="fill_time_seconds" name="fill_time_seconds" value="30" placeholder="30" required>
+                <small style="color: #64748b; font-size: 0.72rem;">Fórmula de caudal: Caudal (kg/h) = (Peso neto / Tiempo seg) × 3600</small>
             </div>
 
             <!-- CUADRO DE PREVISUALIZACION EN VIVO -->

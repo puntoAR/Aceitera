@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from core.security import roles_required
 # Importa metodos de servicio de rendimiento
 from modules.yield_balance.service import reconcile_shift, get_recent_reconciliations
+from modules.calculations.yield_calc import calculate_line_yield_and_oil_efficiency
 # Importa turno activo y promedios de laboratorio y produccion
 from modules.configuration.service import get_active_shift
 from modules.production.service import get_shift_speed_summary
@@ -27,11 +28,19 @@ def index():
     prod_summary = get_shift_speed_summary(active_shift['shift_id'])
     # Obtiene las medias de laboratorio para materia grasa
     lab_averages = get_shift_lab_averages(active_shift['shift_id'])
+    # Calcula el rendimiento de linea y eficiencia de extraccion cruzando caudales con analitica de laboratorio
+    line_yield_info = calculate_line_yield_and_oil_efficiency(
+        seed_speed_kg_h=prod_summary.get('seed_avg_speed', 0.0),
+        expeller_speed_kg_h=prod_summary.get('expeller_avg_speed', 0.0),
+        seed_fat_pct=lab_averages.get('seed_fat_pct', 45.0),
+        expeller_fat_pct=lab_averages.get('expeller_fat_pct', 10.0)
+    )
     # Obtiene historial de conciliaciones
     reconciliations = get_recent_reconciliations(limit=15)
     # Renderiza plantilla de rendimiento
     return render_template('yield.html', active_shift=active_shift,
                            prod_summary=prod_summary, lab_averages=lab_averages,
+                           line_yield_info=line_yield_info,
                            reconciliations=reconciliations)
 
 # Endpoint para procesar y guardar la conciliacion de turno

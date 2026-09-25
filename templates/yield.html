@@ -13,6 +13,44 @@
     </div>
 </div>
 
+<div class="kpi-grid" style="margin-bottom: 1.25rem;">
+    <!-- Rendimiento Expeller Linea -->
+    <div class="metric-card card-expeller">
+        <div class="metric-title">Rendimiento Expeller Línea</div>
+        <div class="metric-value" style="color: #b45309;">{{ line_yield_info.expeller_yield_pct }}%</div>
+        <div class="metric-subtitle">
+            Caudal Expeller / Caudal Semilla
+        </div>
+    </div>
+
+    <!-- Eficiencia Extraccion Grasa -->
+    <div class="metric-card card-yield">
+        <div class="metric-title">Extracción Grasa Línea</div>
+        <div class="metric-value" style="color: #15803d;">{{ line_yield_info.oil_extraction_efficiency_pct }}%</div>
+        <div class="metric-subtitle">
+            Cruce Caudales vs Lab (MG Semilla {{ lab_averages.seed_fat_pct }}%)
+        </div>
+    </div>
+
+    <!-- Caudal Semilla Promedio -->
+    <div class="metric-card card-seed">
+        <div class="metric-title">Caudal Semilla (Turno)</div>
+        <div class="metric-value">{{ "{:,.0f}".format(prod_summary.seed_avg_speed).replace(",", ".") }} <span style="font-size: 0.9rem;">kg/h</span></div>
+        <div class="metric-subtitle">
+            Estimado: <strong>{{ "{:,.0f}".format(prod_summary.seed_estimated).replace(",", ".") }} kg</strong> ({{ prod_summary.effective_hours }}h)
+        </div>
+    </div>
+
+    <!-- Caudal Aceite Bruto Estimado -->
+    <div class="metric-card card-oil">
+        <div class="metric-title">Aceite Estimado Línea</div>
+        <div class="metric-value" style="color: #1d4ed8;">{{ "{:,.0f}".format(line_yield_info.theoretical_oil_speed_kg_h).replace(",", ".") }} <span style="font-size: 0.9rem;">kg/h</span></div>
+        <div class="metric-subtitle">
+            Diferencial Caudales (Semilla - Expeller)
+        </div>
+    </div>
+</div>
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
     <!-- ===================================================================== -->
     <!-- FORMULARIO DE CONCILIACION DE TURNO                                   -->
@@ -139,8 +177,9 @@
 
     <!-- ===================================================================== -->
     <!-- GUIA DE INTERPRETACION DE FORMULAS Y EFICIENCIA                       -->
+    <!-- Oculto en celulares para priorizar informacion clave en pantalla      -->
     <!-- ===================================================================== -->
-    <div class="form-card" style="margin-bottom: 0; background-color: #f8fafc;">
+    <div class="form-card mobile-hidden" style="margin-bottom: 0; background-color: #f8fafc;">
         <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
             Criterios Industriales de Cálculo
         </h3>
@@ -151,20 +190,26 @@
                 <code style="color: #15803d;">(Aceite_kg / Semilla_kg) * 100</code>
             </div>
 
+            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #d97706;">
+                <strong>2. Rendimiento de Expeller en Línea (% Caudales):</strong>
+                <p>Relación entre el caudal horario de expeller y el caudal de semilla.</p>
+                <code style="color: #b45309;">(Promedio Expeller / Promedio Semilla) * 100</code>
+            </div>
+
             <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #2563eb;">
-                <strong>2. Recuperación de Aceite Disponible (% Eficiencia Real):</strong>
+                <strong>3. Recuperación de Aceite Disponible (% Eficiencia Real):</strong>
                 <p>Evalúa qué proporción del aceite contenido en la semilla se logró extraer efectivamente.</p>
                 <code style="color: #1d4ed8;">(Aceite_kg / (Semilla_kg * %MG_semilla / 100)) * 100</code>
             </div>
 
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #d97706;">
-                <strong>3. Grasa Residual en Expeller:</strong>
+            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #f59e0b;">
+                <strong>4. Grasa Residual en Expeller:</strong>
                 <p>Kilos de materia grasa que permanecieron en el subproducto.</p>
                 <code style="color: #b45309;">Expeller_kg * (%MG_expeller / 100)</code>
             </div>
 
             <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #dc2626;">
-                <strong>4. Conciliación y Diferencia de Balance:</strong>
+                <strong>5. Conciliación y Diferencia de Balance:</strong>
                 <p>Diferencia no atribuible a productos o evaporación.</p>
                 <code style="color: #991b1b;">Semilla - (Aceite + Expeller + Residuos + Humedad_evap)</code>
             </div>
@@ -188,10 +233,11 @@
                     <th>Aceite (kg)</th>
                     <th>Expeller (kg)</th>
                     <th>Extracción Aceite</th>
+                    <th>Rend. Expeller</th>
                     <th>Recup. Disponible</th>
-                    <th>Grasa Residual</th>
+                    <th class="mobile-hidden">Grasa Residual</th>
                     <th>Dif. Balance</th>
-                    <th>Notas</th>
+                    <th class="mobile-hidden">Notas</th>
                 </tr>
             </thead>
             <tbody>
@@ -202,14 +248,15 @@
                     <td>{{ "{:,.0f}".format(r.oil_produced_kg).replace(",", ".") }} kg</td>
                     <td>{{ "{:,.0f}".format(r.expeller_produced_kg).replace(",", ".") }} kg</td>
                     <td><strong style="color: #15803d;">{{ r.oil_yield_pct }}%</strong></td>
+                    <td><strong style="color: #b45309;">{{ r.expeller_yield_pct }}%</strong></td>
                     <td><strong style="color: #1d4ed8;">{{ r.oil_recovery_pct }}%</strong></td>
-                    <td>{{ "{:,.0f}".format(r.residual_fat_kg).replace(",", ".") }} kg</td>
+                    <td class="mobile-hidden">{{ "{:,.0f}".format(r.residual_fat_kg).replace(",", ".") }} kg</td>
                     <td>{{ r.mass_diff_pct }}% ({{ "{:,.0f}".format(r.mass_difference_kg).replace(",", ".") }} kg)</td>
-                    <td>{{ r.notes or '-' }}</td>
+                    <td class="mobile-hidden">{{ r.notes or '-' }}</td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay conciliaciones de balance registradas todavía.</td>
+                    <td colspan="10" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay conciliaciones de balance registradas todavía.</td>
                 </tr>
                 {% endfor %}
             </tbody>

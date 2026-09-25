@@ -41,10 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
+        // Expone la funcion al ambito global para ser invocada por botones rapidos
+        window.updateSpeedPreview = updateSpeedPreview;
+        window.updateLiveSpeed = updateSpeedPreview;
+
         // Escucha eventos de entrada en los campos numericos
         grossInput.addEventListener('input', updateSpeedPreview);
         if (tareInput) tareInput.addEventListener('input', updateSpeedPreview);
         timeInput.addEventListener('input', updateSpeedPreview);
+        // Inicializa el calculo en vivo con los valores por defecto
+        updateSpeedPreview();
     }
 
     // 3. Manejo de instalacion PWA (Progressive Web App) en dispositivos moviles

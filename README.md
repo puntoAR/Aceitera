@@ -1,4 +1,4 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.0.6
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.0.9
 
 Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
@@ -6,7 +6,22 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 
 ---
 
-## Novedades y Capacidades en la Versión 1.0.6
+## Novedades y Capacidades en la Versión 1.0.9
+
+1. **Cálculos de Planta Estandarizados (Caudales Horarios y Rendimiento de Expeller):**
+   - **Muestreo físico en 30 segundos:** Formulario de pesadas optimizado con selector rápido `[⚡ 30 seg (Estándar)]` y `[60 seg]`, calculando en tiempo real:
+     $$\text{Caudal (kg/h)} = \left(\frac{\text{Peso Neto (kg)}}{\text{Tiempo (seg)}}\right) \times 3600$$
+   - **Promedio de Turno por Materia Prima:** Cálculo independiente del caudal horario promedio de Semilla y Expeller para las muestras de la guardia.
+   - **Rendimiento de Expeller en Línea:**
+     $$\text{Rendimiento Expeller (\%)} = \left(\frac{\text{Promedio Caudal Expeller}}{\text{Promedio Caudal Semilla}}\right) \times 100$$
+   - **Cruce con Analítica de Laboratorio:** Estimación instantánea del caudal de aceite crudo y de la eficiencia de extracción de grasa comparando el % Materia Grasa en semilla vs. % Grasa Residual en expeller.
+   - **Persistencia Cronológica de Ensayos:** Si un turno operativo (ej. noche) no posee análisis directos cargados, el sistema recupera automáticamente el ensayo válido más reciente de la planta.
+
+2. **Nivel de Acceso Gerencia:**
+   - Formalización del rol oficial **Gerencia** en todas las vistas, formularios de asignación, insignias de usuario y base de datos relacional.
+
+3. **Optimización Responsiva para Celulares:**
+   - En pantallas móviles se priorizan los indicadores directos (KPIs), ocultando automáticamente fórmulas extensas y campos secundarios para una lectura limpia e inmediata.
 
 1. **PWA (Progressive Web App) para Celulares (Android e iOS):**
    - Instalación directa en dispositivos móviles mediante **Web App Manifest** y **Service Worker**.

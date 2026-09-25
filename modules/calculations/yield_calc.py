@@ -113,3 +113,44 @@ def calculate_classified_mass_balance(seed_processed_kg, oil_obtained_kg, expell
         'unreconciled_diff_pct': round(unreconciled_diff_pct, 2),
         'identified_losses_pct': round(identified_losses_pct, 2)
     }
+
+# Calcula el rendimiento de expeller y la eficiencia de extraccion cruzando caudales de linea con laboratorio
+def calculate_line_yield_and_oil_efficiency(seed_speed_kg_h, expeller_speed_kg_h, seed_fat_pct=45.0, expeller_fat_pct=10.0):
+    # Si no hay caudal de semilla procesada retorna ceros de referencia
+    if seed_speed_kg_h <= 0:
+        return {
+            'expeller_yield_pct': 0.0,
+            'theoretical_oil_speed_kg_h': 0.0,
+            'fat_in_seed_kg_h': 0.0,
+            'fat_in_expeller_kg_h': 0.0,
+            'extracted_oil_fat_kg_h': 0.0,
+            'oil_extraction_efficiency_pct': 0.0
+        }
+    
+    # Rendimiento de Expeller por relacion de caudales de linea: (Promedio Expeller / Promedio Semilla) * 100
+    expeller_yield_pct = round((expeller_speed_kg_h / seed_speed_kg_h) * 100.0, 2)
+    
+    # Caudal masico estimado de aceite bruto obtenido: Caudal Semilla - Caudal Expeller
+    theoretical_oil_speed = round(max(0.0, seed_speed_kg_h - expeller_speed_kg_h), 2)
+    
+    # Caudal horario de materia grasa ingresada con la semilla: Caudal Semilla * (% MG Semilla / 100)
+    fat_in_seed = round(seed_speed_kg_h * (seed_fat_pct / 100.0), 2)
+    
+    # Caudal horario de materia grasa residual retenida en expeller: Caudal Expeller * (% MG Expeller / 100)
+    fat_in_expeller = round(expeller_speed_kg_h * (expeller_fat_pct / 100.0), 2)
+    
+    # Grasa efectivamente extraida en corriente de aceite: Grasa Semilla - Grasa Expeller
+    extracted_fat = round(max(0.0, fat_in_seed - fat_in_expeller), 2)
+    
+    # Eficiencia de extraccion de aceite (% de la grasa disponible recuperada)
+    extraction_eff_pct = round((extracted_fat / fat_in_seed) * 100.0, 2) if fat_in_seed > 0 else 0.0
+    
+    return {
+        'expeller_yield_pct': expeller_yield_pct,
+        'theoretical_oil_speed_kg_h': theoretical_oil_speed,
+        'fat_in_seed_kg_h': fat_in_seed,
+        'fat_in_expeller_kg_h': fat_in_expeller,
+        'extracted_oil_fat_kg_h': extracted_fat,
+        'oil_extraction_efficiency_pct': extraction_eff_pct
+    }
+

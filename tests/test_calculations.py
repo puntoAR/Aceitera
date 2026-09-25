@@ -29,7 +29,8 @@ from modules.calculations.lab_calc import (
 # Importa las funciones del motor de rendimiento y balance
 from modules.calculations.yield_calc import (
     calculate_mass_yield_pct, calculate_available_oil, calculate_oil_recovery_pct,
-    calculate_residual_fat_in_expeller, calculate_classified_mass_balance
+    calculate_residual_fat_in_expeller, calculate_classified_mass_balance,
+    calculate_line_yield_and_oil_efficiency
 )
 
 # Clase de pruebas para el motor de calculo de velocidad
@@ -64,6 +65,13 @@ class TestSpeedCalculations(unittest.TestCase):
         ]
         # Peso total 62 kg / 120 s * 3600 = 1860 kg/h
         self.assertEqual(calculate_aggregated_speed(samples), 1860.0)
+
+    # Prueba de muestreo estandarizado en 30 segundos segun planilla de planta
+    def test_standardized_30s_sampling(self):
+        # Muestra de 15.0 kg en 30 segundos estandar
+        # Caudal (kg/h) = (15.0 / 30) * 3600 = 1800.0 kg/h
+        speed_30s = calculate_instant_speed(net_weight_kg=15.0, fill_time_seconds=30.0)
+        self.assertEqual(speed_30s, 1800.0)
 
 # Clase de pruebas para el motor geometrico de tanques
 class TestTankCalculations(unittest.TestCase):
@@ -181,6 +189,34 @@ class TestYieldAndBalanceCalculations(unittest.TestCase):
         )
         self.assertEqual(balance['unreconciled_diff_kg'], 200.0)
         self.assertEqual(balance['unreconciled_diff_pct'], 1.0)
+
+    # Prueba de rendimiento de linea y cruce de caudales con analitica de laboratorio
+    def test_line_yield_and_oil_efficiency(self):
+        # Caudal semilla = 2000 kg/h, Caudal expeller = 1400 kg/h
+        # Rendimiento Expeller = 1400 / 2000 * 100 = 70.0%
+        # Aceite estimado = 2000 - 1400 = 600 kg/h
+        # Grasa semilla (45%) = 2000 * 0.45 = 900 kg/h
+        # Grasa expeller (10%) = 1400 * 0.10 = 140 kg/h
+        # Grasa extraida = 900 - 140 = 760 kg/h
+        # Eficiencia extraccion = 760 / 900 * 100 = 84.44%
+        res = calculate_line_yield_and_oil_efficiency(
+            seed_speed_kg_h=2000.0,
+            expeller_speed_kg_h=1400.0,
+            seed_fat_pct=45.0,
+            expeller_fat_pct=10.0
+        )
+        self.assertEqual(res['expeller_yield_pct'], 70.0)
+        self.assertEqual(res['theoretical_oil_speed_kg_h'], 600.0)
+        self.assertEqual(res['fat_in_seed_kg_h'], 900.0)
+        self.assertEqual(res['fat_in_expeller_kg_h'], 140.0)
+        self.assertEqual(res['extracted_oil_fat_kg_h'], 760.0)
+        self.assertEqual(res['oil_extraction_efficiency_pct'], 84.44)
+
+    # Prueba con caudal cero para evitar division por cero
+    def test_line_yield_zero_speed(self):
+        res = calculate_line_yield_and_oil_efficiency(0.0, 0.0)
+        self.assertEqual(res['expeller_yield_pct'], 0.0)
+        self.assertEqual(res['oil_extraction_efficiency_pct'], 0.0)
 
 # Ejecucion directa de las pruebas unitarias
 if __name__ == '__main__':
