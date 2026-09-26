@@ -1,4 +1,4 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.1
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.6
 
 Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
@@ -6,13 +6,27 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 
 ---
 
-## Novedades y Capacidades en la Versión 1.1.1
+## Novedades y Capacidades en la Versión 1.1.6
 
-1. **Persistencia en la Nube Serverless (Vercel + Turso Cloud SQLite):**
+1. **Centro de Diagnóstico Interactivo de Errores y Excepciones (`/admin/errors`):**
+   - **Tarjetas de incidentes cliqueables:** Al hacer clic en cualquier error registrado, se despliega de inmediato el panel de diagnóstico técnico profundo.
+   - **Localización exacta en código fuente:** Identificación automática del **archivo** (ej. `modules/inventory/service.py`), la **línea exacta** (ej. `Línea 166`), la **función/ámbito** y la **instrucción de código** que originó la falla.
+   - **Inspección técnica y traza completa (Stack Trace):** Visualización en bloque terminal oscuro con botón para **Copiar Traza** al portapapeles en un solo clic para soporte técnico.
+   - **Filtros rápidos y buscador dinámico:** Filtrado instantáneo por estado (`Todos`, `⚠️ Solo Pendientes`, `✓ Solo Resueltos`) y búsqueda en tiempo real por palabra clave, usuario, ruta o archivo.
+   - **Compatibilidad histórica y retroactiva:** Análisis automático de trazas anteriores para deducir el archivo y línea de origen incluso en incidentes registrados previamente.
+
+2. **Corrección Integral del Registro de Movimientos de Inventario:**
+   - Corrección de la instrucción de inserción en `inventory_movements`, garantizando el registro fluido de ingresos de cereal, despachos de aceite/expeller y trasvases de planta.
+
+3. **Cockpit Ejecutivo con Integración Lateral de Mantenimiento (v1.1.2 - v1.1.5):**
+   - Paneles e indicadores clave de Mantenimiento Preventivo y Operativo integrados en el Dashboard principal al costado de Eficiencia y Rendimiento.
+   - Disposición flex responsiva adaptada tanto para monitores de planta como para visualización en teléfonos celulares.
+
+4. **Persistencia en la Nube Serverless (Vercel + Turso Cloud SQLite) (v1.1.1):**
    - Integración nativa con **Turso (libSQL)** vía HTTP: permite que todas las altas de usuarios, mediciones de silos/tanques, mantenimiento y registros de pesadas se guarden de forma permanente en la nube y **nunca se borren ni desaparezcan** cuando Vercel apaga contenedores inactivos.
    - Diagnóstico automático en el panel administrativo y visor de incidentes alertando si la aplicación está en modo efímero o con persistencia cloud activa.
 
-2. **Módulo de Mantenimiento Industrial:**
+5. **Módulo de Mantenimiento Industrial (v1.1.0):**
    - **Registro de actividades en 3 categorías operativas oficiales:**
      - **Operativa:** urgencias y desperfectos que surgen en el momento durante la marcha de la planta.
      - **Planificada (Requiere Parada de Planta):** intervenciones mayores que exigen detener la molienda o la línea de prensado.

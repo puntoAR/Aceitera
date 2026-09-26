@@ -159,13 +159,15 @@ def record_inventory_movement(product, movement_type, origin, destination, quant
     now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     # Guarda en la tabla de movimientos
     with get_db_connection() as conn:
+        # Inserta el movimiento especificando exactamente los diez campos y sus marcadores
         conn.execute("""
             INSERT INTO inventory_movements (
                 timestamp, product, movement_type, origin, destination,
                 quantity_kg, document_ref, shift_id, operator_name, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (now_str, product, movement_type, origin, destination,
               quantity_kg, document_ref, shift_id, operator_name, notes))
+        # Confirma la transaccion en disco
         conn.commit()
     # Registra en log el movimiento
     log_info('INVENTORY', f'Movimiento registrado: {movement_type} de {quantity_kg} kg de {product}.')

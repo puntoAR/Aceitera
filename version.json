@@ -1,5 +1,5 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.6",
   "release_date": "2026-09-26",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
@@ -15,6 +15,10 @@
     "v1.0.9 - Modelo de caudales y balance de masa alineado a planillas de planta: muestreo estandarizado en 30s, Rendimiento de Expeller por relacion horaria ((Expeller/Semilla)*100), cruce de extraccion de aceite con analitica de laboratorio, y persistencia cronologica de muestras analiticas",
     "v1.1.0 - Modulo de Mantenimiento Industrial (actividades operativas y planificadas con/sin parada de planta, galeria fotografica de reparaciones), Pañol y Stock de Repuestos (control de consumibles, alertas automaticas de stock minimo, reportes para impresion y exportacion CSV) y mecanismo seguro de puesta a cero de datos operativos garantizando la preservacion estricta de datos estructurales y configuraciones en futuras actualizaciones",
     "v1.1.1 - Persistencia en la nube para Vercel Serverless: integracion nativa con Turso Cloud SQLite (libSQL sobre HTTP), diagnostico y avisos de almacenamiento efimero en panel de administracion y registro de incidentes",
-    "v1.1.2 - Cockpit Ejecutivo con integracion lateral de Mantenimiento Preventivo: 3 tarjetas de indicadores clave (Tareas Pendientes, Operativas en Marcha, Planificadas con Parada) con estilo industrial dark slate, enlaces directos a gestion y adaptacion responsiva ultra compacta para celulares"
+    "v1.1.2 - Cockpit Ejecutivo con integracion lateral de Mantenimiento Preventivo: 3 tarjetas de indicadores clave (Tareas Pendientes, Operativas en Marcha, Planificadas con Parada) con estilo industrial dark slate, enlaces directos a gestion y adaptacion responsiva ultra compacta para celulares",
+    "v1.1.3 - Dashboard: fijar panel de Mantenimiento al costado derecho de Eficiencia y Rendimiento",
+    "v1.1.4 - Dashboard: disposicion flex horizontal garantizada para panel de mantenimiento al costado",
+    "v1.1.5 - Dashboard: optimizacion de maquetado e interfaz flex en vista principal",
+    "v1.1.6 - Diagnostico interactivo de errores y excepciones: tarjetas cliqueables para inspeccionar archivo y linea de origen exactos en codigo fuente, visualizacion de instrucciones causantes, boton de copiado de traza tecnica, correccion de insercion de movimientos de inventario y registro de marcas de resolucion"
   ]
 }

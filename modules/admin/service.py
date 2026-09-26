@@ -172,24 +172,63 @@ def get_audit_logs(category=None, username=None, limit=100):
         rows = conn.execute(query, tuple(params)).fetchall()
         return [dict(r) for r in rows]
 
-# Obtiene la lista de errores del sistema registrados
+# Obtiene la lista de errores del sistema registrados con diagnostico enriquecido de origen y linea
 def get_system_errors(limit=100):
-    # Abre conexion
+    # Importa el analizador de traza para inferir origen si no estuviera precargado
+    from core.error_logger import parse_traceback_origin
+    # Abre conexion con base de datos
     with get_db_connection() as conn:
+        # Consulta los errores registrados ordenados descendentemente
         rows = conn.execute("""
             SELECT * FROM system_errors
             ORDER BY id DESC LIMIT ?;
         """, (limit,)).fetchall()
-        return [dict(r) for r in rows]
+        # Lista estructurada de resultados enriquecidos
+        result = []
+        # Itera sobre cada registro de error obtenido
+        for r in rows:
+            # Convierte la fila SQLite en diccionario Python
+            item = dict(r)
+            # Si no posee archivo o linea de origen pero si tiene traza de error
+            if (not item.get('origin_file') or not item.get('origin_line')) and item.get('traceback'):
+                # Deduce el origen analizando la traza con la funcion auxiliar
+                parsed = parse_traceback_origin(item.get('traceback'))
+                # Asigna el archivo de origen si estaba vacio
+                if not item.get('origin_file'):
+                    item['origin_file'] = parsed.get('origin_file')
+                # Asigna la linea causante si estaba vacia
+                if not item.get('origin_line'):
+                    item['origin_line'] = parsed.get('origin_line')
+                # Asigna el nombre de la funcion si estaba vacio
+                if not item.get('origin_func'):
+                    item['origin_func'] = parsed.get('origin_func')
+                # Asigna el codigo fuente afectado si estaba vacio
+                if not item.get('origin_code'):
+                    item['origin_code'] = parsed.get('origin_code')
+            # Agrega el incidente a la lista procesada
+            result.append(item)
+        # Retorna el listado completo de incidentes
+        return result
 
-# Marca un error del sistema como resuelto o revisado
+# Marca un error del sistema como resuelto o revisado registrando la fecha
 def resolve_system_error(error_id):
+    # Importa datetime para estampar la fecha de resolucion
+    import datetime
+    # Genera estampa de tiempo actual
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     # Abre conexion
     with get_db_connection() as conn:
-        conn.execute("UPDATE system_errors SET resolved = 1 WHERE id = ?;", (error_id,))
+        try:
+            # Intenta actualizar el indicador y la marca de tiempo de resolucion
+            conn.execute("UPDATE system_errors SET resolved = 1, resolved_at = ? WHERE id = ?;", (now_str, error_id))
+        except Exception:
+            # Fallback en caso de esquemas sin columna resolved_at
+            conn.execute("UPDATE system_errors SET resolved = 1 WHERE id = ?;", (error_id,))
+        # Confirma la actualizacion
         conn.commit()
-    # Registra en auditoria
+    # Registra en auditoria el cierre del incidente
     record_audit_event('CONFIG', 'ERROR_RESUELTO', f"Error ID {error_id} marcado como resuelto.")
+    # Retorna confirmacion de exito
     return True
 
 # Crea un nuevo perfil de usuario directamente por el Administrador del Sistema

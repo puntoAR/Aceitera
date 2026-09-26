@@ -259,6 +259,27 @@ REGISTERED_MIGRATIONS = [
                 FOREIGN KEY (spare_part_id) REFERENCES spare_parts(id)
             );
         """
+    },
+    {
+        # Version 8 de migracion para diagnostico tecnico de errores y excepciones
+        'version': 8,
+        # Identificador descriptivo de la version
+        'name': 'system_errors_detailed_diagnostics',
+        # Detalle de la funcionalidad incorporada
+        'description': 'Incorporacion de columnas de diagnostico a system_errors: origin_file, origin_line, origin_func, origin_code, resolved_at',
+        # Sentencias SQL para agregar columnas de diagnostico
+        'sql': """
+            -- Agrega columna para el archivo donde se origino la excepcion
+            ALTER TABLE system_errors ADD COLUMN origin_file TEXT;
+            -- Agrega columna para el numero de linea exacto del fallo
+            ALTER TABLE system_errors ADD COLUMN origin_line INTEGER;
+            -- Agrega columna para el metodo o funcion donde ocurrio el error
+            ALTER TABLE system_errors ADD COLUMN origin_func TEXT;
+            -- Agrega columna para la instruccion de codigo causante
+            ALTER TABLE system_errors ADD COLUMN origin_code TEXT;
+            -- Agrega columna para registrar la marca de tiempo de resolucion
+            ALTER TABLE system_errors ADD COLUMN resolved_at TIMESTAMP;
+        """
     }
 ]
 

@@ -17,6 +17,9 @@ from modules.admin.service import (
     get_audit_logs, get_system_errors, resolve_system_error,
     admin_create_user
 )
+# Importa servicio de movimientos de inventario
+from modules.inventory.service import record_inventory_movement
+# Importa registrador de errores
 from core.error_logger import log_error
 
 # Clase de pruebas de control de acceso por roles y ciclo de vida de usuarios
@@ -231,24 +234,57 @@ class TestRolesAndSecurity(unittest.TestCase):
         cats = [l['category'] for l in logs]
         self.assertTrue(any(c in ['AUTH', 'PRODUCCION', 'INVENTARIO', 'USUARIOS', 'SISTEMA'] for c in cats))
 
-    # Prueba 8: Registro y resolucion de excepciones de sistema
+    # Prueba 8: Registro y resolucion de excepciones de sistema con origen exacto
     def test_system_error_logging_and_resolution(self):
         # Registra un error de prueba
         try:
+            # Provoca excepcion inducida para probar la captura
             raise RuntimeError("Error simulado de pruebas unitarias")
         except Exception as e:
+            # Registra la excepcion con la funcion central
             log_error("TEST_UNIT", "Fallo inducido para verificar trazabilidad", e)
 
         # Verifica que figure en la tabla de errores
         errors = get_system_errors(limit=10)
+        # Busca el error inducido por mensaje
         target = next((err for err in errors if "Fallo inducido" in err['error_message']), None)
+        # Comprueba que el incidente fue registrado
         self.assertIsNotNone(target)
+        # Comprueba que se encuentre inicialmente pendiente
         self.assertEqual(target['resolved'], 0)
+        # Comprueba que se haya capturado el archivo de origen
+        self.assertIsNotNone(target.get('origin_file'))
+        # Comprueba que contenga el nombre del archivo de prueba
+        self.assertIn('test_roles_security.py', target['origin_file'])
+        # Comprueba que se haya capturado el numero de linea
+        self.assertIsNotNone(target.get('origin_line'))
+        # Comprueba que el numero de linea sea mayor a cero
+        self.assertGreater(target['origin_line'], 0)
+        # Comprueba que se haya capturado el nombre de la funcion
+        self.assertEqual(target.get('origin_func'), 'test_system_error_logging_and_resolution')
+
+        # Inicia sesion como admin_sistema para consultar la vista web
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+        # Consulta la pantalla de errores
+        resp_errors = self.client.get('/admin/errors')
+        # Verifica respuesta HTTP exitosa
+        self.assertEqual(resp_errors.status_code, 200)
+        # Decodifica el HTML resultante
+        html_errors = resp_errors.data.decode('utf-8')
+        # Comprueba que el archivo figure en la vista
+        self.assertIn('test_roles_security.py', html_errors)
+        # Comprueba que el numero de linea figure en la vista
+        self.assertIn(str(target['origin_line']), html_errors)
+        # Comprueba que el boton de copiado de traza este presente
+        self.assertIn('Copiar Traza', html_errors)
 
         # Resuelve el incidente
         resolve_system_error(target['id'])
+        # Consulta nuevamente la lista de incidentes
         errors_after = get_system_errors(limit=10)
+        # Localiza el incidente actualizado
         target_after = next((err for err in errors_after if err['id'] == target['id']), None)
+        # Comprueba que el estado sea resuelto
         self.assertEqual(target_after['resolved'], 1)
 
     # Prueba 9: Creacion directa de perfiles de usuario por el Administrador con nombres comunes
@@ -359,32 +395,88 @@ class TestRolesAndSecurity(unittest.TestCase):
 
     # Prueba 11: Verificacion del adaptador Turso Cloud SQLite y estado de almacenamiento
     def test_turso_adapter_and_storage_status(self):
+        # Importa clases del adaptador Turso
         from core.database import TursoRow, TursoCursor, TursoConnection
         # Verifica comportamiento del objeto TursoRow
         cols = ['id', 'username', 'role']
+        # Valores simulados de fila
         vals = [10, 'carlos_planta', 'usuario']
+        # Instancia objeto TursoRow
         row = TursoRow(cols, vals)
+        # Comprueba acceso por nombre de columna
         self.assertEqual(row['username'], 'carlos_planta')
+        # Comprueba acceso por indice numerico
         self.assertEqual(row[0], 10)
+        # Comprueba acceso a rol por indice
         self.assertEqual(row[2], 'usuario')
+        # Comprueba conversion a diccionario
         self.assertEqual(dict(row), {'id': 10, 'username': 'carlos_planta', 'role': 'usuario'})
 
         # Verifica comportamiento del cursor TursoCursor
         cursor = TursoCursor(cols, [vals, [11, 'mariana_gerencia', 'gerencia']], last_insert_rowid=99)
+        # Comprueba lastrowid
         self.assertEqual(cursor.lastrowid, 99)
+        # Comprueba fetchone
         first_row = cursor.fetchone()
         self.assertEqual(first_row['username'], 'carlos_planta')
+        # Comprueba fetchall restante
         remaining = cursor.fetchall()
         self.assertEqual(len(remaining), 1)
         self.assertEqual(remaining[0]['username'], 'mariana_gerencia')
 
         # Verifica serializacion de parametros en TursoConnection
         turso = TursoConnection("libsql://biobalcarce-test.turso.io", "test-token")
+        # Comprueba URL del pipeline v2
         self.assertEqual(turso.pipeline_url, "https://biobalcarce-test.turso.io/v2/pipeline")
+        # Comprueba serializacion de valor nulo
         self.assertEqual(turso._to_turso_arg(None), {"type": "null"})
+        # Comprueba serializacion de valor entero
         self.assertEqual(turso._to_turso_arg(42), {"type": "integer", "value": "42"})
+        # Comprueba serializacion de valor flotante
         self.assertEqual(turso._to_turso_arg(3.14), {"type": "float", "value": 3.14})
+        # Comprueba serializacion de cadena de texto
         self.assertEqual(turso._to_turso_arg("test"), {"type": "text", "value": "test"})
+
+    # Prueba 12: Registro de movimiento de inventario sin errores de marcadores SQL
+    def test_inventory_movement_flow_and_no_error(self):
+        # Inicia sesion como usuario operario con su PIN valido (1111)
+        self.client.post('/login', data={'username': 'operario', 'pin': '1111'}, follow_redirects=True)
+
+        # Ejecuta el registro de un movimiento de ingreso de semilla mediante HTTP POST
+        resp = self.client.post('/inventory/movement', data={
+            'product': 'semilla',
+            'movement_type': 'ingreso',
+            'origin': 'Camión Balcarce 101',
+            'destination': 'Silo 1 Semilla Girasol',
+            'quantity_kg': '28500.0',
+            'document_ref': 'REM-2026-999',
+            'shift_id': 'TM',
+            'operator_name': 'Operario Guardia',
+            'notes': 'Descarga completa de girasol'
+        }, follow_redirects=True)
+        # Comprueba que la redireccion haya sido exitosa con codigo 200
+        self.assertEqual(resp.status_code, 200)
+        # Decodifica el HTML resultante
+        html_resp = resp.data.decode('utf-8')
+        # Verifica mensaje flash de exito
+        self.assertIn('registrado exitosamente', html_resp)
+        # Verifica que no haya mensaje de error
+        self.assertNotIn('Error al registrar movimiento', html_resp)
+
+        # Comprueba la persistencia directa en la base de datos
+        with get_db_connection() as conn:
+            # Consulta el registro insertado
+            row = conn.execute("SELECT * FROM inventory_movements WHERE document_ref = 'REM-2026-999';").fetchone()
+            # Verifica que el registro exista
+            self.assertIsNotNone(row)
+            # Verifica producto
+            self.assertEqual(row['product'], 'semilla')
+            # Verifica tipo de movimiento
+            self.assertEqual(row['movement_type'], 'ingreso')
+            # Verifica cantidad en kg
+            self.assertEqual(row['quantity_kg'], 28500.0)
+            # Verifica destino
+            self.assertEqual(row['destination'], 'Silo 1 Semilla Girasol')
 
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':

@@ -247,7 +247,12 @@ def init_db():
             error_type TEXT NOT NULL,             -- Tipo de excepcion Python
             error_message TEXT NOT NULL,          -- Mensaje de la excepcion
             traceback TEXT,                       -- Traza completa de la pila
-            resolved INTEGER DEFAULT 0            -- Indicador de resolucion por admin
+            origin_file TEXT,                     -- Archivo exacto donde se origino
+            origin_line INTEGER,                  -- Numero de linea de codigo causante
+            origin_func TEXT,                     -- Funcion o metodo donde fallo
+            origin_code TEXT,                     -- Renglon de codigo que disparo la excepcion
+            resolved INTEGER DEFAULT 0,           -- Indicador de resolucion por admin
+            resolved_at TIMESTAMP                 -- Fecha y hora en que fue resuelto
         );
         """)
 

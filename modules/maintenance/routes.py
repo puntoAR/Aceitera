@@ -16,6 +16,8 @@ from modules.configuration.service import get_all_equipment, get_active_shift
 import csv
 # Importa io para el buffer en memoria del archivo CSV
 import io
+# Importa funcion de registro de excepciones tecnicas
+from core.error_logger import log_error
 
 # Crea el Blueprint para el modulo de mantenimiento
 maintenance_bp = Blueprint('maintenance', __name__, url_prefix='/maintenance')
@@ -233,6 +235,8 @@ def spare_part_movement():
         flash(f"Movimiento de stock asentado con éxito. Nuevo stock: {new_stock}.", "success")
     # Captura errores
     except Exception as e:
+        # Registra la excepcion en bitacora y en la base de datos de errores
+        log_error('MAINTENANCE_ROUTE', 'Error al registrar movimiento de repuesto', e)
         # Notifica error
         flash(f"Error al registrar movimiento: {e}", "danger")
     # Redirige al pañol
