@@ -40,18 +40,36 @@
 <!-- Estilos dedicados inquebrantables para el panel lateral de mantenimiento -->
 <style>
     /* Forzar que el contenedor principal sea amplio en el dashboard */
-    .container, .container-cockpit-wide {
+    main.container, .container, .container-cockpit-wide {
         max-width: 1540px !important;
         width: 100% !important;
     }
 
-    /* Grilla de 2 columnas: izquierda cockpit (1fr), derecha mantenimiento (225px) */
-    .cockpit-layout-wrapper {
-        display: grid !important;
-        grid-template-columns: 1fr 225px !important;
-        gap: 0.9rem !important;
-        align-items: start !important;
-        width: 100% !important;
+    /* Disposicion flex horizontal estricta e inquebrantable en computadoras y laptops */
+    @media (min-width: 768px) {
+        .cockpit-layout-wrapper {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .cockpit-dashboard {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            width: auto !important;
+            box-sizing: border-box !important;
+        }
+
+        .cockpit-maint-sidebar {
+            flex: 0 0 225px !important;
+            width: 225px !important;
+            min-width: 225px !important;
+            max-width: 225px !important;
+            box-sizing: border-box !important;
+        }
     }
 
     /* Panel lateral de mantenimiento alineado al nivel de Eficiencia y Rendimiento */
@@ -241,11 +259,11 @@
 <!-- ========================================================================= -->
 <!-- CONTENEDOR INTEGRADO: COCKPIT DE PROCESO + PANEL LATERAL DE MANTENIMIENTO -->
 <!-- ========================================================================= -->
-<div class="cockpit-layout-wrapper">
-
+<div class="cockpit-layout-wrapper" style="display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; width: 100%;">
 
     <!-- COLUMNA PRINCIPAL: PILARES Y MONITOREO DE PLANTA -->
-    <div class="cockpit-dashboard">
+    <div class="cockpit-dashboard" style="flex: 1 1 0%; min-width: 0; width: 100%;">
+
 
 
     <!-- ===================================================================== -->
@@ -701,7 +719,8 @@
     <!-- ========================================================================= -->
     <!-- COLUMNA LATERAL DERECHA: MANTENIMIENTO PREVENTIVO Y OPERATIVO             -->
     <!-- ========================================================================= -->
-    <aside class="cockpit-maint-sidebar">
+    <aside class="cockpit-maint-sidebar" style="flex: 0 0 225px; width: 225px; min-width: 225px; max-width: 225px; box-sizing: border-box;">
+
         <!-- Encabezado del panel lateral con acceso al modulo -->
         <div class="maint-sidebar-header">
             <span class="maint-sidebar-title">

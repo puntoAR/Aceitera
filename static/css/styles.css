@@ -802,17 +802,28 @@ body {
     max-width: 1540px;
 }
 
-/* Grilla principal que integra el Cockpit de Produccion y la Columna de Mantenimiento */
+/* Disposicion flex principal que integra el Cockpit de Produccion y la Columna de Mantenimiento */
 .cockpit-layout-wrapper {
-    display: grid;
-    grid-template-columns: 1fr 230px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
     gap: 1rem;
-    align-items: start;
     margin-bottom: 1rem;
+    width: 100%;
+}
+
+.cockpit-dashboard {
+    flex: 1 1 0%;
+    min-width: 0;
+    width: auto;
 }
 
 /* Columna lateral de Mantenimiento Preventivo y Operativo */
 .cockpit-maint-sidebar {
+    flex: 0 0 225px;
+    width: 225px;
+    min-width: 225px;
+    max-width: 225px;
     background: #ffffff;
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
@@ -823,9 +834,11 @@ body {
     gap: 0.75rem;
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* Franja superior estetica en el panel lateral */
+
 .cockpit-maint-sidebar::before {
     content: '';
     position: absolute;
