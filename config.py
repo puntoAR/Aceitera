@@ -130,6 +130,11 @@ if str(DATA_DIR).startswith('/tmp') or str(DATA_DIR).startswith('\\tmp'):
         except Exception:
             pass
 
+# Variables para integracion opcional con Turso Cloud SQLite (persistencia serverless garantizada en Vercel)
+TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL', '').strip()
+TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '').strip()
+USE_TURSO = bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
+
 # Clave secreta para proteccion criptografica de sesiones en Flask
 SECRET_KEY = os.environ.get('SECRET_KEY', 'biobalcarce-clave-segura-industrial-2026')
 

@@ -21,6 +21,33 @@
     </div>
 </div>
 
+{% if storage_status and storage_status.is_ephemeral %}
+<!-- ALERTA DE PERSISTENCIA SERVERLESS EN VERCEL -->
+<div style="background: #fffbeb; border: 1px solid #fcd34d; border-left: 5px solid #f59e0b; border-radius: 0.5rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: #78350f;">
+    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+        <span style="font-size: 1.4rem; line-height: 1;">⚠️</span>
+        <div style="font-size: 0.85rem; line-height: 1.5;">
+            <strong style="color: #92400e; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">
+                Aviso Importante: Almacenamiento Temporal Activo (Vercel Serverless)
+            </strong>
+            <span>
+                Esta instalación se está ejecutando en el almacenamiento temporal <code>/tmp</code> de Vercel. 
+                Cuando el servidor entra en reposo por inactividad (~10 minutos), Vercel apaga el micro-contenedor y los usuarios o datos creados se reinician al estado predeterminado.
+            </span>
+            <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #fde68a; font-weight: 500;">
+                💡 <strong>Para que los datos no se borren nunca:</strong> Agrega las variables de entorno <code>TURSO_DATABASE_URL</code> y <code>TURSO_AUTH_TOKEN</code> en Vercel (base de datos en la nube gratuita Turso), o ejecuta el sistema directamente desde la PC de la planta con <code>iniciar_sistema.bat</code>.
+            </div>
+        </div>
+    </div>
+</div>
+{% elif storage_status and storage_status.use_turso %}
+<!-- INDICADOR DE PERSISTENCIA EN LA NUBE ACTIVA -->
+<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #16a34a; border-radius: 0.5rem; padding: 0.75rem 1.25rem; margin-bottom: 1.5rem; color: #166534; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
+    <span style="font-size: 1.2rem;">☁️</span>
+    <span><strong>Persistencia en la Nube Activa (Turso Cloud SQLite):</strong> Todos los usuarios, calibraciones y pesadas se guardan de forma permanente e indestructible en la nube.</span>
+</div>
+{% endif %}
+
 <!-- SECCION 1: SOLICITUDES DE REGISTRO PENDIENTES -->
 <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">

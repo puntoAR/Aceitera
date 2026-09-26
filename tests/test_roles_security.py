@@ -357,6 +357,35 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertIn('Gerencia', html_content)
         self.assertIn('Dashboard Ejecutivo', html_content)
 
+    # Prueba 11: Verificacion del adaptador Turso Cloud SQLite y estado de almacenamiento
+    def test_turso_adapter_and_storage_status(self):
+        from core.database import TursoRow, TursoCursor, TursoConnection
+        # Verifica comportamiento del objeto TursoRow
+        cols = ['id', 'username', 'role']
+        vals = [10, 'carlos_planta', 'usuario']
+        row = TursoRow(cols, vals)
+        self.assertEqual(row['username'], 'carlos_planta')
+        self.assertEqual(row[0], 10)
+        self.assertEqual(row[2], 'usuario')
+        self.assertEqual(dict(row), {'id': 10, 'username': 'carlos_planta', 'role': 'usuario'})
+
+        # Verifica comportamiento del cursor TursoCursor
+        cursor = TursoCursor(cols, [vals, [11, 'mariana_gerencia', 'gerencia']], last_insert_rowid=99)
+        self.assertEqual(cursor.lastrowid, 99)
+        first_row = cursor.fetchone()
+        self.assertEqual(first_row['username'], 'carlos_planta')
+        remaining = cursor.fetchall()
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]['username'], 'mariana_gerencia')
+
+        # Verifica serializacion de parametros en TursoConnection
+        turso = TursoConnection("libsql://biobalcarce-test.turso.io", "test-token")
+        self.assertEqual(turso.pipeline_url, "https://biobalcarce-test.turso.io/v2/pipeline")
+        self.assertEqual(turso._to_turso_arg(None), {"type": "null"})
+        self.assertEqual(turso._to_turso_arg(42), {"type": "integer", "value": "42"})
+        self.assertEqual(turso._to_turso_arg(3.14), {"type": "float", "value": 3.14})
+        self.assertEqual(turso._to_turso_arg("test"), {"type": "text", "value": "test"})
+
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':
     unittest.main()

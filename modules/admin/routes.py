@@ -23,8 +23,15 @@ def users_list():
     pending = get_pending_users()
     # Obtiene lista general de usuarios
     users = get_all_users()
+    # Informacion sobre el estado de persistencia de almacenamiento
+    from config import IS_VERCEL, USE_TURSO
+    storage_status = {
+        'is_vercel': IS_VERCEL,
+        'use_turso': USE_TURSO,
+        'is_ephemeral': IS_VERCEL and not USE_TURSO
+    }
     # Renderiza la plantilla de gestion de usuarios
-    return render_template('admin_users.html', pending=pending, users=users)
+    return render_template('admin_users.html', pending=pending, users=users, storage_status=storage_status)
 
 # Endpoint para la creacion directa de un nuevo perfil de usuario por el Administrador
 @admin_bp.route('/users/create', methods=['POST'])
@@ -145,7 +152,14 @@ def audit_view():
 def errors_view():
     # Obtiene los errores de ejecucion registrados
     errors = get_system_errors(limit=100)
-    return render_template('admin_errors.html', errors=errors)
+    # Informacion sobre el estado de almacenamiento
+    from config import IS_VERCEL, USE_TURSO
+    storage_status = {
+        'is_vercel': IS_VERCEL,
+        'use_turso': USE_TURSO,
+        'is_ephemeral': IS_VERCEL and not USE_TURSO
+    }
+    return render_template('admin_errors.html', errors=errors, storage_status=storage_status)
 
 # Endpoint para marcar un error como resuelto
 @admin_bp.route('/errors/resolve/<int:error_id>', methods=['POST'])

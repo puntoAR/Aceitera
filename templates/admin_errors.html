@@ -84,6 +84,19 @@
             <path d="M8 12l2 2 4-4"/>
         </svg>
         <p style="margin: 0; font-weight: 600;">No hay errores o excepciones registradas en el sistema. Todos los módulos operan con normalidad.</p>
+
+        {% if storage_status and storage_status.is_ephemeral %}
+        <div style="margin-top: 1.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem 1.25rem; text-align: left; font-size: 0.825rem; color: #475569;">
+            <strong style="color: #0f172a; font-size: 0.9rem; display: block; margin-bottom: 0.35rem;">ℹ️ Diagnóstico Técnico: ¿Por qué no figuran errores si algún usuario desapareció?</strong>
+            <p style="margin: 0 0 0.5rem 0; line-height: 1.45;">
+                No existe ninguna falla ni excepción en la aplicación. Al ejecutarse en la infraestructura serverless de Vercel, el almacenamiento en disco <code>/tmp</code> es <strong>temporal por diseño</strong>.
+                Cuando guardas un usuario, la operación se completa con éxito al 100% (sin errores). Sin embargo, cuando la aplicación pasa unos minutos sin tráfico, Vercel apaga el micro-contenedor inactivo. Al recibir una nueva visita, Vercel inicia un contenedor limpio desde cero restaurando los 4 usuarios predeterminados de fábrica.
+            </p>
+            <p style="margin: 0; color: #1e3a8a; font-weight: 500;">
+                💡 <strong>Solución:</strong> Configura las variables <code>TURSO_DATABASE_URL</code> y <code>TURSO_AUTH_TOKEN</code> en Vercel para activar persistencia permanente en la nube (Turso Cloud SQLite), o utiliza la app desde la PC de la planta con <code>iniciar_sistema.bat</code>.
+            </p>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

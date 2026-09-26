@@ -6,28 +6,161 @@ import json
 import config
 # Exporta DATABASE_PATH para compatibilidad hacia atras
 DATABASE_PATH = config.DATABASE_PATH
+# Importa base64 y requests para conectividad HTTP con Turso Cloud SQLite
+import base64
+import requests
 # Importa el registrador de eventos para auditar las operaciones sobre la base de datos
 from core.error_logger import log_info, log_error
 
 # Importa contextlib para manejar el ciclo de vida y cierre seguro de conexiones
 import contextlib
 
-# Obtiene una conexion a la base de datos SQLite con contextmanager para cierre automatico
+class TursoRow(dict):
+    """Representa una fila con acceso por clave de columna o por índice numérico."""
+    def __init__(self, cols, values):
+        super().__init__()
+        self._cols = cols
+        self._values = values
+        for c, v in zip(cols, values):
+            self[c] = v
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self._values[item]
+        return super().__getitem__(item)
+
+class TursoCursor:
+    """Cursor compatible con la API de sqlite3 para Turso Cloud."""
+    def __init__(self, cols, rows, last_insert_rowid=None):
+        self.cols = cols
+        self._rows = [TursoRow(cols, r) for r in rows]
+        self._idx = 0
+        self.lastrowid = int(last_insert_rowid) if last_insert_rowid is not None else None
+
+    def fetchone(self):
+        if self._idx < len(self._rows):
+            r = self._rows[self._idx]
+            self._idx += 1
+            return r
+        return None
+
+    def fetchall(self):
+        res = self._rows[self._idx:]
+        self._idx = len(self._rows)
+        return res
+
+class TursoConnection:
+    """Conexión cliente HTTP a Turso Cloud SQLite compatible con sqlite3."""
+    def __init__(self, url, token):
+        cleaned_url = url.replace('libsql://', 'https://').rstrip('/')
+        if not cleaned_url.endswith('/v2/pipeline'):
+            cleaned_url += '/v2/pipeline'
+        self.pipeline_url = cleaned_url
+        self.token = token
+        self.headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
+
+    def _to_turso_arg(self, val):
+        if val is None:
+            return {"type": "null"}
+        elif isinstance(val, bool):
+            return {"type": "integer", "value": "1" if val else "0"}
+        elif isinstance(val, int):
+            return {"type": "integer", "value": str(val)}
+        elif isinstance(val, float):
+            return {"type": "float", "value": val}
+        elif isinstance(val, (bytes, bytearray)):
+            return {"type": "blob", "base64": base64.b64encode(val).decode('ascii')}
+        else:
+            return {"type": "text", "value": str(val)}
+
+    def _from_turso_value(self, val_obj):
+        if not isinstance(val_obj, dict):
+            return val_obj
+        t = val_obj.get("type")
+        if t == "null":
+            return None
+        elif t == "integer":
+            return int(val_obj.get("value", 0))
+        elif t == "float":
+            return float(val_obj.get("value", 0.0))
+        elif t == "text":
+            return val_obj.get("value", "")
+        elif t == "blob":
+            return base64.b64decode(val_obj.get("base64", ""))
+        return val_obj.get("value")
+
+    def execute(self, sql, params=()):
+        clean_sql = str(sql).strip()
+        args = [self._to_turso_arg(p) for p in params]
+        payload = {
+            "requests": [
+                {
+                    "type": "execute",
+                    "stmt": {
+                        "sql": clean_sql,
+                        "args": args
+                    }
+                },
+                {
+                    "type": "close"
+                }
+            ]
+        }
+        resp = requests.post(self.pipeline_url, headers=self.headers, json=payload, timeout=15)
+        if resp.status_code != 200:
+            raise sqlite3.OperationalError(f"Error HTTP Turso ({resp.status_code}): {resp.text}")
+        
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            raise sqlite3.OperationalError("Respuesta vacía de Turso")
+        
+        first = results[0]
+        if first.get("type") == "error":
+            err_msg = first.get("error", {}).get("message", "Error desconocido en Turso")
+            raise sqlite3.OperationalError(f"Error Turso: {err_msg}")
+        
+        exec_res = first.get("response", {}).get("result", {})
+        col_names = [c.get("name") for c in exec_res.get("cols", [])]
+        raw_rows = exec_res.get("rows", [])
+        parsed_rows = [[self._from_turso_value(v) for v in r] for r in raw_rows]
+        last_rowid = exec_res.get("last_insert_rowid")
+
+        return TursoCursor(col_names, parsed_rows, last_rowid)
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+# Obtiene una conexion a la base de datos (SQLite local o Turso Cloud)
 @contextlib.contextmanager
 def get_db_connection():
-    # Establece la conexion con el archivo de base de datos en disco usando la ruta dinamica
-    conn = sqlite3.connect(config.DATABASE_PATH)
-    # Habilita el acceso a columnas por nombre asociativo tipo diccionario
-    conn.row_factory = sqlite3.Row
-    # Habilita el soporte de claves foraneas para mantener la integridad referencial
-    conn.execute("PRAGMA foreign_keys = ON;")
-    # Bloque try-finally para garantizar el cierre de conexion
-    try:
-        # Entrega la conexion activa al bloque with
+    # Si se han configurado credenciales de Turso Cloud SQLite, usa persistencia en la nube
+    if getattr(config, 'USE_TURSO', False):
+        conn = TursoConnection(config.TURSO_DATABASE_URL, config.TURSO_AUTH_TOKEN)
         yield conn
-    finally:
-        # Cierra la conexion para liberar descriptores de archivo en disco
-        conn.close()
+    else:
+        # Establece la conexion con el archivo de base de datos en disco local usando la ruta dinamica
+        conn = sqlite3.connect(config.DATABASE_PATH)
+        # Habilita el acceso a columnas por nombre asociativo tipo diccionario
+        conn.row_factory = sqlite3.Row
+        # Habilita el soporte de claves foraneas para mantener la integridad referencial
+        conn.execute("PRAGMA foreign_keys = ON;")
+        # Bloque try-finally para garantizar el cierre de conexion
+        try:
+            # Entrega la conexion activa al bloque with
+            yield conn
+        finally:
+            # Cierra la conexion para liberar descriptores de archivo en disco
+            conn.close()
 
 # Inicializa el esquema completo de tablas e inserta los parametros base
 def init_db():
