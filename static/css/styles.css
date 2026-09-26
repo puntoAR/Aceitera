@@ -792,16 +792,196 @@ body {
 /* ESTILOS DE DASHBOARD COCKPIT EJECUTIVO (PANTALLA UNICA SIN SCROLL)        */
 /* ========================================================================== */
 
+/* ========================================================================== */
+/* DISPOSICION GENERAL DEL COCKPIT CON COLUMNA DE MANTENIMIENTO PREVENTIVO    */
+/* ========================================================================== */
+
+/* Permite que el contenedor del dashboard se expanda en pantallas de escritorio */
+.container:has(.cockpit-layout-wrapper),
+.container-cockpit-wide {
+    max-width: 1540px;
+}
+
+/* Grilla principal que integra el Cockpit de Produccion y la Columna de Mantenimiento */
+.cockpit-layout-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 230px;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+/* Columna lateral de Mantenimiento Preventivo y Operativo */
+.cockpit-maint-sidebar {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Franja superior estetica en el panel lateral */
+.cockpit-maint-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6);
+}
+
+/* Encabezado del panel lateral */
+.maint-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.maint-sidebar-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.maint-sidebar-link {
+    font-size: 0.72rem;
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 700;
+    transition: color 0.15s ease;
+}
+
+.maint-sidebar-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+/* Contenedor apilado de las 3 tarjetas de mantenimiento */
+.maint-sidebar-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+/* Tarjeta individual de indicador (estilo dark slate de Mantenimiento) */
+.maint-dash-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 0.6rem;
+    padding: 0.75rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.maint-dash-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    border-color: #475569;
+}
+
+/* Bordes superiores de cada tarjeta segun categoria */
+.maint-card-pending {
+    border-top: 4px solid #f59e0b;
+}
+
+.maint-card-operative {
+    border-top: 4px solid #ef4444;
+}
+
+.maint-card-planned {
+    border-top: 4px solid #8b5cf6;
+}
+
+/* Titulo de la tarjeta */
+.maint-dash-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: #94a3b8;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+/* Valor numerico destacado */
+.maint-dash-val {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 0.2rem;
+}
+
+.maint-card-pending .maint-dash-val {
+    color: #f59e0b;
+}
+
+.maint-card-operative .maint-dash-val {
+    color: #ef4444;
+}
+
+.maint-card-planned .maint-dash-val {
+    color: #c084fc;
+}
+
+/* Subtitulo aclaratorio de cada tarjeta */
+.maint-dash-sub {
+    font-size: 0.68rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+/* Pie del panel con boton de acceso directo */
+.maint-sidebar-footer {
+    padding-top: 0.35rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-maint-sidebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: #0f172a;
+    color: #f8fafc;
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.45rem;
+    transition: background 0.15s ease;
+    border: 1px solid #334155;
+}
+
+.btn-maint-sidebar:hover {
+    background: #1e293b;
+    color: #ffffff;
+}
+
 /* Disposicion principal del dashboard de alta densidad */
 .cockpit-dashboard {
     display: flex; /* Disposicion flexible vertical */
     flex-direction: column; /* Apila las secciones ordenadamente */
     gap: 1rem; /* Espaciado compacto entre filas */
-    margin-bottom: 1rem; /* Margen inferior */
+    margin-bottom: 0; /* Sin margen inferior extra dentro de wrapper */
 }
 
 /* Fila superior de los tres pilares del proceso */
 .cockpit-kpis-grid {
+
     display: grid; /* Cuadricula CSS */
     grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales para los 3 pilares */
     gap: 1rem; /* Espaciado entre tarjetas de pilares */
@@ -1309,6 +1489,18 @@ body {
 /* RESPONSIVIDAD Y ADAPTABILIDAD MULTIDISPOSITIVO (TABLETS Y CELULARES)       */
 /* ========================================================================== */
 
+/* Laptops pequenos y tablets en apaisado (<= 1100px) */
+@media (max-width: 1100px) {
+    .cockpit-layout-wrapper {
+        grid-template-columns: 1fr;
+    }
+    .maint-sidebar-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+}
+
 /* Tablets y pantallas medianas (<= 992px) */
 @media (max-width: 992px) {
     /* Apila los tres pilares de proceso verticalmente para lectura comoda */
@@ -1331,8 +1523,44 @@ body {
 
 /* Telefonos moviles y pantallas angostas (<= 768px) */
 @media (max-width: 768px) {
+    /* Ajuste para el cockpit y panel de mantenimiento en celulares */
+    .cockpit-layout-wrapper {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    .cockpit-maint-sidebar {
+        padding: 0.65rem;
+    }
+    .maint-sidebar-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.4rem;
+    }
+    .maint-dash-card {
+        padding: 0.5rem 0.35rem;
+        text-align: center;
+        border-radius: 0.45rem;
+    }
+    .maint-dash-title {
+        font-size: 0.62rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .maint-dash-val {
+        font-size: 1.35rem;
+        margin-top: 0.1rem;
+    }
+    .maint-dash-sub {
+        display: none; /* Oculta subtitulo en celulares para maxima compacidad */
+    }
+    .maint-sidebar-footer {
+        display: none; /* En celular el enlace de cabecera es suficiente */
+    }
+
     /* Evita cualquier desborde o desplazamiento lateral no deseado */
     html, body {
+
         overflow-x: hidden;
         width: 100%;
     }

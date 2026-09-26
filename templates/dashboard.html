@@ -37,10 +37,21 @@
     {% endif %}
 </div>
 
+<!-- Script para expandir el contenedor principal en pantallas amplias de escritorio -->
+<script>
+    if (document.querySelector('main.container')) {
+        document.querySelector('main.container').classList.add('container-cockpit-wide');
+    }
+</script>
+
 <!-- ========================================================================= -->
-<!-- CONTENEDOR PRINCIPAL DEL COCKPIT EJECUTIVO (PANTALLA UNICA SIN SCROLL)    -->
+<!-- CONTENEDOR INTEGRADO: COCKPIT DE PROCESO + PANEL LATERAL DE MANTENIMIENTO -->
 <!-- ========================================================================= -->
-<div class="cockpit-dashboard">
+<div class="cockpit-layout-wrapper">
+
+    <!-- COLUMNA PRINCIPAL: PILARES Y MONITOREO DE PLANTA -->
+    <div class="cockpit-dashboard">
+
 
     <!-- ===================================================================== -->
     <!-- FILA 1: LOS TRES PILARES FUNDAMENTALES DEL PROCESO EN UN GOLPE DE VISTA -->
@@ -490,8 +501,57 @@
         </div>
 
     </div>
+    <!-- FIN COLUMNA PRINCIPAL DE PROCESO -->
+
+    <!-- ========================================================================= -->
+    <!-- COLUMNA LATERAL DERECHA: MANTENIMIENTO PREVENTIVO Y OPERATIVO             -->
+    <!-- ========================================================================= -->
+    <aside class="cockpit-maint-sidebar">
+        <!-- Encabezado del panel lateral con acceso al modulo -->
+        <div class="maint-sidebar-header">
+            <span class="maint-sidebar-title">
+                <span style="font-size: 0.95rem;">🔧</span> Mantenimiento
+            </span>
+            <a href="{{ url_for('maintenance.index') }}" class="maint-sidebar-link" title="Abrir módulo completo de Mantenimiento y Pañol">
+                Ver Todo &rarr;
+            </a>
+        </div>
+
+        <!-- Las 3 Tarjetas de Indicadores Solicitadas (Estilo Dark Slate identico a Mantenimiento) -->
+        <div class="maint-sidebar-cards">
+            <!-- Tarjeta 1: Tareas Pendientes -->
+            <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-dash-card maint-card-pending" title="Ver tareas de mantenimiento pendientes">
+                <div class="maint-dash-title">Tareas Pendientes</div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.pending_count }}</div>
+                <div class="maint-dash-sub">Intervenciones en espera</div>
+            </a>
+
+            <!-- Tarjeta 2: Operativas (En Marcha) -->
+            <a href="{{ url_for('maintenance.index', category='operativa') }}" class="maint-dash-card maint-card-operative" title="Ver intervenciones urgentes y en marcha">
+                <div class="maint-dash-title">Operativas (En Marcha)</div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.operative_count }}</div>
+                <div class="maint-dash-sub">Urgencias del momento</div>
+            </a>
+
+            <!-- Tarjeta 3: Planificadas c/ Parada -->
+            <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" class="maint-dash-card maint-card-planned" title="Ver tareas programadas que requieren detener planta">
+                <div class="maint-dash-title">Planificadas c/ Parada</div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.planned_stop_count }}</div>
+                <div class="maint-dash-sub">Requieren detener planta</div>
+            </a>
+        </div>
+
+        <!-- Acceso directo al pie del panel -->
+        <div class="maint-sidebar-footer">
+            <a href="{{ url_for('maintenance.index') }}" class="btn-maint-sidebar">
+                <span>🛠️</span> Ir a Mantenimiento
+            </a>
+        </div>
+    </aside>
 
 </div>
+<!-- FIN CONTENEDOR INTEGRADO -->
+
 
 <!-- ========================================================================= -->
 <!-- MODALES INTERACTIVOS DE INSPECCION 3D Y CUBICAJE (BAJO DEMANDA POR CLIC)  -->

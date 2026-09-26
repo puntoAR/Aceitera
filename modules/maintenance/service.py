@@ -348,3 +348,32 @@ def get_spare_parts_report_data():
         'categories': categories,
         'generated_at': datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
     }
+
+# Obtiene los tres indicadores clave de mantenimiento para el cockpit ejecutivo
+def get_maintenance_dashboard_kpis():
+    # Abre conexion a la base de datos
+    with get_db_connection() as conn:
+        # Comprueba si la tabla de actividades existe para evitar excepciones
+        table_check = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='maintenance_activities';").fetchone()
+        if not table_check:
+            # Retorna valores en cero si la tabla no fue creada aun
+            return {
+                'pending_count': 0,
+                'operative_count': 0,
+                'planned_stop_count': 0
+            }
+        
+        # Conteo de tareas pendientes
+        pending = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status = 'pendiente';").fetchone()[0]
+        # Conteo de tareas operativas (urgencias / en marcha)
+        operative = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'operativa';").fetchone()[0]
+        # Conteo de tareas planificadas con parada de planta
+        planned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_con_parada';").fetchone()[0]
+        
+        # Retorna el diccionario de KPIs para el dashboard
+        return {
+            'pending_count': int(pending or 0),
+            'operative_count': int(operative or 0),
+            'planned_stop_count': int(planned_stop or 0)
+        }
+

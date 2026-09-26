@@ -21,8 +21,9 @@ from modules.maintenance.service import (
     create_maintenance_activity, get_maintenance_activities, get_activity_by_id,
     update_activity_status, save_maintenance_image, get_activity_images,
     create_or_update_spare_part, get_spare_parts, get_spare_part_by_id,
-    record_spare_part_movement, get_spare_parts_report_data
+    record_spare_part_movement, get_spare_parts_report_data, get_maintenance_dashboard_kpis
 )
+
 
 # Clase de pruebas para mantenimiento y stock
 class TestMaintenanceAndSpareParts(unittest.TestCase):
@@ -355,6 +356,72 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
             audit_reset = conn.execute("SELECT COUNT(*) FROM audit_logs WHERE action = 'RESET_PRODUCCION';").fetchone()[0]
             self.assertEqual(audit_reset, 1)
 
+    # Prueba de los 3 KPIs de mantenimiento en el dashboard y el renderizado de la barra lateral
+    def test_maintenance_dashboard_kpis_and_cockpit_sidebar(self):
+        # 1. Verifica estado inicial en cero
+        kpis_initial = get_maintenance_dashboard_kpis()
+        self.assertEqual(kpis_initial['pending_count'], 0)
+        self.assertEqual(kpis_initial['operative_count'], 0)
+        self.assertEqual(kpis_initial['planned_stop_count'], 0)
+
+        # 2. Registra una tarea operativa urgente
+        act1_id = create_maintenance_activity(
+            title="Ajuste de correa de prensa",
+            category="operativa",
+            equipment_tag="PRENSA-01",
+            priority="alta",
+            description="Vibración detectada en marcha",
+            reported_by="Operario 1"
+        )
+        self.assertIsNotNone(act1_id)
+
+        # 3. Registra una tarea planificada con parada de planta
+        act2_id = create_maintenance_activity(
+            title="Cambio de rodamiento principal",
+            category="planificada_con_parada",
+            equipment_tag="EXTRUSOR-01",
+            priority="critica",
+            description="Mantenimiento preventivo programado",
+            reported_by="Mantenimiento"
+        )
+        self.assertIsNotNone(act2_id)
+
+        # 4. Verifica los contadores actualizados
+        kpis = get_maintenance_dashboard_kpis()
+        self.assertEqual(kpis['pending_count'], 2)
+        self.assertEqual(kpis['operative_count'], 1)
+        self.assertEqual(kpis['planned_stop_count'], 1)
+
+        # 5. Verifica la consulta completa del dashboard ejecutivo
+        from modules.dashboard.service import get_executive_dashboard_data
+        dash_data = get_executive_dashboard_data()
+        self.assertIn('maintenance_kpis', dash_data)
+        self.assertEqual(dash_data['maintenance_kpis']['pending_count'], 2)
+        self.assertEqual(dash_data['maintenance_kpis']['operative_count'], 1)
+        self.assertEqual(dash_data['maintenance_kpis']['planned_stop_count'], 1)
+
+        # 6. Verifica la respuesta HTTP del dashboard con rol gerencia / administrador
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Planta'
+            sess['role'] = 'administrador'
+
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+
+        # Verifica presencia del contenedor wrapper y la barra lateral de mantenimiento
+        self.assertIn('cockpit-layout-wrapper', html)
+        self.assertIn('cockpit-maint-sidebar', html)
+        self.assertIn('Tareas Pendientes', html)
+        self.assertIn('Operativas (En Marcha)', html)
+        self.assertIn('Planificadas c/ Parada', html)
+        self.assertIn('Intervenciones en espera', html)
+        self.assertIn('Urgencias del momento', html)
+        self.assertIn('Requieren detener planta', html)
+
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':
     unittest.main()
+

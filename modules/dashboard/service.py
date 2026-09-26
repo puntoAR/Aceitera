@@ -4,9 +4,12 @@ from modules.production.service import get_shift_speed_summary, get_recent_weigh
 from modules.configuration.service import get_active_shift
 # Importa get_latest_reconciliation y get_recent_reconciliations para el historial de balances
 from modules.yield_balance.service import get_latest_reconciliation, get_recent_reconciliations
+# Importa el servicio de KPIs de mantenimiento para el cockpit ejecutivo
+from modules.maintenance.service import get_maintenance_dashboard_kpis
 
 # Genera el resumen consolidado ejecutivo de la planta en un golpe de vista
 def get_executive_dashboard_data():
+
     # Obtiene existencias totales de los 3 stocks clave
     stocks = get_total_plant_stocks()
     # Obtiene datos del turno activo y guardia en marcha
@@ -44,6 +47,8 @@ def get_executive_dashboard_data():
     yield_history = get_recent_reconciliations(limit=50)
     # Obtiene el historial global extendido de pesadas de velocidad
     all_recent_weighings = get_recent_weighings(limit=50)
+    # Obtiene los indicadores clave de mantenimiento preventivo y operativo
+    maintenance_kpis = get_maintenance_dashboard_kpis()
     # Retorna el paquete consolidado para el dashboard
     return {
         # Existencias de tanques y silos
@@ -65,5 +70,8 @@ def get_executive_dashboard_data():
         # Historial de balances de masa y rendimiento
         'yield_history': yield_history,
         # Historial de pesadas y velocidades para modal de evolucion horaria
-        'all_recent_weighings': all_recent_weighings
+        'all_recent_weighings': all_recent_weighings,
+        # Indicadores clave de mantenimiento
+        'maintenance_kpis': maintenance_kpis
     }
+
