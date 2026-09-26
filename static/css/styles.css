@@ -1489,22 +1489,11 @@ body {
 /* RESPONSIVIDAD Y ADAPTABILIDAD MULTIDISPOSITIVO (TABLETS Y CELULARES)       */
 /* ========================================================================== */
 
-/* Laptops pequenos y tablets en apaisado (<= 1100px) */
-@media (max-width: 1100px) {
-    .cockpit-layout-wrapper {
-        grid-template-columns: 1fr;
-    }
-    .maint-sidebar-cards {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.75rem;
-    }
-}
-
 /* Tablets y pantallas medianas (<= 992px) */
 @media (max-width: 992px) {
     /* Apila los tres pilares de proceso verticalmente para lectura comoda */
     .cockpit-kpis-grid {
+
         grid-template-columns: 1fr;
         gap: 0.85rem;
     }
