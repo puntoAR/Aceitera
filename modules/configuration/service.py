@@ -4,6 +4,8 @@ import json
 from core.database import get_db_connection
 # Importa el registrador de eventos para auditar cambios de configuracion
 from core.error_logger import log_info, log_error
+# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Obtiene la lista completa de tanques de aceite configurados en planta
 def get_all_tanks(only_active=True):
@@ -118,11 +120,11 @@ def set_active_shift(shift_id, operator_name, user_role=None):
 
     # Abre conexion a base de datos
     with get_db_connection() as conn:
-        # Reemplaza el registro del turno en ejecucion
+        # Reemplaza el registro del turno en ejecucion con estampa horaria oficial de planta
         conn.execute("""
             INSERT OR REPLACE INTO active_shift (id, shift_id, operator_name, opened_at)
-            VALUES (1, ?, ?, CURRENT_TIMESTAMP);
-        """, (shift_id, operator_name))
+            VALUES (1, ?, ?, ?);
+        """, (shift_id, operator_name, get_plant_now_str()))
         # Confirma el cambio de guardia
         conn.commit()
     # Registra en log el cambio de turno

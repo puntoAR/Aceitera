@@ -16,6 +16,8 @@ import sqlite3
 from config import BASE_DIR, DATABASE_PATH, BACKUPS_DIR
 # Importa logger
 from core.error_logger import log_info, log_error
+# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now, get_plant_now_str
 
 # Asegura que el directorio de respaldos exista de manera segura
 try:
@@ -25,8 +27,8 @@ except Exception:
 
 # Crea un respaldo completo del sistema (Base de datos SQLite + Codigo + Version)
 def create_backup(label="pre_update"):
-    # Genera estampa de tiempo formateada: YYYYMMDD_HHMMSS
-    now_tag = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Genera estampa de tiempo formateada con hora oficial de planta: YYYYMMDD_HHMMSS
+    now_tag = get_plant_now().strftime('%Y%m%d_%H%M%S')
     # Nombre de la carpeta de respaldo
     backup_folder_name = f"backup_{now_tag}_{label}"
     # Ruta absoluta de la carpeta de respaldo
@@ -85,7 +87,7 @@ def create_backup(label="pre_update"):
     meta = {
         'folder_name': backup_folder_name,
         'label': label,
-        'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'created_at': get_plant_now_str(),
         'version': current_version,
         'has_database': os.path.exists(db_backup_path)
     }

@@ -15,6 +15,8 @@ from modules.calculations.silo_calc import (
 )
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
+# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Registra una medicion de nivel de aceite en un tanque con calculo de litros y kg
 def record_tank_level(tank_id, level_m, shift_id, operator_name, density_override=None):
@@ -55,8 +57,8 @@ def record_tank_level(tank_id, level_m, shift_id, operator_name, density_overrid
         'density_applied': density,
         'version': tank['version']
     })
-    # Estampa de tiempo actual
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
     # Guarda la medicion en la tabla de inventario de tanques
     with get_db_connection() as conn:
         cursor = conn.execute("""
@@ -126,8 +128,8 @@ def record_silo_measurement(silo_id, covered_sheets, partial_sheet_height_m,
         'vol_breakdown': vol_breakdown,
         'version': silo['version']
     })
-    # Estampa de tiempo
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
     # Guarda en la base de datos
     with get_db_connection() as conn:
         cursor = conn.execute("""
@@ -155,8 +157,8 @@ def record_silo_measurement(silo_id, covered_sheets, partial_sheet_height_m,
 # Registra un movimiento externo de producto (despacho, ingreso de cereal, trasvase)
 def record_inventory_movement(product, movement_type, origin, destination, quantity_kg,
                               document_ref, shift_id, operator_name, notes=''):
-    # Estampa de tiempo actual
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
     # Guarda en la tabla de movimientos
     with get_db_connection() as conn:
         # Inserta el movimiento especificando exactamente los diez campos y sus marcadores

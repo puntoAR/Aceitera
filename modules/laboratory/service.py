@@ -13,6 +13,8 @@ from modules.calculations.lab_calc import (
 from core.error_logger import log_info, log_error
 # Importa auditoria de eventos
 from core.audit import record_audit_event
+# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Registra una determinacion analitica de laboratorio con calculo de parametros o ingreso directo
 def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes=''):
@@ -64,8 +66,8 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
         ft = float(raw_data.get('acidity_ft_factor', 0.282))
         acidity_pct = calculate_oil_acidity_pct(acidity_sample_g, naoh_ml, naoh_n, ft)
 
-    # Estampa de tiempo actual
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
 
     # Guarda en la tabla lab_analyses
     with get_db_connection() as conn:
@@ -202,8 +204,8 @@ def record_oil_truck_dispatch(shift_id, operator_name, truck_plate, trailer_plat
     if not plate or not driver or not seals or not status:
         raise ValueError("Patente, Chofer, Estado de Transporte y Numeración de Precintos son campos obligatorios.")
 
-    # Estampa de tiempo actual
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
 
     # Abre conexion para insertar el registro de despacho
     with get_db_connection() as conn:

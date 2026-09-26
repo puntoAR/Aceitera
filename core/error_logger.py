@@ -8,6 +8,8 @@ import re
 import traceback
 # Importa la ruta del archivo de logs definida en la configuracion central
 from config import LOG_FILE_PATH
+# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Analiza una traza de error en texto plano para deducir el archivo, linea, funcion y codigo causante
 def parse_traceback_origin(tb_text):
@@ -54,8 +56,8 @@ def parse_traceback_origin(tb_text):
 
 # Define la funcion principal para registrar mensajes con nivel de severidad
 def log_event(level, module_name, message, exc=None):
-    # Obtiene la fecha y hora actual en formato legible ISO para auditoria
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Obtiene la fecha y hora oficial de planta (Argentina UTC-3) para auditoria
+    now_str = get_plant_now_str()
     # Prepara el texto del detalle de la excepcion si fue provista
     exc_details = ''
     # Variables de localizacion del origen del error

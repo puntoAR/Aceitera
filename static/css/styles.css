@@ -1527,10 +1527,21 @@ body {
 @media (max-width: 768px) {
     /* Ajuste para el cockpit y panel de mantenimiento en celulares */
     .cockpit-layout-wrapper {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 0.75rem;
+        width: 100%;
+    }
+    .cockpit-dashboard {
+        width: 100%;
+        min-width: 0;
+        flex: none;
     }
     .cockpit-maint-sidebar {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        flex: none;
         padding: 0.65rem;
     }
     .maint-sidebar-cards {

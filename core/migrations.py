@@ -280,6 +280,43 @@ REGISTERED_MIGRATIONS = [
             -- Agrega columna para registrar la marca de tiempo de resolucion
             ALTER TABLE system_errors ADD COLUMN resolved_at TIMESTAMP;
         """
+    },
+    {
+        # Version 9: Ajuste de marcas temporales grabadas en UTC a horario oficial Balcarce (UTC-3)
+        'version': 9,
+        'name': 'adjust_legacy_utc_timestamps_to_art',
+        'description': 'Ajuste de registros grabados en UTC en servidores en la nube a horario local de planta Balcarce (-3 horas)',
+        'sql': """
+            -- Corrige pesadas de produccion grabadas con hora de servidor UTC
+            UPDATE production_weighings
+            SET timestamp = datetime(timestamp, '-3 hours')
+            WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
+
+            -- Corrige paradas de linea grabadas con hora de servidor UTC
+            UPDATE line_stops
+            SET start_time = datetime(start_time, '-3 hours')
+            WHERE start_time >= '2026-09-26 13:00:00' AND start_time <= '2026-09-26 23:59:59';
+
+            -- Corrige analisis de laboratorio grabados con hora UTC
+            UPDATE lab_analyses
+            SET timestamp = datetime(timestamp, '-3 hours')
+            WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
+
+            -- Corrige mediciones de tanques grabadas con hora UTC
+            UPDATE inventory_tanks
+            SET timestamp = datetime(timestamp, '-3 hours')
+            WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
+
+            -- Corrige mediciones de silos grabadas con hora UTC
+            UPDATE inventory_silos
+            SET timestamp = datetime(timestamp, '-3 hours')
+            WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
+
+            -- Corrige despachos de camiones grabados con hora UTC
+            UPDATE oil_truck_dispatches
+            SET timestamp = datetime(timestamp, '-3 hours')
+            WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
+        """
     }
 ]
 

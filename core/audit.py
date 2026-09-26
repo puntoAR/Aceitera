@@ -5,6 +5,8 @@ import datetime
 from core.database import get_db_connection
 # Importa error_logger para registrar incidencias de auditoria
 from core.error_logger import log_info, log_error
+# Importa funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Intenta importar el contexto de peticion de Flask para extraer IP y usuario activo
 try:
@@ -53,8 +55,8 @@ def record_audit_event(category, action, details, status='OK', user_override=Non
         # Asigna la IP provista
         ip_address = str(ip_override)
 
-    # Estampa de tiempo actual formateada
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Estampa de tiempo oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
 
     try:
         # Abre conexion para insertar el registro de auditoria

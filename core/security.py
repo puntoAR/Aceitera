@@ -12,6 +12,8 @@ from flask import session, redirect, url_for, flash, g, request
 from core.database import get_db_connection
 # Importa el modulo de auditoria de eventos
 from core.audit import record_audit_event
+# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now, get_plant_now_str
 
 # Genera una contrasena segura y memorable para recuperacion automatica
 def generate_secure_password(length=8):
@@ -30,25 +32,26 @@ def generate_secure_password(length=8):
 def generate_otp_code(user_id):
     # Genera un numero aleatorio de 6 digitos entre 100000 y 999999
     code = f"{secrets.randbelow(900000) + 100000}"
-    # Calcula la fecha de expiracion a 15 minutos en el futuro
-    expires_at = (datetime.datetime.now() + datetime.timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
+    # Calcula la fecha de expiracion a 15 minutos en el futuro segun hora oficial de planta
+    created_at = get_plant_now_str()
+    expires_at = (get_plant_now() + datetime.timedelta(minutes=15)).strftime('%Y-%m-%d %H:%M:%S')
     # Abre conexion para persistir el codigo en la tabla password_reset_codes
     with get_db_connection() as conn:
         # Invalida codigos previos no utilizados para este usuario
         conn.execute("UPDATE password_reset_codes SET used = 1 WHERE user_id = ? AND used = 0;", (user_id,))
-        # Inserta el nuevo codigo generado
+        # Inserta el nuevo codigo generado con su estampa oficial de planta
         conn.execute("""
-            INSERT INTO password_reset_codes (user_id, code, expires_at, used)
-            VALUES (?, ?, ?, 0);
-        """, (user_id, code, expires_at))
+            INSERT INTO password_reset_codes (user_id, code, created_at, expires_at, used)
+            VALUES (?, ?, ?, ?, 0);
+        """, (user_id, code, created_at, expires_at))
         conn.commit()
     # Retorna el codigo de 6 digitos
     return code
 
 # Valida si un codigo OTP ingresado es correcto y no ha expirado
 def verify_otp_code(user_id, code):
-    # Fecha y hora actual para comparar expiracion
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Fecha y hora oficial de planta para comparar expiracion
+    now_str = get_plant_now_str()
     # Abre conexion para buscar el codigo
     with get_db_connection() as conn:
         # Busca el codigo activo no usado y no expirado

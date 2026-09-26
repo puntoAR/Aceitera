@@ -45,8 +45,8 @@
         width: 100% !important;
     }
 
-    /* Disposicion flex horizontal estricta e inquebrantable en computadoras y laptops */
-    @media (min-width: 768px) {
+    /* Disposicion flex horizontal en computadoras de escritorio y laptops (>= 900px) */
+    @media (min-width: 900px) {
         .cockpit-layout-wrapper {
             display: flex !important;
             flex-direction: row !important;
@@ -64,19 +64,24 @@
         }
 
         .cockpit-maint-sidebar {
-            flex: 0 0 225px !important;
-            width: 225px !important;
-            min-width: 225px !important;
-            max-width: 225px !important;
+            flex: 0 0 230px !important;
+            width: 230px !important;
+            min-width: 230px !important;
+            max-width: 230px !important;
             box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
+        .maint-sidebar-cards {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.6rem !important;
         }
     }
 
-    /* Panel lateral de mantenimiento alineado al nivel de Eficiencia y Rendimiento */
+    /* Panel lateral de mantenimiento */
     .cockpit-maint-sidebar {
-        display: flex !important;
-        flex-direction: column !important;
-        width: 225px !important;
         background: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
         border-radius: 0.75rem !important;
@@ -212,39 +217,80 @@
         color: #ffffff !important;
     }
 
-    /* Solo en celulares (< 768px) pasa abajo como barra horizontal compacta */
-    @media (max-width: 767px) {
+    /* En tablets y celulares (< 900px) pasa abajo a ancho completo sin achicar el cockpit */
+    @media (max-width: 899px) {
         .cockpit-layout-wrapper {
-            grid-template-columns: 1fr !important;
-            gap: 0.75rem !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 0.85rem !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .cockpit-dashboard {
+            width: 100% !important;
+            flex: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
         }
         .cockpit-maint-sidebar {
             width: 100% !important;
-            padding: 0.65rem !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            flex: none !important;
+            box-sizing: border-box !important;
+            padding: 0.75rem !important;
+            order: 2 !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
         .maint-sidebar-cards {
             display: grid !important;
             grid-template-columns: repeat(3, 1fr) !important;
-            gap: 0.4rem !important;
+            gap: 0.45rem !important;
+            margin-top: 0.4rem !important;
         }
         .maint-dash-card {
-            padding: 0.5rem 0.35rem !important;
+            padding: 0.55rem 0.35rem !important;
             text-align: center !important;
+            align-items: center !important;
         }
         .maint-dash-title {
-            font-size: 0.62rem !important;
+            font-size: 0.65rem !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
         }
         .maint-dash-val {
-            font-size: 1.35rem !important;
+            font-size: 1.45rem !important;
         }
         .maint-dash-sub {
             display: none !important;
         }
         .maint-sidebar-footer {
-            display: none !important;
+            display: block !important;
+            margin-top: 0.5rem !important;
+            padding-top: 0.4rem !important;
+        }
+        .btn-maint-sidebar {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+    }
+
+    /* Celulares muy angostos (< 480px) */
+    @media (max-width: 480px) {
+        .maint-sidebar-cards {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 0.35rem !important;
+        }
+        .maint-dash-card {
+            padding: 0.45rem 0.25rem !important;
+        }
+        .maint-dash-title {
+            font-size: 0.60rem !important;
+        }
+        .maint-dash-val {
+            font-size: 1.3rem !important;
         }
     }
 </style>
@@ -259,10 +305,10 @@
 <!-- ========================================================================= -->
 <!-- CONTENEDOR INTEGRADO: COCKPIT DE PROCESO + PANEL LATERAL DE MANTENIMIENTO -->
 <!-- ========================================================================= -->
-<div class="cockpit-layout-wrapper" style="display: flex; flex-direction: row; align-items: flex-start; gap: 1rem; width: 100%;">
+<div class="cockpit-layout-wrapper">
 
     <!-- COLUMNA PRINCIPAL: PILARES Y MONITOREO DE PLANTA -->
-    <div class="cockpit-dashboard" style="flex: 1 1 0%; min-width: 0; width: 100%;">
+    <div class="cockpit-dashboard">
 
 
 
@@ -723,8 +769,7 @@
 <!-- ========================================================================= -->
 <!-- COLUMNA LATERAL DERECHA: MANTENIMIENTO PREVENTIVO Y OPERATIVO             -->
 <!-- ========================================================================= -->
-<aside class="cockpit-maint-sidebar" style="flex: 0 0 230px; width: 230px; min-width: 230px; max-width: 230px; box-sizing: border-box;">
-
+<aside class="cockpit-maint-sidebar">
 
         <!-- Encabezado del panel lateral con acceso al modulo -->
         <div class="maint-sidebar-header">
@@ -740,21 +785,21 @@
         <div class="maint-sidebar-cards">
             <!-- Tarjeta 1: Tareas Pendientes -->
             <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-dash-card maint-card-pending" title="Ver tareas de mantenimiento pendientes">
-                <div class="maint-dash-title">Tareas Pendientes</div>
+                <div class="maint-dash-title"><span class="mobile-hidden">Tareas </span>Pendientes</div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.pending_count }}</div>
                 <div class="maint-dash-sub">Intervenciones en espera</div>
             </a>
 
             <!-- Tarjeta 2: Operativas (En Marcha) -->
             <a href="{{ url_for('maintenance.index', category='operativa') }}" class="maint-dash-card maint-card-operative" title="Ver intervenciones urgentes y en marcha">
-                <div class="maint-dash-title">Operativas (En Marcha)</div>
+                <div class="maint-dash-title">Operativas<span class="mobile-hidden"> (En Marcha)</span></div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.operative_count }}</div>
                 <div class="maint-dash-sub">Urgencias del momento</div>
             </a>
 
             <!-- Tarjeta 3: Planificadas c/ Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" class="maint-dash-card maint-card-planned" title="Ver tareas programadas que requieren detener planta">
-                <div class="maint-dash-title">Planificadas c/ Parada</div>
+                <div class="maint-dash-title">Planificadas<span class="mobile-hidden"> c/ Parada</span></div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.planned_stop_count }}</div>
                 <div class="maint-dash-sub">Requieren detener planta</div>
             </a>

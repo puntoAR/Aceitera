@@ -15,6 +15,8 @@ from core.audit import record_audit_event
 from core.error_logger import log_error, log_info
 # Importa configuraciones del sistema para rutas y extensiones
 import config
+# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now, get_plant_now_str
 
 # Registra una nueva actividad o solicitud de intervencion de mantenimiento
 def create_maintenance_activity(title, category, equipment_tag, priority, description, reported_by, assigned_to=None, scheduled_date=None):
@@ -28,13 +30,15 @@ def create_maintenance_activity(title, category, equipment_tag, priority, descri
     if category not in valid_categories:
         # Lanza error si la categoria no coincide con las autorizadas
         raise ValueError(f"Categoría inválida. Debe ser una de: {', '.join(valid_categories)}")
+    # Obtiene estampa horaria oficial de planta (Argentina UTC-3)
+    created_at = get_plant_now_str()
     # Abre conexion para insertar la actividad
     with get_db_connection() as conn:
         # Ejecuta la insercion en la tabla de actividades
         cursor = conn.execute("""
-            INSERT INTO maintenance_activities (title, category, equipment_tag, priority, status, description, reported_by, assigned_to, scheduled_date)
-            VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?, ?);
-        """, (title.strip(), category, equipment_tag.strip() if equipment_tag else 'General', priority, description.strip() if description else '', reported_by, assigned_to, scheduled_date))
+            INSERT INTO maintenance_activities (title, category, equipment_tag, priority, status, description, reported_by, assigned_to, scheduled_date, created_at)
+            VALUES (?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, ?);
+        """, (title.strip(), category, equipment_tag.strip() if equipment_tag else 'General', priority, description.strip() if description else '', reported_by, assigned_to, scheduled_date, created_at))
         # Obtiene el identificador asignado a la nueva actividad
         activity_id = cursor.lastrowid
         # Confirma la transaccion
@@ -98,10 +102,9 @@ def update_activity_status(activity_id, status, resolution_notes=None, completed
     if status not in valid_statuses:
         # Lanza error si el estado es desconocido
         raise ValueError(f"Estado inválido. Debe ser: {', '.join(valid_statuses)}")
-    # Si el estado es completada y no se paso fecha, toma la hora actual
+    # Si el estado es completada y no se paso fecha, toma la hora oficial de planta (Argentina UTC-3)
     if status == 'completada' and not completed_at:
-        # Asigna la marca de tiempo actual formateada
-        completed_at = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        completed_at = get_plant_now_str()
     # Abre conexion para modificar el registro
     with get_db_connection() as conn:
         # Ejecuta el update de estado y resolucion
@@ -310,13 +313,14 @@ def record_spare_part_movement(spare_part_id, movement_type, quantity, operator_
         else: # ajuste directo
             # Asigna la cantidad como nuevo stock total
             new_stock = qty
-        # Actualiza el stock en la tabla principal
-        conn.execute("UPDATE spare_parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;", (new_stock, spare_part_id))
+        # Actualiza el stock en la tabla principal y registra el movimiento con horario oficial de planta
+        now_str = get_plant_now_str()
+        conn.execute("UPDATE spare_parts SET stock_quantity = ?, updated_at = ? WHERE id = ?;", (new_stock, now_str, spare_part_id))
         # Inserta el movimiento en el historial
         conn.execute("""
-            INSERT INTO spare_parts_movements (spare_part_id, activity_id, movement_type, quantity, operator_name, reason)
-            VALUES (?, ?, ?, ?, ?, ?);
-        """, (spare_part_id, activity_id, movement_type, qty, operator_name, reason.strip() if reason else ''))
+            INSERT INTO spare_parts_movements (spare_part_id, activity_id, movement_type, quantity, operator_name, reason, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+        """, (spare_part_id, activity_id, movement_type, qty, operator_name, reason.strip() if reason else '', now_str))
         # Confirma la transaccion en disco
         conn.commit()
     # Registra el evento en auditoria
@@ -346,7 +350,7 @@ def get_spare_parts_report_data():
         'consumables_items': consumables_items,
         'mechanical_items': mechanical_items,
         'categories': categories,
-        'generated_at': datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+        'generated_at': get_plant_now().strftime('%d/%m/%Y %H:%M')
     }
 
 # Obtiene los tres indicadores clave de mantenimiento para el cockpit ejecutivo

@@ -13,6 +13,8 @@ from modules.calculations.speed_calc import (
 )
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
+# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+from core.timezone import get_plant_now_str
 
 # Registra un muestreo de pesada de bolsa con calculo automatico de velocidad y proyeccion
 def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
@@ -41,8 +43,8 @@ def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
         'formula_proj_8h': 'speed * 8',
         'formula_proj_24h': 'speed * 24'
     })
-    # Obtiene la fecha y hora actual en formato ISO
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Obtiene la fecha y hora oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
     # Abre conexion para insertar el registro en base de datos
     with get_db_connection() as conn:
         # Inserta la pesada en la tabla de produccion
@@ -98,8 +100,8 @@ def get_recent_weighings(shift_id=None, limit=50):
 
 # Registra una parada o detencion en la linea de proceso
 def record_line_stop(shift_id, duration_minutes, reason, operator_name):
-    # Obtiene la fecha y hora actual
-    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # Obtiene la fecha y hora oficial de planta (Argentina UTC-3)
+    now_str = get_plant_now_str()
     # Abre conexion para registrar la parada
     with get_db_connection() as conn:
         # Inserta la detencion en la tabla line_stops
