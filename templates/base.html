@@ -48,18 +48,13 @@
         <!-- Si el usuario esta autenticado muestra menu de navegacion adaptado a su perfil -->
         {% if g.user %}
         <div class="nav-links">
-            <!-- Navegacion exclusiva para Gerencia / Administrador (Solo Dashboard) -->
-            {% if g.user.role in ['administrador', 'gerencia'] %}
-            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
-            {% endif %}
-
-            <!-- Navegacion exclusiva para Administrador (Solo Dashboard y Mantenimiento) -->
+            <!-- Navegacion para Gerencia y Administrador (Dashboard Ejecutivo y Mantenimiento) -->
             {% if g.user.role in ['administrador', 'gerencia'] %}
             <!-- Enlace al Dashboard Ejecutivo -->
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
             <!-- Enlace al modulo de Mantenimiento y Pañol -->
             <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
-            <!-- Cierra condicion de rol gerencia -->
+            <!-- Cierra condicion de rol gerencia / administrador -->
             {% endif %}
 
             <!-- Navegacion para Rol Operario / Usuario de Carga -->

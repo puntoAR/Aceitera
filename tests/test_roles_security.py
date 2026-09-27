@@ -389,9 +389,9 @@ class TestRolesAndSecurity(unittest.TestCase):
         resp_login = self.client.post('/login', data={'username': 'gerente_planta', 'pin': 'ClaveGerencia2026!'}, follow_redirects=True)
         self.assertEqual(resp_login.status_code, 200)
         html_content = resp_login.data.decode('utf-8')
-        # Verifica que la insignia contenga (Gerencia) y el menu contenga Dashboard Ejecutivo
+        # Verifica que la insignia contenga (Gerencia) y el menu contenga el boton Dashboard Ejecutivo exactamente una vez
         self.assertIn('Gerencia', html_content)
-        self.assertIn('Dashboard Ejecutivo', html_content)
+        self.assertEqual(html_content.count('Dashboard Ejecutivo</a>'), 1, "Dashboard Ejecutivo no debe figurar duplicado en la barra de navegación")
 
     # Prueba 11: Verificacion del adaptador Turso Cloud SQLite y estado de almacenamiento
     def test_turso_adapter_and_storage_status(self):
