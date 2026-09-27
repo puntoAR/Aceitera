@@ -19,16 +19,16 @@
     </div>
     <!-- Botones de accion rapida compactos exclusivos para Administrador del Sistema (Gerente solo visualiza) -->
     {% if g.user and g.user.role == 'admin_sistema' %}
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <div class="dashboard-action-buttons">
         <!-- Acceso directo a registro de pesadas -->
-        <a href="{{ url_for('production.index') }}" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">+ Cargar Pesada</a>
+        <a href="{{ url_for('production.index') }}" class="btn btn-primary btn-dash-action">+ Cargar Pesada</a>
         <!-- Acceso directo a cubicaje de tanques y silos -->
-        <a href="{{ url_for('inventory.index') }}" class="btn" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 0.35rem 0.75rem; font-size: 0.85rem;">+ Cubicar Nivel</a>
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-dash-action btn-dash-secondary">+ Cubicar Nivel</a>
         <!-- Acceso directo a balance y conciliacion -->
-        <a href="{{ url_for('yield.index') }}" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Conciliar Turno</a>
+        <a href="{{ url_for('yield.index') }}" class="btn btn-success btn-dash-action">Conciliar Turno</a>
     </div>
     {% elif g.user and g.user.role in ['administrador', 'gerencia'] %}
-    <div>
+    <div class="dashboard-action-buttons">
         <!-- Indicador de modo exclusivo lectura para Gerente sin carga de datos -->
         <span style="background: #e2e8f0; color: #334155; font-size: 0.78rem; padding: 0.35rem 0.65rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
             👁️ Monitoreo Ejecutivo (Solo Lectura)
@@ -37,16 +37,35 @@
     {% endif %}
 </div>
 
-<!-- Estilos dedicados inquebrantables para el panel lateral de mantenimiento -->
+<!-- Estilos dedicados inquebrantables para el panel lateral de mantenimiento y layout responsive -->
 <style>
-    /* Forzar que el contenedor principal sea amplio en el dashboard */
-    main.container, .container, .container-cockpit-wide {
-        max-width: 1540px !important;
-        width: 100% !important;
+    /* Botones de accion de cabecera responsivos */
+    .dashboard-action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .btn-dash-action {
+        padding: 0.35rem 0.75rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .btn-dash-secondary {
+        background-color: #f1f5f9;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
     }
 
     /* Disposicion flex horizontal en computadoras de escritorio y laptops (>= 900px) */
     @media (min-width: 900px) {
+        main.container, .container, .container-cockpit-wide {
+            max-width: 1540px !important;
+            width: 100% !important;
+        }
+
         .cockpit-layout-wrapper {
             display: flex !important;
             flex-direction: row !important;
@@ -219,19 +238,46 @@
 
     /* En tablets y celulares (< 900px) pasa abajo a ancho completo sin achicar el cockpit */
     @media (max-width: 899px) {
+        main.container, .container, .container-cockpit-wide {
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding-left: 0.65rem !important;
+            padding-right: 0.65rem !important;
+            overflow-x: hidden !important;
+        }
+
+        .dashboard-action-buttons {
+            width: 100%;
+            gap: 0.35rem;
+        }
+
+        .dashboard-action-buttons .btn-dash-action {
+            flex: 1 1 calc(33.333% - 0.35rem);
+            min-width: 85px;
+            text-align: center;
+            justify-content: center;
+            padding: 0.4rem 0.25rem;
+            font-size: 0.78rem;
+        }
+
         .cockpit-layout-wrapper {
             display: flex !important;
             flex-direction: column !important;
             gap: 0.85rem !important;
             width: 100% !important;
+            max-width: 100% !important;
             box-sizing: border-box !important;
         }
+
         .cockpit-dashboard {
             width: 100% !important;
+            max-width: 100% !important;
             flex: none !important;
             min-width: 0 !important;
             box-sizing: border-box !important;
         }
+
         .cockpit-maint-sidebar {
             width: 100% !important;
             min-width: 0 !important;
@@ -243,34 +289,49 @@
             display: flex !important;
             flex-direction: column !important;
         }
+
         .maint-sidebar-cards {
             display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             gap: 0.45rem !important;
             margin-top: 0.4rem !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
         }
+
         .maint-dash-card {
+            min-width: 0 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
             padding: 0.55rem 0.35rem !important;
             text-align: center !important;
             align-items: center !important;
+            overflow: hidden !important;
         }
+
         .maint-dash-title {
             font-size: 0.65rem !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            width: 100% !important;
         }
+
         .maint-dash-val {
             font-size: 1.45rem !important;
         }
+
         .maint-dash-sub {
             display: none !important;
         }
+
         .maint-sidebar-footer {
             display: block !important;
             margin-top: 0.5rem !important;
             padding-top: 0.4rem !important;
+            width: 100% !important;
         }
+
         .btn-maint-sidebar {
             width: 100% !important;
             justify-content: center !important;
@@ -279,18 +340,26 @@
 
     /* Celulares muy angostos (< 480px) */
     @media (max-width: 480px) {
+        main.container, .container, .container-cockpit-wide {
+            padding-left: 0.45rem !important;
+            padding-right: 0.45rem !important;
+        }
+
         .maint-sidebar-cards {
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 0.35rem !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 0.3rem !important;
         }
+
         .maint-dash-card {
-            padding: 0.45rem 0.25rem !important;
+            padding: 0.45rem 0.2rem !important;
         }
+
         .maint-dash-title {
             font-size: 0.60rem !important;
         }
+
         .maint-dash-val {
-            font-size: 1.3rem !important;
+            font-size: 1.25rem !important;
         }
     }
 </style>
@@ -380,7 +449,7 @@
                 </div>
             </div>
             <!-- Pie informativo con resumen general -->
-            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between;">
+            <div class="cockpit-kpi-footer">
                 <!-- Ocupacion de aceite -->
                 <span>Aceite: <strong>{{ data.stocks.total_oil_pct_fill }}%</strong></span>
                 <!-- Ocupacion de semilla -->
@@ -405,7 +474,7 @@
                 </div>
 
                 <!-- Velocidad actual y proyeccion -->
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.25rem;">
+                <div class="speed-hero-row">
                     <!-- Velocidad media de semilla -->
                     <div>
                         <!-- Etiqueta -->
@@ -429,7 +498,7 @@
                 </div>
 
                 <!-- Ritmo de salida de expeller y proyeccion 24h -->
-                <div style="margin-top: 0.6rem; padding: 0.5rem; background: #f8fafc; border-radius: 0.375rem; border: 1px solid #f1f5f9; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <div class="speed-subkpi-grid">
                     <!-- Salida de expeller -->
                     <div>
                         <!-- Etiqueta -->
@@ -457,7 +526,7 @@
                 </div>
             </div>
             <!-- Pie de tarjeta con horas efectivas de marcha -->
-            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between;">
+            <div class="cockpit-kpi-footer">
                 <!-- Horas efectivas -->
                 <span>Marcha efectiva: <strong>{{ data.speed_summary.effective_hours }} h</strong></span>
                 <!-- Paradas -->
@@ -481,7 +550,7 @@
 
                 {% if data.latest_yield %}
                 <!-- Grid con dos indicadores de rendimiento clave -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                <div class="yield-hero-grid">
                     <!-- Rendimiento de extraccion de aceite -->
                     <div style="background-color: #f0fdf4; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bbf7d0;">
                         <!-- Etiqueta -->
@@ -507,7 +576,7 @@
                 </div>
 
                 <!-- Sub-datos de expeller y balance de masa -->
-                <div style="margin-top: 0.5rem; font-size: 0.72rem; color: #475569; background: #f8fafc; padding: 0.4rem 0.6rem; border-radius: 0.375rem; border: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
+                <div class="yield-sub-bar">
                     <!-- Rendimiento expeller -->
                     <span>Rend. Expeller: <strong>{{ data.latest_yield.expeller_yield_pct }}%</strong></span>
                     <!-- Diferencia de balance -->
@@ -530,7 +599,7 @@
                 {% endif %}
             </div>
             <!-- Pie de tarjeta con turno evaluado y accesos rapidos a historial -->
-            <div style="font-size: 0.72rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+            <div class="cockpit-kpi-footer">
                 <!-- Turno de ultima conciliacion registrada -->
                 <span>Último balance: <strong>{{ data.latest_yield.date_shift if data.latest_yield else 'Pendiente' }}</strong></span>
                 <!-- Acciones combinadas de modal directo e informe completo -->
@@ -674,10 +743,10 @@
             <!-- BLOQUE SUPERIOR: GRAFICO INTERACTIVO DE VELOCIDADES DEL TURNO -->
             <div>
                 <!-- Encabezado del grafico de evolucion horaria -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <div class="cockpit-chart-header">
                     <!-- Titulo interactivo con cursor de clic para desplegar historial -->
                     <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; cursor: pointer;" onclick="openSpeedHistoryModal()" title="Ver historial completo de pesadas y velocidades">
-                        📈 Evolución Horaria de Velocidad (kg/h)
+                        📈 Evolución Horaria de Velocidad <span class="mobile-hidden">(kg/h)</span>
                     </span>
                     <!-- Controles de accion rapida -->
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -704,7 +773,7 @@
             <!-- BLOQUE INFERIOR: MINI TABLA DE ULTIMOS MUESTREOS -->
             <div style="border-top: 1px solid #f1f5f9; padding-top: 0.5rem;">
                 <!-- Titulo de la mini tabla -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                <div class="cockpit-table-header">
                     <!-- Etiqueta -->
                     <span style="font-size: 0.78rem; font-weight: 700; color: #475569;">Últimos Muestreos de Línea</span>
                     <!-- Boton para abrir modal de historial completo sin redirigir a rutas prohibidas para gerente -->
