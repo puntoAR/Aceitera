@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{# Extiende la plantilla base de BioBalcarce #}
+
+{# Asigna el flag para ocultar la barra superior estandar y renderizar a pantalla completa inmersiva #}
+{% set hide_navbar = true %}
+
+{# Titulo de la pestana #}
+{% block title %}Acerca de - BioBalcarce | puntoAR{% endblock %}
+
+{# Contenido inmersivo a pantalla completa con la misma estetica oficial del Login #}
+{% block full_content %}
+<div class="oil-login-wrapper" style="position: relative; min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+
+    <!-- Imagen de fondo alusiva a la planta aceitera moderna con filtro de luminosidad -->
+    <div class="oil-bg-layer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('{{ url_for('static', filename='images/oil_plant_bg.jpg') }}'); background-size: cover; background-position: center; filter: blur(3px) brightness(1.08); transform: scale(1.03); z-index: 1;"></div>
+
+    <!-- Capa de brillo y degradado de luz calida de girasol -->
+    <div class="oil-light-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.72) 60%, rgba(254,243,199,0.65) 100%); z-index: 2;"></div>
+
+    <!-- Curva dorada decorativa superior izquierda -->
+    <svg class="decorative-arc-top" viewBox="0 0 500 500" style="position: absolute; top: -100px; left: -100px; width: 480px; height: 480px; z-index: 3; pointer-events: none; opacity: 0.9;" fill="none">
+        <circle cx="200" cy="200" r="180" stroke="url(#goldArcAbout1)" stroke-width="28" stroke-linecap="round"/>
+        <circle cx="200" cy="200" r="140" stroke="rgba(245, 158, 11, 0.25)" stroke-width="12"/>
+        <defs>
+            <linearGradient id="goldArcAbout1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.9"/>
+                <stop offset="60%" stop-color="#fbbf24" stop-opacity="0.75"/>
+                <stop offset="100%" stop-color="#fef08a" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Curva dorada decorativa inferior derecha -->
+    <svg class="decorative-arc-bottom" viewBox="0 0 500 500" style="position: absolute; bottom: -120px; right: -120px; width: 520px; height: 520px; z-index: 3; pointer-events: none; opacity: 0.85;" fill="none">
+        <circle cx="300" cy="300" r="190" stroke="url(#goldArcAbout2)" stroke-width="32"/>
+        <defs>
+            <linearGradient id="goldArcAbout2" x1="100%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#d97706" stop-opacity="0.85"/>
+                <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.6"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Columna Lateral Izquierda (pantallas medianas y grandes) -->
+    <div class="login-side-left" style="position: absolute; left: 4rem; top: 38%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1.25rem;">
+        <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: #475569; text-transform: uppercase;">
+            <span>INNOVACIÓN</span>
+            <span>DESARROLLO</span>
+            <span>TECNOLOGÍA</span>
+            <div style="width: 28px; height: 3px; background: #f59e0b; border-radius: 9999px; margin-top: 0.4rem;"></div>
+        </div>
+        <div style="font-family: 'Brush Script MT', 'Segoe Script', cursive, sans-serif; font-size: 1.65rem; color: #64748b; line-height: 1.2; transform: rotate(-5deg); margin-top: 1rem; opacity: 0.85;">
+            El valor de<br>estar presentes
+        </div>
+    </div>
+
+    <!-- Columna Lateral Derecha (pantallas medianas y grandes) -->
+    <div class="login-side-right" style="position: absolute; right: 4rem; top: 38%; transform: translateY(-50%); z-index: 4; text-align: right;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: #475569; text-transform: uppercase;">
+            <span>PROCESO</span>
+            <span>EFICIENCIA</span>
+            <span>CALIDAD</span>
+            <div style="width: 28px; height: 3px; background: #f59e0b; border-radius: 9999px; margin-top: 0.4rem;"></div>
+        </div>
+    </div>
+
+    <!-- Tarjeta Central de Informacion Institucional -->
+    <div class="login-center-container" style="position: relative; z-index: 5; width: 100%; max-width: 440px; margin: 1.5rem; display: flex; flex-direction: column; align-items: center;">
+
+        <!-- Logotipo Oficial de BioBalcarce sobre la tarjeta -->
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+            <img src="{{ url_for('static', filename='images/logo_full.png') }}" alt="BioBalcarce Aceite de Girasol" style="max-width: 230px; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));">
+        </div>
+
+        <!-- Tarjeta blanca con bordes redondeados y vidrio esmerilado -->
+        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(14px); border-radius: 1.25rem; box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.85); width: 100%; padding: 2rem 2.25rem; text-align: center;">
+
+            <!-- Titulo centrado -->
+            <h2 style="font-size: 1.3rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">
+                Acerca del Sistema
+            </h2>
+            <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.25rem;">
+                BioBalcarce &bull; Control Industrial de Proceso
+            </div>
+
+            <!-- Separador sutil -->
+            <div style="height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0, #f59e0b, #e2e8f0, transparent); margin: 1rem 0;"></div>
+
+            <!-- Seccion de la empresa desarrolladora -->
+            <div style="margin: 1.25rem 0;">
+                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; font-weight: 700; margin-bottom: 0.75rem;">
+                    Diseño y Desarrollo de Software
+                </div>
+
+                <!-- Logotipo de la empresa con fondo transparente que se adapta a cualquier fondo -->
+                <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 0.5rem;">
+                    <img src="{{ url_for('static', filename='images/logo_puntoar.svg') }}" alt="puntoAR" style="height: 52px; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.12));">
+                </div>
+
+                <!-- Slogan de la empresa en tipografia manuscrita -->
+                <div style="font-family: 'Brush Script MT', 'Segoe Script', cursive, sans-serif; font-size: 1.35rem; color: #64748b; line-height: 1.2; margin-top: 0.35rem;">
+                    El valor de estar presentes
+                </div>
+            </div>
+
+            <!-- Bloque de Correo Electronico de Contacto Oficial -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.1rem; margin: 1.25rem 0; text-align: center;">
+                <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">
+                    Contacto y Soporte de la Empresa
+                </div>
+
+                <!-- Enlace de correo con protocolo mailto: que abre el cliente de correo al hacer click -->
+                <a href="mailto:empresa.puntoar@gmail.com"
+                   style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background: #ffffff; border: 1.5px solid #cbd5e1; padding: 0.65rem 1.15rem; border-radius: 0.5rem; color: #0284c7; font-weight: 700; font-size: 0.95rem; text-decoration: none; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: all 0.2s ease; width: 100%; box-sizing: border-box;"
+                   onmouseover="this.style.borderColor='#0284c7'; this.style.background='#f0f9ff'; this.style.transform='translateY(-1px)';"
+                   onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#ffffff'; this.style.transform='translateY(0)';"
+                   title="Enviar correo a empresa.puntoar@gmail.com">
+                    <span style="font-size: 1.15rem;">✉️</span>
+                    <span>empresa.puntoar@gmail.com</span>
+                </a>
+
+                <small style="display: block; color: #94a3b8; font-size: 0.72rem; margin-top: 0.45rem;">
+                    Haga clic sobre el correo para enviar un mensaje directamente.
+                </small>
+            </div>
+
+            <!-- Descripcion del proposito del software -->
+            <p style="font-size: 0.78rem; color: #64748b; line-height: 1.45; margin: 0 0 1.25rem 0;">
+                Sistema integral para el control de pesadas, cubicaje de silos y tanques, ensayos de laboratorio, gestión de mantenimiento y conciliación de rendimientos de planta aceitera.
+            </p>
+
+            <!-- Boton para regresar al sistema o al ingreso -->
+            <div style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                <a href="{% if g.user %}{{ url_for('dashboard.index') }}{% else %}{{ url_for('dashboard.login') }}{% endif %}"
+                   style="display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; background: #0f172a; color: #ffffff; padding: 0.65rem 1.4rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(15,23,42,0.18); transition: background 0.2s ease;"
+                   onmouseover="this.style.background='#1e293b';"
+                   onmouseout="this.style.background='#0f172a';">
+                    <span>←</span>
+                    <span>{% if g.user %}Volver al Panel Principal{% else %}Volver al Ingreso{% endif %}</span>
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Watermark inferior derecho "powered by puntoAR" -->
+    <div class="login-footer-watermark" style="position: absolute; bottom: 1.5rem; right: 2rem; z-index: 4; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
+        <span style="font-family: Georgia, serif; font-style: italic; color: #64748b; font-size: 0.85rem;">powered by</span>
+        <img src="{{ url_for('static', filename='images/logo_puntoar.svg') }}" alt="puntoAR" style="height: 28px; width: auto; vertical-align: middle;">
+    </div>
+
+</div>
+
+<!-- Estilos responsivos para ocultar columnas laterales en telefonos y pantallas pequenas -->
+<style>
+@media (max-width: 960px) {
+    .login-side-left, .login-side-right {
+        display: none !important;
+    }
+    .decorative-arc-top, .decorative-arc-bottom {
+        opacity: 0.5 !important;
+    }
+    .login-footer-watermark {
+        bottom: 0.75rem !important;
+        right: 1rem !important;
+    }
+}
+</style>
+{% endblock %}

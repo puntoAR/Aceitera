@@ -478,6 +478,41 @@ class TestRolesAndSecurity(unittest.TestCase):
             # Verifica destino
             self.assertEqual(row['destination'], 'Silo 1 Semilla Girasol')
 
+    # Prueba 13: Pagina Acerca de con logo transparente, contacto mailto y navegacion completa
+    def test_about_page_and_navigation(self):
+        # 1. Acceso publico a la ruta /about sin necesidad de inicio de sesion
+        resp = self.client.get('/about')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode('utf-8')
+
+        # Verifica elementos institucionales requeridos
+        self.assertIn('Acerca del Sistema', html)
+        self.assertIn('BioBalcarce', html)
+        self.assertIn('Control Industrial de Proceso', html)
+        self.assertIn('logo_puntoar.svg', html)
+        self.assertIn('El valor de estar presentes', html)
+        # Verifica enlace directo mailto para envio de correos
+        self.assertIn('mailto:empresa.puntoar@gmail.com', html)
+        self.assertIn('empresa.puntoar@gmail.com', html)
+
+        # 2. Verifica presencia de enlace Acerca de en la pantalla de Login
+        resp_login = self.client.get('/login')
+        self.assertEqual(resp_login.status_code, 200)
+        html_login = resp_login.data.decode('utf-8')
+        self.assertIn('/about', html_login)
+        self.assertIn('logo_puntoar.svg', html_login)
+
+        # 3. Verifica presencia de Acerca de en el navbar y footer estando autenticado
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+        resp_dash = self.client.get('/')
+        self.assertEqual(resp_dash.status_code, 200)
+        html_dash = resp_dash.data.decode('utf-8')
+        # Verifica enlace en barra de navegacion
+        self.assertIn('ℹ️ Acerca de', html_dash)
+        self.assertIn('/about', html_dash)
+        # Verifica enlace en pie de pagina
+        self.assertIn('BioBalcarce - Sistema Industrial de Control de Proceso', html_dash)
+
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':
     unittest.main()

@@ -98,6 +98,12 @@ def logout():
     # Redirige a la pantalla de login
     return redirect(url_for('dashboard.login'))
 
+# Pantalla informativa Acerca de con datos institucionales de la empresa puntoAR
+@dashboard_bp.route('/about', methods=['GET'])
+def about():
+    # Renderiza la vista Acerca de con el estilo inmersivo de login
+    return render_template('about.html')
+
 # Registro publico de nuevos usuarios
 @dashboard_bp.route('/register', methods=['GET', 'POST'])
 def register():

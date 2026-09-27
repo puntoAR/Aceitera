@@ -114,6 +114,9 @@
             <!-- Boton para cambiar contrasena personal -->
             <a href="{{ url_for('dashboard.change_password') }}" class="nav-item" title="Cambiar Contraseña">🔑 Clave</a>
 
+            <!-- Enlace a Acerca de -->
+            <a href="{{ url_for('dashboard.about') }}" class="nav-item" title="Acerca de BioBalcarce y puntoAR">ℹ️ Acerca de</a>
+
             <!-- Enlace para cerrar sesion de forma segura -->
             <a href="{{ url_for('dashboard.logout') }}" class="nav-item" style="color: #fca5a5; font-weight: 600;">🚪 Salir</a>
         </div>
@@ -151,7 +154,11 @@
     <!-- Pie de pagina informativo -->
     <footer class="footer">
         <!-- Texto de copyright y descripcion de sistema -->
-        <p>&copy; 2026 BioBalcarce - Sistema Industrial de Control de Proceso</p>
+        <p>
+            &copy; 2026 BioBalcarce - Sistema Industrial de Control de Proceso
+            &bull;
+            <a href="{{ url_for('dashboard.about') }}" style="color: inherit; text-decoration: underline; opacity: 0.9;" title="Información del desarrollador">Acerca de</a>
+        </p>
     </footer>
     {% endif %}
 

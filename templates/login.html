@@ -199,26 +199,25 @@
                         📝 Registrarme
                     </a>
                 </div>
+                <!-- Enlace a Acerca de -->
+                <div style="margin-top: 0.2rem;">
+                    <a href="{{ url_for('dashboard.about') }}" style="color: #64748b; text-decoration: none; font-size: 0.75rem;" title="Información sobre la empresa desarrolladora">
+                        ℹ️ Acerca de BioBalcarce &amp; puntoAR
+                    </a>
+                </div>
             </div>
 
         </div>
 
     </div>
 
-    <!-- Watermark inferior derecho "powered by puntoAR" (exactamente como en la referencia del usuario) -->
-    <div class="login-footer-watermark" style="position: absolute; bottom: 1.5rem; right: 2rem; z-index: 4; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
+    <!-- Watermark inferior derecho "powered by puntoAR" (vinculado a Acerca de) -->
+    <a href="{{ url_for('dashboard.about') }}" class="login-footer-watermark" style="position: absolute; bottom: 1.5rem; right: 2rem; z-index: 4; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; text-decoration: none; cursor: pointer;" title="Conocer más sobre puntoAR (Acerca de)">
         <!-- Texto itálica powered by -->
         <span style="font-family: Georgia, serif; font-style: italic; color: #64748b; font-size: 0.85rem;">powered by</span>
-        <!-- Logotipo puntoAR estilizado en SVG/CSS -->
-        <div style="display: inline-flex; align-items: center; background: rgba(30, 41, 59, 0.85); padding: 0.25rem 0.65rem; border-radius: 9999px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-            <!-- Palabra punto en blanco -->
-            <span style="color: #ffffff; font-weight: 700; font-size: 0.85rem; letter-spacing: -0.02em;">punto</span>
-            <!-- Letras AR en ambar brillante -->
-            <span style="color: #f59e0b; font-weight: 900; font-size: 0.92rem; margin-left: 1px; letter-spacing: 0.02em;">AR</span>
-            <!-- Indicador circular naranja de conexion -->
-            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; margin-left: 0.3rem;"></span>
-        </div>
-    </div>
+        <!-- Logotipo puntoAR estilizado en SVG con fondo transparente -->
+        <img src="{{ url_for('static', filename='images/logo_puntoar.svg') }}" alt="puntoAR" style="height: 28px; width: auto; vertical-align: middle;">
+    </a>
 
 </div>
 
