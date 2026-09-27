@@ -485,11 +485,15 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         html = resp.data.decode('utf-8')
 
-        # Verifica elementos institucionales requeridos
-        self.assertIn('Acerca del Sistema', html)
-        self.assertIn('BioBalcarce', html)
-        self.assertIn('Control Industrial de Proceso', html)
-        self.assertIn('logo_puntoar.svg', html)
+        # Verifica elementos institucionales requeridos (exclusivos de la empresa puntoAR)
+        self.assertIn('Acerca de puntoAR', html)
+        self.assertNotIn('logo_full.png', html)
+        self.assertNotIn('BioBalcarce Aceite', html)
+        self.assertNotIn('BioBalcarce &bull;', html)
+        self.assertNotIn('Diseño y Desarrollo de Software', html)
+        self.assertIn('CONTACTO Y SOPORTE', html)
+        self.assertNotIn('de la empresa', html)
+        self.assertIn('logo_puntoar_dark.png', html)
         self.assertIn('El valor de estar presentes', html)
         # Verifica enlace directo mailto para envio de correos
         self.assertIn('mailto:empresa.puntoar@gmail.com', html)
@@ -500,7 +504,7 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertEqual(resp_login.status_code, 200)
         html_login = resp_login.data.decode('utf-8')
         self.assertIn('/about', html_login)
-        self.assertIn('logo_puntoar.svg', html_login)
+        self.assertIn('logo_puntoar', html_login)
 
         # 3. Verifica presencia de Acerca de en el navbar y footer estando autenticado
         self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)

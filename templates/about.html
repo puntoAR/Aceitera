@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{# Extiende la plantilla base de BioBalcarce #}
+{# Extiende la plantilla base #}
 
 {# Asigna el flag para ocultar la barra superior estandar y renderizar a pantalla completa inmersiva #}
 {% set hide_navbar = true %}
 
 {# Titulo de la pestana #}
-{% block title %}Acerca de - BioBalcarce | puntoAR{% endblock %}
+{% block title %}Acerca de puntoAR{% endblock %}
 
 {# Contenido inmersivo a pantalla completa con la misma estetica oficial del Login #}
 {% block full_content %}
@@ -58,7 +58,7 @@
     <!-- Columna Lateral Derecha (pantallas medianas y grandes) -->
     <div class="login-side-right" style="position: absolute; right: 4rem; top: 38%; transform: translateY(-50%); z-index: 4; text-align: right;">
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; color: #475569; text-transform: uppercase;">
-            <span>PROCESO</span>
+            <span>INGENIERÍA</span>
             <span>EFICIENCIA</span>
             <span>CALIDAD</span>
             <div style="width: 28px; height: 3px; background: #f59e0b; border-radius: 9999px; margin-top: 0.4rem;"></div>
@@ -68,46 +68,31 @@
     <!-- Tarjeta Central de Informacion Institucional -->
     <div class="login-center-container" style="position: relative; z-index: 5; width: 100%; max-width: 440px; margin: 1.5rem; display: flex; flex-direction: column; align-items: center;">
 
-        <!-- Logotipo Oficial de BioBalcarce sobre la tarjeta -->
-        <div style="text-align: center; margin-bottom: 1.25rem;">
-            <img src="{{ url_for('static', filename='images/logo_full.png') }}" alt="BioBalcarce Aceite de Girasol" style="max-width: 230px; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));">
-        </div>
-
         <!-- Tarjeta blanca con bordes redondeados y vidrio esmerilado -->
-        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(14px); border-radius: 1.25rem; box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.85); width: 100%; padding: 2rem 2.25rem; text-align: center;">
+        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(14px); border-radius: 1.25rem; box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.85); width: 100%; padding: 2.5rem 2.25rem; text-align: center;">
 
-            <!-- Titulo centrado -->
-            <h2 style="font-size: 1.3rem; font-weight: 700; color: #0f172a; margin: 0 0 0.35rem 0;">
-                Acerca del Sistema
+            <!-- Encabezado de la tarjeta -->
+            <h2 style="font-size: 1.35rem; font-weight: 700; color: #0f172a; margin: 0 0 1.25rem 0;">
+                Acerca de puntoAR
             </h2>
-            <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 1.25rem;">
-                BioBalcarce &bull; Control Industrial de Proceso
+
+            <!-- Logotipo oficial original puntoAR con fondo transparente -->
+            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1.25rem;">
+                <img src="{{ url_for('static', filename='images/logo_puntoar_dark.png') }}" alt="puntoAR" style="height: 65px; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.06));">
+            </div>
+
+            <!-- Slogan en tipografia manuscrita -->
+            <div style="font-family: 'Brush Script MT', 'Segoe Script', cursive, sans-serif; font-size: 1.5rem; color: #64748b; line-height: 1.2; margin-bottom: 1.25rem;">
+                El valor de estar presentes
             </div>
 
             <!-- Separador sutil -->
-            <div style="height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0, #f59e0b, #e2e8f0, transparent); margin: 1rem 0;"></div>
-
-            <!-- Seccion de la empresa desarrolladora -->
-            <div style="margin: 1.25rem 0;">
-                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; font-weight: 700; margin-bottom: 0.75rem;">
-                    Diseño y Desarrollo de Software
-                </div>
-
-                <!-- Logotipo de la empresa con fondo transparente que se adapta a cualquier fondo -->
-                <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 0.5rem;">
-                    <img src="{{ url_for('static', filename='images/logo_puntoar.svg') }}" alt="puntoAR" style="height: 52px; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.12));">
-                </div>
-
-                <!-- Slogan de la empresa en tipografia manuscrita -->
-                <div style="font-family: 'Brush Script MT', 'Segoe Script', cursive, sans-serif; font-size: 1.35rem; color: #64748b; line-height: 1.2; margin-top: 0.35rem;">
-                    El valor de estar presentes
-                </div>
-            </div>
+            <div style="height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0, #f59e0b, #e2e8f0, transparent); margin: 1.25rem 0;"></div>
 
             <!-- Bloque de Correo Electronico de Contacto Oficial -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.1rem; margin: 1.25rem 0; text-align: center;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;">
-                    Contacto y Soporte de la Empresa
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.15rem; margin: 1.25rem 0; text-align: center;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.6rem;">
+                    CONTACTO Y SOPORTE
                 </div>
 
                 <!-- Enlace de correo con protocolo mailto: que abre el cliente de correo al hacer click -->
@@ -120,18 +105,18 @@
                     <span>empresa.puntoar@gmail.com</span>
                 </a>
 
-                <small style="display: block; color: #94a3b8; font-size: 0.72rem; margin-top: 0.45rem;">
+                <small style="display: block; color: #94a3b8; font-size: 0.75rem; margin-top: 0.5rem;">
                     Haga clic sobre el correo para enviar un mensaje directamente.
                 </small>
             </div>
 
-            <!-- Descripcion del proposito del software -->
-            <p style="font-size: 0.78rem; color: #64748b; line-height: 1.45; margin: 0 0 1.25rem 0;">
-                Sistema integral para el control de pesadas, cubicaje de silos y tanques, ensayos de laboratorio, gestión de mantenimiento y conciliación de rendimientos de planta aceitera.
+            <!-- Descripcion de servicios e ingenieria -->
+            <p style="font-size: 0.82rem; color: #64748b; line-height: 1.5; margin: 0 0 1.5rem 0;">
+                Desarrollo e ingeniería de software a medida para control de procesos, automatización industrial y trazabilidad operativa.
             </p>
 
             <!-- Boton para regresar al sistema o al ingreso -->
-            <div style="padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+            <div style="padding-top: 1.1rem; border-top: 1px solid #e2e8f0;">
                 <a href="{% if g.user %}{{ url_for('dashboard.index') }}{% else %}{{ url_for('dashboard.login') }}{% endif %}"
                    style="display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; background: #0f172a; color: #ffffff; padding: 0.65rem 1.4rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(15,23,42,0.18); transition: background 0.2s ease;"
                    onmouseover="this.style.background='#1e293b';"
@@ -148,7 +133,7 @@
     <!-- Watermark inferior derecho "powered by puntoAR" -->
     <div class="login-footer-watermark" style="position: absolute; bottom: 1.5rem; right: 2rem; z-index: 4; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
         <span style="font-family: Georgia, serif; font-style: italic; color: #64748b; font-size: 0.85rem;">powered by</span>
-        <img src="{{ url_for('static', filename='images/logo_puntoar.svg') }}" alt="puntoAR" style="height: 28px; width: auto; vertical-align: middle;">
+        <img src="{{ url_for('static', filename='images/logo_puntoar_dark.png') }}" alt="puntoAR" style="height: 26px; width: auto; vertical-align: middle;">
     </div>
 
 </div>
