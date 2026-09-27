@@ -50,6 +50,7 @@ def add_analysis():
         # Extrae datos basicos del formulario
         sample_code = request.form.get('sample_code', 'M-001').strip()
         product = request.form.get('product', 'semilla').strip()
+        press_number = request.form.get('press_number')
         sampling_point = request.form.get('sampling_point', 'Tolva de Ingreso').strip()
         shift_id = request.form.get('shift_id')
         operator_name = request.form.get('operator_name')
@@ -76,9 +77,10 @@ def add_analysis():
         }
 
         # Registra el analisis mediante el servicio de laboratorio
-        result = record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes)
-        # Notifica exito al analista
-        flash(f'Análisis de {product} ({sample_code}) guardado exitosamente.', 'success')
+        result = record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes, press_number=press_number)
+        # Notifica exito al analista especificando si es Prensa 1 o 2
+        press_label = f" (Prensa {result.get('press_number')})" if result.get('press_number') else ""
+        flash(f'Análisis de {result.get("product", product)}{press_label} ({sample_code}) guardado exitosamente.', 'success')
     except Exception as e:
         # Registra error en log
         log_error('LAB_ROUTE', 'Error al registrar analisis de laboratorio', e)

@@ -15,7 +15,10 @@ from core.database import init_db, get_db_connection
 # Importa servicios de configuracion y gestion de turnos
 from modules.configuration.service import get_available_shifts, set_active_shift, get_active_shift
 # Importa servicios de laboratorio y despacho de camiones de aceite
-from modules.laboratory.service import record_analysis, record_oil_truck_dispatch, get_recent_oil_truck_dispatches
+from modules.laboratory.service import (
+    record_analysis, get_shift_lab_averages,
+    record_oil_truck_dispatch, get_recent_oil_truck_dispatches
+)
 # Importa servicio de auditoria para verificar logs
 from modules.admin.service import get_audit_logs
 
@@ -283,6 +286,112 @@ class TestShiftsAndLaboratory(unittest.TestCase):
         }, follow_redirects=True)
         # Debe redirigir y mostrar mensaje de falta de permisos
         self.assertIn('No posee permisos autorizados'.encode('utf-8'), r_post_weighing.data)
+
+    # Prueba 6: Aislamiento estricto de Prensa 1 y Prensa 2 en calculos y vistas de laboratorio
+    def test_press_1_and_press_2_separation(self):
+        # Inicia sesion como operario de laboratorio
+        self.client.post('/login', data={'username': 'operario', 'pin': '1111'})
+
+        # 1. Registra muestra de Prensa 1 (indicativa preliminar) en TM con 22.0% de materia grasa
+        r_p1 = self.client.post('/laboratory/add', data={
+            'shift_id': 'TM',
+            'operator_name': 'Operario Lab',
+            'product': 'expeller',
+            'press_number': '1',
+            'sample_code': 'M-P1-001',
+            'sampling_point': 'Salida Prensa 1',
+            'direct_moisture_pct': '8.2',
+            'direct_fat_pct': '22.0',
+            'notes': 'Corte preliminar Prensa 1 - alto contenido graso'
+        }, follow_redirects=True)
+        self.assertEqual(r_p1.status_code, 200)
+
+        # 2. Registra muestra de Prensa 2 (producto final relevante) en TM con 15.0% de materia grasa
+        r_p2_tm = self.client.post('/laboratory/add', data={
+            'shift_id': 'TM',
+            'operator_name': 'Operario Lab',
+            'product': 'expeller',
+            'press_number': '2',
+            'sample_code': 'M-P2-001',
+            'sampling_point': 'Salida Prensa 2',
+            'direct_moisture_pct': '7.9',
+            'direct_fat_pct': '15.0',
+            'notes': 'Expeller terminado Prensa 2 a silos'
+        }, follow_redirects=True)
+        self.assertEqual(r_p2_tm.status_code, 200)
+
+        # 3. Registra muestra de Prensa 2 en TT con 16.0% de materia grasa
+        r_p2_tt = self.client.post('/laboratory/add', data={
+            'shift_id': 'TT',
+            'operator_name': 'Operario Lab',
+            'product': 'expeller',
+            'press_number': '2',
+            'sample_code': 'M-P2-002',
+            'sampling_point': 'Salida Prensa 2',
+            'direct_moisture_pct': '8.0',
+            'direct_fat_pct': '16.0',
+            'notes': 'Turno Tarde Prensa 2'
+        }, follow_redirects=True)
+        self.assertEqual(r_p2_tt.status_code, 200)
+
+        # 4. Registra muestra de Prensa 2 en TN con 14.0% de materia grasa
+        r_p2_tn = self.client.post('/laboratory/add', data={
+            'shift_id': 'TN',
+            'operator_name': 'Operario Lab',
+            'product': 'expeller',
+            'press_number': '2',
+            'sample_code': 'M-P2-003',
+            'sampling_point': 'Salida Prensa 2',
+            'direct_moisture_pct': '7.8',
+            'direct_fat_pct': '14.0',
+            'notes': 'Turno Noche Prensa 2'
+        }, follow_redirects=True)
+        self.assertEqual(r_p2_tn.status_code, 200)
+
+        # 5. Obtiene promedios para el turno activo TM
+        averages_tm = get_shift_lab_averages('TM')
+
+        # Verificacion CRITICA: La materia grasa residual de expeller de TM DEBE ser exactamente 15.0% (Prensa 2)
+        # NUNCA debe mezclarse con Prensa 1 (lo que daria (22 + 15) / 2 = 18.5%)
+        self.assertEqual(averages_tm['expeller_fat_pct'], 15.0)
+        self.assertNotEqual(averages_tm['expeller_fat_pct'], 18.5)
+
+        # Verifica que Prensa 1 este aislada en su propia llave indicativa
+        self.assertEqual(averages_tm['expeller_p1_fat_pct'], 22.0)
+
+        # Verifica los valores de los 3 turnos de Prensa 2
+        self.assertIn('shifts_p2', averages_tm)
+        self.assertEqual(averages_tm['shifts_p2']['TM'], 15.0)
+        self.assertEqual(averages_tm['shifts_p2']['TT'], 16.0)
+        self.assertEqual(averages_tm['shifts_p2']['TN'], 14.0)
+
+        # Verifica promedio del dia para Prensa 2: (15.0 + 16.0 + 14.0) / 3 = 15.0%
+        self.assertEqual(averages_tm['expeller_day_fat_pct'], 15.0)
+
+        # 6. Verifica la renderizacion en la interfaz web de laboratorio
+        r_page = self.client.get('/laboratory/', follow_redirects=True)
+        self.assertEqual(r_page.status_code, 200)
+        content = r_page.data.decode('utf-8')
+
+        # Verifica que se muestre Prensa 2 como Relevante y su promedio
+        self.assertIn('Expeller &bull; Prensa 2', content)
+        self.assertIn('Relevante', content)
+        self.assertIn('15.0%', content)
+        self.assertIn('Prom. Día:', content)
+
+        # Verifica el desglose de los 3 turnos con estilo pequeño
+        self.assertIn('Turnos P2:', content)
+        self.assertIn('TM:', content)
+        self.assertIn('TT:', content)
+        self.assertIn('TN:', content)
+
+        # Verifica que Prensa 1 se muestre como indicativo
+        self.assertIn('Prensa 1 (ind.):', content)
+        self.assertIn('22.0%', content)
+
+        # Verifica insignias de tabla para distinguir Prensa 1 y Prensa 2
+        self.assertIn('Expeller P1 <small style="font-weight: normal;">(Ind.)</small>', content)
+        self.assertIn('Expeller P2 <small style="font-weight: 800;">(Final)</small>', content)
 
 # Permite ejecutar las pruebas directamente con python
 if __name__ == '__main__':

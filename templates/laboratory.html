@@ -31,15 +31,35 @@
         </div>
     </div>
 
-    <!-- Expeller Calidad -->
+    <!-- Expeller Calidad (Prensa 2 Relevante + Prensa 1 Indicativo) -->
     <div class="metric-card card-expeller">
-        <div class="metric-title">Expeller (Grasa Residual)</div>
-        <div class="metric-value" style="color: #854d0e;">
-            {{ averages.expeller_fat_pct }}%
-            <span class="metric-unit">Grasa Residual</span>
+        <div class="metric-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Expeller &bull; Prensa 2</span>
+            <span style="background: #fef3c7; color: #92400e; font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 9999px; text-transform: uppercase;">Relevante</span>
         </div>
-        <div class="metric-subtitle">
-            Humedad promedio: <strong>{{ averages.expeller_moist_pct }}%</strong>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;">
+            <div class="metric-value" style="color: #854d0e; margin: 0;">
+                {{ averages.expeller_fat_pct }}%
+                <span class="metric-unit">Grasa Residual (Turno)</span>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Prom. Día:</span>
+                <span style="font-size: 1.15rem; font-weight: 700; color: #b45309; margin-left: 0.2rem;">{{ averages.expeller_day_fat_pct }}%</span>
+            </div>
+        </div>
+        <div class="metric-subtitle" style="margin-top: 0.45rem; line-height: 1.45;">
+            <div>
+                Humedad promedio: <strong>{{ averages.expeller_moist_pct }}%</strong>
+                {% if averages.expeller_p1_fat_pct is not none %}
+                &bull; Prensa 1 (ind.): <strong style="color: #0284c7;">{{ averages.expeller_p1_fat_pct }}%</strong>
+                {% endif %}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.72rem; color: #64748b; padding-top: 0.25rem; border-top: 1px dashed #e2e8f0;">
+                <span>Turnos P2:</span>
+                <strong>TM:</strong> {{ averages.shifts_p2.TM ~ '%' if averages.shifts_p2.TM is not none else '-' }} &bull;
+                <strong>TT:</strong> {{ averages.shifts_p2.TT ~ '%' if averages.shifts_p2.TT is not none else '-' }} &bull;
+                <strong>TN:</strong> {{ averages.shifts_p2.TN ~ '%' if averages.shifts_p2.TN is not none else '-' }}
+            </div>
         </div>
     </div>
 
@@ -77,11 +97,26 @@
             <!-- Selector de producto -->
             <div class="form-group">
                 <label class="form-label" for="product" style="font-weight: 600;">Producto Analizado</label>
-                <select class="form-select" id="product" name="product" required style="padding: 0.6rem;">
+                <select class="form-select" id="product" name="product" required style="padding: 0.6rem;" onchange="handleProductChange(this.value)">
+                    <option value="expeller" selected>Expeller - Prensa 2 (Producto Final / Relevante)</option>
+                    <option value="expeller_p1">Expeller - Prensa 1 (Corte Preliminar / Indicativo)</option>
                     <option value="semilla">Semilla de Girasol (Materia Prima)</option>
-                    <option value="expeller">Expeller de Extracción (Producto)</option>
                     <option value="aceite">Aceite Crudo (Producto Terminado)</option>
                 </select>
+            </div>
+            <!-- Selector interactivo de Prensa para Expeller -->
+            <div class="form-group" id="press_selector_group" style="display: block;">
+                <label class="form-label" style="font-weight: 600; color: #854d0e;">Prensa Expeller</label>
+                <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.35rem; flex-wrap: wrap;">
+                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; font-weight: 700; color: #854d0e; cursor: pointer; background: #fef3c7; padding: 0.35rem 0.6rem; border-radius: 0.375rem; border: 1px solid #fde68a;">
+                        <input type="radio" name="press_number" id="press_p2" value="2" checked onchange="updatePressSelection(2)">
+                        <span>Prensa 2 (Relevante)</span>
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; font-weight: 700; color: #0369a1; cursor: pointer; background: #e0f2fe; padding: 0.35rem 0.6rem; border-radius: 0.375rem; border: 1px solid #bae6fd;">
+                        <input type="radio" name="press_number" id="press_p1" value="1" onchange="updatePressSelection(1)">
+                        <span>Prensa 1 (Indicativo)</span>
+                    </label>
+                </div>
             </div>
             <!-- Codigo identificador de muestra -->
             <div class="form-group">
@@ -91,7 +126,7 @@
             <!-- Punto de muestreo en planta -->
             <div class="form-group">
                 <label class="form-label" for="sampling_point" style="font-weight: 600;">Punto de Muestreo</label>
-                <input class="form-input" type="text" id="sampling_point" name="sampling_point" placeholder="ej. Tolva ingreso, Prensa 2, TK-01" required style="padding: 0.6rem;">
+                <input class="form-input" type="text" id="sampling_point" name="sampling_point" value="Salida Prensa 2" placeholder="ej. Tolva ingreso, Prensa 2, TK-01" required style="padding: 0.6rem;">
             </div>
         </div>
 
@@ -417,10 +452,38 @@
                 <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="white-space: nowrap;">{{ a.timestamp }}</td>
                     <td><strong>{{ a.sample_code }}</strong></td>
-                    <td><span style="text-transform: capitalize; font-weight: 600;">{{ a.product }}</span></td>
+                    <td>
+                        {% if a.product == 'expeller' %}
+                            {% if a.press_number == 1 or 'prensa 1' in (a.sampling_point|lower) or 'p1' in (a.sampling_point|lower) %}
+                                <span style="background: #e0f2fe; color: #0369a1; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; white-space: nowrap;">
+                                    Expeller P1 <small style="font-weight: normal;">(Ind.)</small>
+                                </span>
+                            {% else %}
+                                <span style="background: #fef3c7; color: #92400e; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; white-space: nowrap;">
+                                    Expeller P2 <small style="font-weight: 800;">(Final)</small>
+                                </span>
+                            {% endif %}
+                        {% elif a.product == 'semilla' %}
+                            <span style="background: #dcfce7; color: #15803d; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">Semilla</span>
+                        {% elif a.product == 'aceite' %}
+                            <span style="background: #ffedd5; color: #c2410c; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">Aceite</span>
+                        {% else %}
+                            <span style="text-transform: capitalize; font-weight: 600;">{{ a.product }}</span>
+                        {% endif %}
+                    </td>
                     <td>{{ a.sampling_point }}</td>
                     <td>{{ a.moisture_pct ~ '%' if a.moisture_pct is not none else '-' }}</td>
-                    <td><strong>{{ a.fat_pct ~ '%' if a.fat_pct is not none else '-' }}</strong></td>
+                    <td>
+                        {% if a.fat_pct is not none %}
+                            {% if a.product == 'expeller' and (a.press_number == 1 or 'prensa 1' in (a.sampling_point|lower) or 'p1' in (a.sampling_point|lower)) %}
+                                <strong style="color: #0284c7;">{{ a.fat_pct }}%</strong> <small style="color: #64748b; font-size: 0.7rem;">(Ind.)</small>
+                            {% else %}
+                                <strong style="color: #854d0e;">{{ a.fat_pct }}%</strong>
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>{{ a.acidity_pct ~ '%' if a.acidity_pct is not none else '-' }}</td>
                     <td style="color: #475569; max-width: 220px;">{{ a.notes or '-' }}</td>
                     <td>{{ a.operator_name }}</td>
@@ -434,4 +497,59 @@
         </table>
     </div>
 </div>
+
+<script>
+// Maneja el cambio de producto para ajustar prensa y punto de muestreo por defecto
+function handleProductChange(val) {
+    const pressGroup = document.getElementById('press_selector_group');
+    const samplingPointInput = document.getElementById('sampling_point');
+    const p1Radio = document.getElementById('press_p1');
+    const p2Radio = document.getElementById('press_p2');
+
+    if (val === 'expeller_p1') {
+        if (pressGroup) pressGroup.style.display = 'block';
+        if (p1Radio) p1Radio.checked = true;
+        if (samplingPointInput) {
+            samplingPointInput.value = 'Salida Prensa 1';
+        }
+    } else if (val === 'expeller') {
+        if (pressGroup) pressGroup.style.display = 'block';
+        if (p2Radio) p2Radio.checked = true;
+        if (samplingPointInput) {
+            samplingPointInput.value = 'Salida Prensa 2';
+        }
+    } else if (val === 'semilla') {
+        if (pressGroup) pressGroup.style.display = 'none';
+        if (samplingPointInput) {
+            samplingPointInput.value = 'Tolva de Ingreso';
+        }
+    } else if (val === 'aceite') {
+        if (pressGroup) pressGroup.style.display = 'none';
+        if (samplingPointInput) {
+            samplingPointInput.value = 'Tanque de Salida';
+        }
+    }
+}
+
+// Sincroniza la seleccion de Prensa 1 vs Prensa 2
+function updatePressSelection(press) {
+    const productSelect = document.getElementById('product');
+    const samplingPointInput = document.getElementById('sampling_point');
+    if (press === 1) {
+        if (productSelect && productSelect.value === 'expeller') {
+            // Se mantiene como expeller con radio Prensa 1
+        }
+        if (samplingPointInput && (!samplingPointInput.value || samplingPointInput.value.includes('Prensa'))) {
+            samplingPointInput.value = 'Salida Prensa 1';
+        }
+    } else {
+        if (productSelect && productSelect.value === 'expeller_p1') {
+            productSelect.value = 'expeller';
+        }
+        if (samplingPointInput && (!samplingPointInput.value || samplingPointInput.value.includes('Prensa'))) {
+            samplingPointInput.value = 'Salida Prensa 2';
+        }
+    }
+}
+</script>
 {% endblock %}

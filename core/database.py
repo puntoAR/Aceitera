@@ -417,6 +417,7 @@ def init_db():
             sample_code TEXT NOT NULL,              -- Codigo identificador de muestra
             product TEXT NOT NULL,                  -- semilla, expeller o aceite
             sampling_point TEXT NOT NULL,           -- Punto de toma de muestra
+            press_number INTEGER DEFAULT 2,         -- 1=Prensa 1 (indicativo), 2=Prensa 2 (producto final relevante)
             shift_id TEXT NOT NULL,                 -- Turno de produccion
             operator_name TEXT NOT NULL,            -- Analista responsable
             moisture_pct REAL,                      -- Humedad calculada en porcentaje

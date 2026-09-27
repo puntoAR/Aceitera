@@ -17,12 +17,38 @@ from core.audit import record_audit_event
 from core.timezone import get_plant_now_str
 
 # Registra una determinacion analitica de laboratorio con calculo de parametros o ingreso directo
-def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes=''):
+def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes='', press_number=None):
     # Inicializa las variables de resultados
     moisture_pct = None
     fat_pct = None
     foreign_matter_pct = None
     acidity_pct = None
+
+    # Normaliza producto y numero de prensa para aislar Prensa 1 de Prensa 2
+    if press_number is not None and str(press_number).strip() != '':
+        try:
+            press_number = int(press_number)
+        except (ValueError, TypeError):
+            press_number = 2
+    elif product == 'expeller_p1':
+        product = 'expeller'
+        press_number = 1
+    elif product == 'expeller':
+        sp_lower = str(sampling_point).lower()
+        if 'prensa 1' in sp_lower or 'prensa1' in sp_lower or 'p1' in sp_lower:
+            press_number = 1
+        else:
+            press_number = 2
+    else:
+        press_number = None
+
+    # Si es expeller y no se definio prensa, por defecto es Prensa 2 (producto comercial final)
+    if product == 'expeller' and press_number is None:
+        press_number = 2
+
+    # Guarda el numero de prensa en los datos crudos para trazabilidad
+    if press_number is not None:
+        raw_data['press_number'] = press_number
 
     # Prioridad A: Entrada directa de porcentajes si fueron provistos en el formulario rapido
     if raw_data.get('direct_moisture_pct') is not None and str(raw_data.get('direct_moisture_pct')).strip() != '':
@@ -73,26 +99,29 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
     with get_db_connection() as conn:
         cursor = conn.execute("""
             INSERT INTO lab_analyses (
-                timestamp, sample_code, product, sampling_point, shift_id,
+                timestamp, sample_code, product, sampling_point, press_number, shift_id,
                 operator_name, moisture_pct, fat_pct, foreign_matter_pct,
                 acidity_pct, raw_data_json, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """, (now_str, sample_code, product, sampling_point, shift_id,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (now_str, sample_code, product, sampling_point, press_number, shift_id,
               operator_name, moisture_pct, fat_pct, foreign_matter_pct,
               acidity_pct, json.dumps(raw_data), notes))
         conn.commit()
         analysis_id = cursor.lastrowid
 
+    # Etiqueta descriptiva para log
+    press_tag = f" (Prensa {press_number})" if press_number else ""
     # Registra en log el ensayo
-    log_info('LAB', f'Analisis {sample_code} de {product} guardado (MG: {fat_pct}%, H: {moisture_pct}%, Acidez: {acidity_pct}%).')
+    log_info('LAB', f'Analisis {sample_code} de {product}{press_tag} guardado (MG: {fat_pct}%, H: {moisture_pct}%, Acidez: {acidity_pct}%).')
     # Registra en auditoria de planta
-    record_audit_event('LABORATORIO', 'ANALISIS_CALIDAD', f"Muestra {sample_code} ({product}) registrada en {sampling_point}. Humedad: {moisture_pct}%, Grasa: {fat_pct}%, Acidez: {acidity_pct}%. Obs: {notes}")
+    record_audit_event('LABORATORIO', 'ANALISIS_CALIDAD', f"Muestra {sample_code} ({product}{press_tag}) registrada en {sampling_point}. Humedad: {moisture_pct}%, Grasa: {fat_pct}%, Acidez: {acidity_pct}%. Obs: {notes}")
 
     # Retorna el resumen del analisis
     return {
         'id': analysis_id,
         'sample_code': sample_code,
         'product': product,
+        'press_number': press_number,
         'moisture_pct': moisture_pct,
         'fat_pct': fat_pct,
         'foreign_matter_pct': foreign_matter_pct,
@@ -125,28 +154,41 @@ def get_shift_lab_averages(shift_id=None):
     # Abre conexion a base de datos
     with get_db_connection() as conn:
         seed_row = None
-        exp_row = None
+        exp_p2_shift_row = None
+        exp_p1_shift_row = None
         oil_row = None
-        # Si se paso un turno en particular, intenta promediar las muestras registradas en ese turno
+
+        # Si se paso un turno en particular, calcula las muestras registradas en ese turno
         if shift_id:
             seed_row = conn.execute("""
                 SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
                 FROM lab_analyses
                 WHERE shift_id = ? AND product = 'semilla';
             """, (shift_id,)).fetchone()
-            exp_row = conn.execute("""
+
+            # Prensa 2 (Relevante / Producto Final): excluye estrictamente determinaciones de Prensa 1
+            exp_p2_shift_row = conn.execute("""
                 SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
                 FROM lab_analyses
-                WHERE shift_id = ? AND product = 'expeller';
+                WHERE shift_id = ? AND product = 'expeller'
+                  AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'));
             """, (shift_id,)).fetchone()
+
+            # Prensa 1 (Indicativo preliminar)
+            exp_p1_shift_row = conn.execute("""
+                SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
+                FROM lab_analyses
+                WHERE shift_id = ? AND product = 'expeller'
+                  AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')));
+            """, (shift_id,)).fetchone()
+
             oil_row = conn.execute("""
                 SELECT AVG(acidity_pct) as avg_acidity, AVG(moisture_pct) as avg_moist
                 FROM lab_analyses
                 WHERE shift_id = ? AND product = 'aceite';
             """, (shift_id,)).fetchone()
 
-        # Si en ese turno no hubo muestras (ej. laboratorio realiza 2 muestras al dia: mañana y tarde),
-        # recurre a la ultima determinacion analitica valida registrada en la planta para ese producto
+        # Fallbacks si en ese turno no hubo muestras del producto
         if not seed_row or seed_row['avg_fat'] is None:
             seed_row = conn.execute("""
                 SELECT fat_pct as avg_fat, moisture_pct as avg_moist, foreign_matter_pct as avg_fm
@@ -155,13 +197,23 @@ def get_shift_lab_averages(shift_id=None):
                 ORDER BY timestamp DESC LIMIT 1;
             """).fetchone()
 
-        if not exp_row or exp_row['avg_fat'] is None:
-            exp_row = conn.execute("""
-                SELECT fat_pct as avg_fat, moisture_pct as avg_moist
-                FROM lab_analyses
-                WHERE product = 'expeller'
-                ORDER BY timestamp DESC LIMIT 1;
-            """).fetchone()
+        # Fallback Prensa 2: ultimo registro de Prensa 2 en planta
+        exp_p2_latest = conn.execute("""
+            SELECT fat_pct as avg_fat, moisture_pct as avg_moist
+            FROM lab_analyses
+            WHERE product = 'expeller'
+              AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+            ORDER BY timestamp DESC LIMIT 1;
+        """).fetchone()
+
+        # Fallback Prensa 1: ultimo registro de Prensa 1 en planta
+        exp_p1_latest = conn.execute("""
+            SELECT fat_pct as avg_fat, moisture_pct as avg_moist
+            FROM lab_analyses
+            WHERE product = 'expeller'
+              AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')))
+            ORDER BY timestamp DESC LIMIT 1;
+        """).fetchone()
 
         if not oil_row or oil_row['avg_acidity'] is None:
             oil_row = conn.execute("""
@@ -171,13 +223,92 @@ def get_shift_lab_averages(shift_id=None):
                 ORDER BY timestamp DESC LIMIT 1;
             """).fetchone()
 
-    # Retorna diccionario con medias analiticas o valores estandar de contingencia
+        # Promedio del dia para Prensa 2: ultimas 24 horas
+        day_p2_row = conn.execute("""
+            SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
+            FROM lab_analyses
+            WHERE product = 'expeller'
+              AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+              AND timestamp >= datetime('now', '-3 hours', '-24 hours');
+        """).fetchone()
+
+        # Si en 24h no hay muestras, fallback al dia del ultimo registro de Prensa 2
+        if not day_p2_row or day_p2_row['avg_fat'] is None:
+            day_p2_row = conn.execute("""
+                SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
+                FROM lab_analyses
+                WHERE product = 'expeller'
+                  AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+                  AND date(timestamp) = (
+                      SELECT date(timestamp) FROM lab_analyses
+                      WHERE product = 'expeller' AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+                      ORDER BY timestamp DESC LIMIT 1
+                  );
+            """).fetchone()
+
+        # Valores de Prensa 2 para cada uno de los 3 turnos de planta (TM, TT, TN)
+        shifts_p2 = {'TM': None, 'TT': None, 'TN': None}
+        for s_code in ['TM', 'TT', 'TN']:
+            s_row = conn.execute("""
+                SELECT AVG(fat_pct) as avg_fat
+                FROM lab_analyses
+                WHERE product = 'expeller'
+                  AND shift_id = ?
+                  AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+                  AND timestamp >= datetime('now', '-3 hours', '-24 hours');
+            """, (s_code,)).fetchone()
+
+            if not s_row or s_row['avg_fat'] is None:
+                s_row = conn.execute("""
+                    SELECT fat_pct as avg_fat
+                    FROM lab_analyses
+                    WHERE product = 'expeller'
+                      AND shift_id = ?
+                      AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+                    ORDER BY timestamp DESC LIMIT 1;
+                """, (s_code,)).fetchone()
+
+            if s_row and s_row['avg_fat'] is not None:
+                shifts_p2[s_code] = round(float(s_row['avg_fat']), 2)
+
+        # Calculo final de valores de Prensa 2 (Turno)
+        if exp_p2_shift_row and exp_p2_shift_row['avg_fat'] is not None:
+            exp_fat_val = round(float(exp_p2_shift_row['avg_fat']), 2)
+        elif exp_p2_latest and exp_p2_latest['avg_fat'] is not None:
+            exp_fat_val = round(float(exp_p2_latest['avg_fat']), 2)
+        else:
+            exp_fat_val = 10.0
+
+        if exp_p2_shift_row and exp_p2_shift_row['avg_moist'] is not None:
+            exp_moist_val = round(float(exp_p2_shift_row['avg_moist']), 2)
+        elif exp_p2_latest and exp_p2_latest['avg_moist'] is not None:
+            exp_moist_val = round(float(exp_p2_latest['avg_moist']), 2)
+        else:
+            exp_moist_val = 7.5
+
+        # Calculo de promedio del dia para Prensa 2
+        if day_p2_row and day_p2_row['avg_fat'] is not None:
+            exp_day_fat_val = round(float(day_p2_row['avg_fat']), 2)
+        else:
+            exp_day_fat_val = exp_fat_val
+
+        # Calculo indicativo de Prensa 1 (solo orientativo)
+        exp_p1_fat_val = None
+        if exp_p1_shift_row and exp_p1_shift_row['avg_fat'] is not None:
+            exp_p1_fat_val = round(float(exp_p1_shift_row['avg_fat']), 2)
+        elif exp_p1_latest and exp_p1_latest['avg_fat'] is not None:
+            exp_p1_fat_val = round(float(exp_p1_latest['avg_fat']), 2)
+
+    # Retorna diccionario consolidado con medias analiticas
     return {
         'seed_fat_pct': round(seed_row['avg_fat'], 2) if seed_row and seed_row['avg_fat'] is not None else 45.0,
         'seed_moist_pct': round(seed_row['avg_moist'], 2) if seed_row and seed_row['avg_moist'] is not None else 9.0,
         'seed_fm_pct': round(seed_row['avg_fm'], 2) if seed_row and seed_row['avg_fm'] is not None else 2.0,
-        'expeller_fat_pct': round(exp_row['avg_fat'], 2) if exp_row and exp_row['avg_fat'] is not None else 10.0,
-        'expeller_moist_pct': round(exp_row['avg_moist'], 2) if exp_row and exp_row['avg_moist'] is not None else 7.5,
+        'expeller_fat_pct': exp_fat_val,
+        'expeller_moist_pct': exp_moist_val,
+        'expeller_day_fat_pct': exp_day_fat_val,
+        'expeller_p1_fat_pct': exp_p1_fat_val,
+        'shifts_p2': shifts_p2,
         'oil_acidity_pct': round(oil_row['avg_acidity'], 2) if oil_row and oil_row['avg_acidity'] is not None else 0.8
     }
 

@@ -317,6 +317,25 @@ REGISTERED_MIGRATIONS = [
             SET timestamp = datetime(timestamp, '-3 hours')
             WHERE timestamp >= '2026-09-26 13:00:00' AND timestamp <= '2026-09-26 23:59:59';
         """
+    },
+    {
+        # Version 10: Separacion de Prensa 1 y Prensa 2 en analitica de laboratorio
+        'version': 10,
+        'name': 'add_press_number_to_lab',
+        'description': 'Incorporacion de columna press_number para aislar determinaciones de Prensa 1 (indicativo) y Prensa 2 (producto final relevante)',
+        'sql': """
+            -- Agrega columna press_number con valor por defecto 2 (Prensa 2 es el producto terminado)
+            ALTER TABLE lab_analyses ADD COLUMN press_number INTEGER DEFAULT 2;
+
+            -- Normaliza registros anteriores: si el punto de muestreo menciona 'prensa 1' o 'p1', asigna 1
+            UPDATE lab_analyses
+            SET press_number = 1
+            WHERE product = 'expeller' AND (
+                LOWER(sampling_point) LIKE '%prensa 1%'
+                OR LOWER(sampling_point) LIKE '%prensa1%'
+                OR LOWER(sampling_point) LIKE '%p1%'
+            );
+        """
     }
 ]
 
