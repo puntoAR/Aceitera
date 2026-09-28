@@ -176,18 +176,26 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         self.assertEqual(w['net_weight_tons'], 25.0)
 
     def test_weighbridge_web_views_and_roles(self):
-        """Verifica acceso web y permisos de balanza para operario, gerencia y admin_sistema"""
-        # 1. Operario
+        """Verifica acceso web y permisos de balanza: exclusivo gerencia y admin_sistema (bloqueado para operarios)"""
+        # 1. Operario (usuario comun): NO tiene acceso ni visualizacion de Balanza
         self.client.get('/logout')
         self.client.post('/login', data={'username': 'operario', 'pin': '1111'})
-        r_user = self.client.get('/weighbridge/')
-        self.assertEqual(r_user.status_code, 200)
-        self.assertIn(b'Balanza de Camiones', r_user.data)
-        self.assertIn(b'Nueva Pesada Manual', r_user.data)
 
-        # 2. Gerente
+        # En su pantalla de produccion, el menu NO debe mostrar el enlace a Balanza
+        r_prod = self.client.get('/production/')
+        self.assertEqual(r_prod.status_code, 200)
+        self.assertNotIn(b'Balanza', r_prod.data)
+
+        # Si intenta ingresar directamente por URL a /weighbridge/, debe ser rechazado
+        r_user = self.client.get('/weighbridge/', follow_redirects=True)
+        self.assertIn(b'No posee permisos autorizados', r_user.data)
+
+        # 2. Gerente: SI tiene acceso y puede ver el enlace y la pantalla
         self.client.get('/logout')
         self.client.post('/login', data={'username': 'gerente', 'pin': '3333'})
+        r_mgr_dash = self.client.get('/')
+        self.assertIn(b'Balanza', r_mgr_dash.data)
+
         r_mgr = self.client.get('/weighbridge/')
         self.assertEqual(r_mgr.status_code, 200)
         self.assertIn(b'Balanza de Camiones', r_mgr.data)
@@ -196,9 +204,12 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         self.assertEqual(r_exp.status_code, 200)
         self.assertEqual(r_exp.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-        # 3. Admin Sistema
+        # 3. Admin Sistema: SI tiene acceso completo y visualizacion en menu
         self.client.get('/logout')
         self.client.post('/login', data={'username': 'admin', 'pin': '1234'})
+        r_adm_dash = self.client.get('/')
+        self.assertIn(b'Balanza', r_adm_dash.data)
+
         r_admin = self.client.get('/weighbridge/')
         self.assertEqual(r_admin.status_code, 200)
         self.assertIn(b'Importar Planilla de Balanza', r_admin.data)
@@ -263,8 +274,9 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
             is_active=1
         )
 
-        # Login como operario (no admin)
-        self.client.post('/login', data={'username': 'operario', 'pin': '1111'})
+        # Login como gerente (rol autorizado a balanza, pero restringido por licencia)
+        self.client.get('/logout')
+        self.client.post('/login', data={'username': 'gerente', 'pin': '3333'})
 
         # Intenta registrar una pesada por POST (debe rebotar amablemente sin 500)
         resp_post = self.client.post('/weighbridge/add', data={

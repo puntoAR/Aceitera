@@ -14,9 +14,9 @@ from core.timezone import get_plant_now_str
 # Define el Blueprint de balanza
 weighbridge_bp = Blueprint('weighbridge', __name__, url_prefix='/weighbridge')
 
-# Vista principal del modulo de balanza
+# Vista principal del modulo de balanza (exclusivo Gerencia y Administracion)
 @weighbridge_bp.route('/', methods=['GET'])
-@roles_required('usuario', 'gerencia', 'administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def index():
     # Parametros de filtrado
     product = request.args.get('product', 'todos')
@@ -49,7 +49,7 @@ def index():
 
 # Endpoint para registrar una pesada manual
 @weighbridge_bp.route('/add', methods=['POST'])
-@roles_required('usuario', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def add_weighing():
     try:
         ticket_number = request.form.get('ticket_number')
@@ -102,7 +102,7 @@ def add_weighing():
 
 # Endpoint para importar archivo Excel (.xlsx / .xls) o CSV
 @weighbridge_bp.route('/import', methods=['POST'])
-@roles_required('usuario', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def import_excel():
     try:
         if 'excel_file' not in request.files:
@@ -138,7 +138,7 @@ def import_excel():
 
 # Endpoint para exportar listado filtrado a Excel (.xlsx)
 @weighbridge_bp.route('/export/excel', methods=['GET'])
-@roles_required('usuario', 'gerencia', 'administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def export_excel():
     try:
         product = request.args.get('product', 'todos')
@@ -169,7 +169,7 @@ def export_excel():
 
 # Endpoint para exportar listado filtrado a CSV
 @weighbridge_bp.route('/export/csv', methods=['GET'])
-@roles_required('usuario', 'gerencia', 'administrador', 'admin_sistema')
+@roles_required('gerencia', 'administrador', 'admin_sistema')
 def export_csv():
     try:
         product = request.args.get('product', 'todos')

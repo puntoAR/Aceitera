@@ -63,8 +63,6 @@
             {% if g.user.role == 'usuario' %}
             <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
-            <!-- Enlace a Balanza de Camiones -->
-            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
             <!-- Enlace a Cubicaje y Stock -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
             <!-- Enlace a Laboratorio -->
