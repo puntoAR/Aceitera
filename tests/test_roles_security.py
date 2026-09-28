@@ -517,6 +517,27 @@ class TestRolesAndSecurity(unittest.TestCase):
         # Verifica enlace en pie de pagina
         self.assertIn('BioBalcarce - Sistema Industrial de Control de Proceso', html_dash)
 
+    # Prueba 13: Compatibilidad y arranque serverless en Vercel
+    def test_vercel_serverless_handler_and_config(self):
+        # Importa el modulo de entrada de Vercel
+        import api.index
+        # Verifica que el objeto handler este definido y sea ejecutable
+        self.assertTrue(callable(api.index.handler))
+        # Verifica que las carpetas requeridas de actualizacion esten definidas en config
+        import config
+        # Comprueba existencia de UPDATES_DIR
+        self.assertTrue(hasattr(config, 'UPDATES_DIR'))
+        # Comprueba existencia de PENDING_UPDATES_DIR
+        self.assertTrue(hasattr(config, 'PENDING_UPDATES_DIR'))
+        # Comprueba existencia de APPLIED_UPDATES_DIR
+        self.assertTrue(hasattr(config, 'APPLIED_UPDATES_DIR'))
+        # Ejecuta una peticion al endpoint de login a traves del cliente de prueba
+        test_client = api.index.app.test_client()
+        # Obtiene la respuesta de la pantalla de login
+        response = test_client.get('/login')
+        # Verifica que el codigo de estado HTTP sea 200 OK
+        self.assertEqual(response.status_code, 200)
+
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':
     unittest.main()

@@ -63,6 +63,12 @@ if IS_VERCEL or not _can_write_dir(os.path.join(str(BASE_DIR), 'data')):
     BACKUPS_DIR = os.path.join('/tmp', 'backups')
     # Directorio de fotografias de reparaciones de mantenimiento en /tmp
     MAINTENANCE_UPLOADS_DIR = os.path.join('/tmp', 'uploads', 'maintenance')
+    # Directorio de paquetes de actualizacion del sistema en /tmp
+    UPDATES_DIR = os.path.join('/tmp', 'updates')
+    # Carpeta donde se descargan o colocan actualizaciones comprobadas pendientes de instalacion en /tmp
+    PENDING_UPDATES_DIR = os.path.join(UPDATES_DIR, 'pending')
+    # Carpeta historica de actualizaciones ya aplicadas en /tmp
+    APPLIED_UPDATES_DIR = os.path.join(UPDATES_DIR, 'applied')
 else:
     # Directorio de datos local en la carpeta data
     DATA_DIR = os.path.join(BASE_DIR, 'data')
@@ -89,8 +95,9 @@ try:
     os.makedirs(BACKUPS_DIR, exist_ok=True)
     # Crea la carpeta de imagenes de reparaciones de mantenimiento
     os.makedirs(MAINTENANCE_UPLOADS_DIR, exist_ok=True)
-    # Crea las carpetas de actualizaciones pendientes y aplicadas
+    # Crea la carpeta de actualizaciones pendientes
     os.makedirs(PENDING_UPDATES_DIR, exist_ok=True)
+    # Crea la carpeta de actualizaciones aplicadas
     os.makedirs(APPLIED_UPDATES_DIR, exist_ok=True)
 # Manejo de error si el sistema de archivos actual no permite crear carpetas
 except Exception:
@@ -102,6 +109,12 @@ except Exception:
     BACKUPS_DIR = os.path.join('/tmp', 'backups')
     # Fallback definitivo para fotografias en /tmp
     MAINTENANCE_UPLOADS_DIR = os.path.join('/tmp', 'uploads', 'maintenance')
+    # Fallback definitivo para paquetes de actualizacion en /tmp
+    UPDATES_DIR = os.path.join('/tmp', 'updates')
+    # Fallback definitivo para actualizaciones pendientes en /tmp
+    PENDING_UPDATES_DIR = os.path.join(UPDATES_DIR, 'pending')
+    # Fallback definitivo para actualizaciones aplicadas en /tmp
+    APPLIED_UPDATES_DIR = os.path.join(UPDATES_DIR, 'applied')
     # Segundo intento de creacion en el directorio temporal
     try:
         # Crea la carpeta data dentro de /tmp
@@ -112,6 +125,10 @@ except Exception:
         os.makedirs(BACKUPS_DIR, exist_ok=True)
         # Crea la carpeta de uploads dentro de /tmp
         os.makedirs(MAINTENANCE_UPLOADS_DIR, exist_ok=True)
+        # Crea la carpeta de actualizaciones pendientes dentro de /tmp
+        os.makedirs(PENDING_UPDATES_DIR, exist_ok=True)
+        # Crea la carpeta de actualizaciones aplicadas dentro de /tmp
+        os.makedirs(APPLIED_UPDATES_DIR, exist_ok=True)
     # Captura silenciosa si ya existen o no pueden crearse
     except Exception:
         # Continua la ejecucion sin detener el servidor

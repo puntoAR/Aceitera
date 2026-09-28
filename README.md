@@ -1,4 +1,4 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.6
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.7
 
 Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
@@ -6,7 +6,7 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 
 ---
 
-## Novedades y Capacidades en la Versión 1.1.6
+## Novedades y Capacidades en la Versión 1.1.7
 
 1. **Centro de Diagnóstico Interactivo de Errores y Excepciones (`/admin/errors`):**
    - **Tarjetas de incidentes cliqueables:** Al hacer clic en cualquier error registrado, se despliega de inmediato el panel de diagnóstico técnico profundo.
