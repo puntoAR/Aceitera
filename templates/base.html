@@ -52,6 +52,8 @@
             {% if g.user.role in ['administrador', 'gerencia'] %}
             <!-- Enlace al Dashboard Ejecutivo -->
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
+            <!-- Enlace a Balanza de Camiones -->
+            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
             <!-- Enlace al modulo de Mantenimiento y Pañol -->
             <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
             <!-- Cierra condicion de rol gerencia / administrador -->
@@ -61,6 +63,8 @@
             {% if g.user.role == 'usuario' %}
             <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <!-- Enlace a Balanza de Camiones -->
+            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
             <!-- Enlace a Cubicaje y Stock -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
             <!-- Enlace a Laboratorio -->
@@ -78,6 +82,8 @@
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
             <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            <!-- Enlace a Balanza de Camiones -->
+            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
             <!-- Enlace a Cubicaje -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje</a>
             <!-- Enlace a Laboratorio -->
@@ -143,6 +149,27 @@
         {% endwith %}
 
         <!-- Bloque donde se inserta el contenido de cada plantilla hija -->
+        {% if licensing_info and licensing_info.is_restricted %}
+        <div class="alert alert-danger" style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; border-left: 4px solid #b91c1c;">
+            <div>
+                <strong>Aviso de Licenciamiento:</strong> {{ licensing_info.status_label }}.
+                {% if licensing_info.restrictions.block_data_entry %}La carga de nuevos registros se encuentra temporalmente restringida.{% endif %}
+            </div>
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Renovacion%20Licencia%20BioBalcarce" style="color: #991b1b; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
+                Regularizar con puntoAR &rarr;
+            </a>
+        </div>
+        {% elif licensing_info and licensing_info.license_mode == 'trial' and licensing_info.days_remaining is not none and licensing_info.days_remaining <= 30 and licensing_info.days_remaining >= 0 %}
+        <div class="alert alert-warning" style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; border-left: 4px solid #d97706;">
+            <div>
+                <strong>Período de Prueba:</strong> Su versión de demostración caduca en <strong>{{ licensing_info.days_remaining }} días</strong>.
+            </div>
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Extension%20Prueba%20BioBalcarce" style="color: #92400e; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
+                Consultar planes puntoAR &rarr;
+            </a>
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
 
@@ -155,6 +182,32 @@
             <a href="{{ url_for('dashboard.about') }}" style="color: inherit; text-decoration: underline; opacity: 0.9;" title="Información del desarrollador">Acerca de</a>
         </p>
     </footer>
+    {% endif %}
+
+    <!-- ========================================================================= -->
+    <!-- NOTIFICACION FLOTANTE DE ACTUALIZACION (EXCLUSIVO ADMIN SISTEMA)          -->
+    <!-- ========================================================================= -->
+    {% if g.user and g.user.role == 'admin_sistema' and system_update and system_update.available %}
+    <div id="system-update-alert-pill" style="position: fixed; bottom: 85px; right: 20px; z-index: 9998; background: #0f172a; color: #ffffff; padding: 0.9rem 1.15rem; border-radius: 0.75rem; box-shadow: 0 12px 28px rgba(0,0,0,0.35); border-left: 5px solid #2563eb; max-width: 380px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.45rem;">
+                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 8px #3b82f6;"></span>
+                <strong style="color: #60a5fa; font-size: 0.88rem;">Actualización Disponible</strong>
+                <span style="background: #2563eb; color: #ffffff; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                    v{{ system_update.version }}
+                </span>
+            </div>
+            <button type="button" onclick="document.getElementById('system-update-alert-pill').style.display='none';" style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0;" title="Ocultar aviso">&times;</button>
+        </div>
+        <div style="font-size: 0.78rem; color: #cbd5e1; margin: 0.4rem 0 0.7rem 0; line-height: 1.35;">
+            {{ system_update.summary }}
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+            <a href="{{ url_for('updater.index') }}" class="btn btn-primary" style="background: #2563eb; font-size: 0.78rem; padding: 0.35rem 0.8rem; text-decoration: none; border-radius: 0.35rem; font-weight: 600;">
+                Revisar e Instalar &rarr;
+            </a>
+        </div>
+    </div>
     {% endif %}
 
     <!-- Banner flotante para sugerir la instalacion de la aplicacion en el celular -->

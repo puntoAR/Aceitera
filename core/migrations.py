@@ -336,6 +336,68 @@ REGISTERED_MIGRATIONS = [
                 OR LOWER(sampling_point) LIKE '%p1%'
             );
         """
+    },
+    {
+        # Version 11: Tablas para Balanza de Camiones y Licenciamiento Programable
+        'version': 11,
+        'name': 'truck_scale_weighings_and_licensing_system',
+        'description': 'Creacion de tablas truck_scale_weighings para importacion/exportacion de balanza y system_licensing_config para control de planes y feature-gating',
+        'sql': """
+            -- Tabla de pesadas y movimientos de balanza de camiones
+            CREATE TABLE IF NOT EXISTS truck_scale_weighings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_number TEXT,
+                weigh_date TEXT NOT NULL,
+                operation_type TEXT NOT NULL,
+                product TEXT NOT NULL,
+                truck_plate TEXT,
+                trailer_plate TEXT,
+                transport_company TEXT,
+                driver_name TEXT,
+                driver_dni TEXT,
+                gross_weight_kg REAL DEFAULT 0.0,
+                tare_weight_kg REAL DEFAULT 0.0,
+                net_weight_kg REAL DEFAULT 0.0,
+                net_weight_tons REAL DEFAULT 0.0,
+                origin TEXT,
+                destination TEXT,
+                seals_numbers TEXT,
+                notes TEXT,
+                operator_name TEXT,
+                shift_id TEXT,
+                sync_inventory INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Tabla de configuracion de licenciamiento y limitaciones programables
+            CREATE TABLE IF NOT EXISTS system_licensing_config (
+                id INTEGER PRIMARY KEY,
+                license_mode TEXT DEFAULT 'libre_uso',
+                plan_name TEXT DEFAULT 'Plan Libre Uso Anual',
+                activation_date TEXT,
+                expiration_date TEXT,
+                max_active_users INTEGER DEFAULT 0,
+                block_dashboard INTEGER DEFAULT 0,
+                block_data_entry INTEGER DEFAULT 0,
+                block_reports INTEGER DEFAULT 0,
+                block_updates INTEGER DEFAULT 0,
+                custom_notice_message TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_by TEXT
+            );
+
+            -- Inserta configuracion inicial de 1 año de libre uso si no existe
+            INSERT OR IGNORE INTO system_licensing_config (
+                id, license_mode, plan_name, activation_date, expiration_date,
+                max_active_users, block_dashboard, block_data_entry, block_reports, block_updates,
+                custom_notice_message, updated_by
+            ) VALUES (
+                1, 'libre_uso', 'Plan Libre Uso por 1 Año (puntoAR)',
+                '2026-09-01', '2027-09-01',
+                0, 0, 0, 0, 0,
+                'Uso autorizado para BioBalcarce provisto por puntoAR.', 'admin_sistema'
+            );
+        """
     }
 ]
 

@@ -6,7 +6,8 @@ from core.security import roles_required
 # Importa servicios de actualizacion, respaldos y migraciones
 from modules.updater.service import (
     get_current_version_info, apply_update_package,
-    check_for_remote_updates, download_and_apply_remote_update
+    check_for_remote_updates, download_and_apply_remote_update,
+    get_pending_local_update, apply_pending_local_update
 )
 from core.backup_manager import list_backups, create_backup, restore_backup
 from core.migrations import get_migration_history
@@ -32,8 +33,29 @@ def index():
     backups = list_backups()
     # Obtiene el historial de migraciones de base de datos
     migrations = get_migration_history()
+    # Obtiene si hay una actualizacion local comprobada pendiente
+    pending_update = get_pending_local_update()
     # Renderiza la plantilla de actualizaciones
-    return render_template('updates.html', version_info=version_info, backups=backups, migrations=migrations)
+    return render_template('updates.html', version_info=version_info, backups=backups,
+                           migrations=migrations, pending_update=pending_update)
+
+# Endpoint para aceptar e instalar una actualizacion local comprobada
+@updater_bp.route('/install-pending', methods=['POST'])
+@roles_required('admin_sistema')
+def install_pending():
+    filename = request.form.get('filename')
+    try:
+        if not filename:
+            flash('No se especificó el archivo de actualización a instalar.', 'warning')
+            return redirect(url_for('updater.index'))
+
+        result = apply_pending_local_update(filename)
+        record_audit_event('SISTEMA', 'ACTUALIZACION_LOCAL_COMPROBADA', f"Actualización comprobada aplicada a versión {result['version']}.")
+        flash(f'¡Actualización v{result["version"]} instalada exitosamente con respaldo previo y migraciones automáticas!', 'success')
+    except Exception as e:
+        log_error('UPDATER_ROUTE', f'Error al instalar actualización local {filename}', e)
+        flash(f'Error al instalar actualización comprobada: {str(e)}', 'danger')
+    return redirect(url_for('updater.index'))
 
 # Endpoint para subir y aplicar un paquete ZIP de actualizacion
 @updater_bp.route('/upload', methods=['POST'])

@@ -12,6 +12,8 @@ from modules.configuration.service import (
 from core.error_logger import log_info, log_error
 # Importa el modulo de auditoria para registrar modificaciones criticas
 from core.audit import record_audit_event
+# Importa funciones de gestion de licenciamiento puntoAR
+from core.licensing import get_licensing_status, update_licensing_config
 
 # Define el Blueprint para las rutas de configuracion
 config_bp = Blueprint('config', __name__, url_prefix='/config')
@@ -26,8 +28,10 @@ def index():
     silos = get_all_silos(only_active=False)
     # Obtiene el turno activo actual
     active_shift = get_active_shift()
+    # Obtiene el estado actual de licenciamiento
+    licensing = get_licensing_status()
     # Renderiza la plantilla HTML de configuracion
-    return render_template('config.html', tanks=tanks, silos=silos, active_shift=active_shift)
+    return render_template('config.html', tanks=tanks, silos=silos, active_shift=active_shift, licensing=licensing)
 
 # Endpoint para actualizar la geometria de un tanque
 @config_bp.route('/tank/<int:tank_id>', methods=['POST'])
@@ -114,3 +118,46 @@ def change_shift():
         flash('Debe seleccionar turno y operario responsable.', 'warning')
     # Redirige a la pagina previa o al dashboard
     return redirect(request.referrer or url_for('dashboard.index'))
+
+# Endpoint para actualizar politicas de licenciamiento del sistema (exclusivo admin_sistema)
+@config_bp.route('/licensing/update', methods=['POST'])
+@roles_required('admin_sistema')
+def update_licensing():
+    try:
+        client_name = request.form.get('client_name', 'BioBalcarce S.A.')
+        license_mode = request.form.get('license_mode', 'libre_uso')
+        expiration_date = request.form.get('expiration_date', '')
+        start_date = request.form.get('start_date', '')
+        license_key = request.form.get('license_key', '')
+        max_users = int(request.form.get('max_users', 50))
+        is_active = 1 if request.form.get('is_active') == '1' else 0
+        block_dashboard = 1 if request.form.get('block_dashboard') == 'on' else 0
+        block_data_entry = 1 if request.form.get('block_data_entry') == 'on' else 0
+        block_reports = 1 if request.form.get('block_reports') == 'on' else 0
+        block_updates = 1 if request.form.get('block_updates') == 'on' else 0
+        status_notes = request.form.get('status_notes', '')
+
+        operator = g.user.get('username') if hasattr(g, 'user') and g.user else 'admin_sistema'
+        update_licensing_config(
+            client_name=client_name,
+            license_mode=license_mode,
+            expiration_date=expiration_date,
+            start_date=start_date,
+            license_key=license_key,
+            block_dashboard=block_dashboard,
+            block_data_entry=block_data_entry,
+            block_reports=block_reports,
+            block_updates=block_updates,
+            max_users=max_users,
+            is_active=is_active,
+            status_notes=status_notes,
+            updated_by=operator
+        )
+        record_audit_event('CONFIGURACION', 'MODIFICACION_LICENCIA', f"Políticas de licencia actualizadas: modo={license_mode}, expira={expiration_date}.")
+        flash('Configuración de licenciamiento y políticas de uso actualizada exitosamente.', 'success')
+    except Exception as e:
+        log_error('CONFIG_ROUTE', 'Error al actualizar licenciamiento', e)
+        flash(f'Error al guardar configuración de licencia: {str(e)}', 'danger')
+
+    return redirect(url_for('config.index'))
+

@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Balanza de Camiones - BioBalcarce{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.5rem; color: #0f172a; font-weight: 800;">
+            ⚖️ Balanza de Camiones y Control de Pesadas
+        </h1>
+        <p style="color: #64748b; margin: 0.25rem 0 0 0; font-size: 0.875rem;">
+            Registro oficial de ingresos de materia prima, egresos de expeller y aceite, y movimientos de insumos.
+        </p>
+    </div>
+
+    <!-- Botones de Accion Superior -->
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button" class="btn" onclick="toggleSection('import-panel')" style="background: #0284c7; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; border: none; cursor: pointer;">
+            <span>📥 Importar Excel / CSV</span>
+        </button>
+
+        <button type="button" class="btn" onclick="toggleSection('manual-panel')" style="background: #15803d; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; border: none; cursor: pointer;">
+            <span>+ Nueva Pesada Manual</span>
+        </button>
+
+        <a href="{{ url_for('weighbridge.export_excel', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date) }}"
+           class="btn" style="background: #059669; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; text-decoration: none;" title="Descargar planilla Excel">
+            <span>📤 Exportar Excel</span>
+        </a>
+
+        <a href="{{ url_for('weighbridge.export_csv', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date) }}"
+           class="btn" style="background: #475569; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; text-decoration: none;" title="Descargar archivo CSV">
+            <span>CSV</span>
+        </a>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- TARJETAS DE METRICAS Y KPIS DE BALANZA                                     -->
+<!-- ========================================================================= -->
+<div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <!-- Camiones Totales -->
+    <div class="metric-card card-speed" style="background: #ffffff; padding: 1.15rem; border-radius: 0.75rem; border-left: 4px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div class="metric-title" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Camiones Totales</div>
+        <div class="metric-value" style="font-size: 1.75rem; font-weight: 800; color: #1e3a8a; margin: 0.2rem 0;">
+            {{ stats.total_trucks }}
+            <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">pesadas</span>
+        </div>
+        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;">
+            Operaciones registradas
+        </div>
+    </div>
+
+    <!-- Ingreso de Semilla de Girasol -->
+    <div class="metric-card card-presses" style="background: #ffffff; padding: 1.15rem; border-radius: 0.75rem; border-left: 4px solid #10b981; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div class="metric-title" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Ingreso Semilla Girasol</div>
+        <div class="metric-value" style="font-size: 1.75rem; font-weight: 800; color: #065f46; margin: 0.2rem 0;">
+            {{ stats.semilla_ingreso_tons }}
+            <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">Tn</span>
+        </div>
+        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;">
+            Materia prima a silos
+        </div>
+    </div>
+
+    <!-- Despacho / Egreso de Expeller -->
+    <div class="metric-card card-stock" style="background: #ffffff; padding: 1.15rem; border-radius: 0.75rem; border-left: 4px solid #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div class="metric-title" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Despacho Expeller</div>
+        <div class="metric-value" style="font-size: 1.75rem; font-weight: 800; color: #92400e; margin: 0.2rem 0;">
+            {{ stats.expeller_egreso_tons }}
+            <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">Tn</span>
+        </div>
+        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;">
+            Salidas de subproducto
+        </div>
+    </div>
+
+    <!-- Despacho / Egreso de Aceite Crudo -->
+    <div class="metric-card card-yield" style="background: #ffffff; padding: 1.15rem; border-radius: 0.75rem; border-left: 4px solid #d97706; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div class="metric-title" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">Despacho Aceite Crudo</div>
+        <div class="metric-value" style="font-size: 1.75rem; font-weight: 800; color: #b45309; margin: 0.2rem 0;">
+            {{ stats.aceite_egreso_tons }}
+            <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">Tn</span>
+        </div>
+        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;">
+            Cisternas despachadas
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- PANEL COLAPSABLE: IMPORTADOR DE ARCHIVO EXCEL DE BALANZA                  -->
+<!-- ========================================================================= -->
+<div id="import-panel" class="form-card" style="display: none; margin-bottom: 1.5rem; background: #f8fafc; border: 1.5px dashed #0284c7; border-radius: 0.75rem; padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0369a1; margin: 0;">
+            📥 Importar Planilla de Balanza (Excel / CSV)
+        </h3>
+        <button type="button" onclick="toggleSection('import-panel')" style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer;">&times;</button>
+    </div>
+
+    <form action="{{ url_for('weighbridge.import_excel') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id if active_shift else 'TC' }}">
+
+        <p style="font-size: 0.825rem; color: #475569; margin-bottom: 1rem;">
+            Seleccione el archivo exportado por el software de balanza (formatos soportados: <strong>.xlsx, .xls, .csv</strong>). El sistema identificará automáticamente columnas de ticket, fecha, patente de camión/acoplado, chofer, pesos bruto/tara/neto y tipo de material.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600; font-size: 0.825rem; display: block; margin-bottom: 0.35rem;">
+                    Archivo de Balanza
+                </label>
+                <input type="file" name="excel_file" accept=".xlsx, .xls, .csv" required
+                       class="form-input" style="width: 100%; background: #ffffff; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div style="padding-top: 1.4rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 600; color: #1e293b; cursor: pointer;">
+                    <input type="checkbox" name="sync_inventory" value="1" checked style="width: 16px; height: 16px;">
+                    <span>Impactar en Existencias de Planta</span>
+                </label>
+                <small style="display: block; color: #64748b; font-size: 0.72rem; margin-top: 0.2rem;">
+                    Aumenta stock de semilla o descuenta expeller/aceite automáticamente.
+                </small>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn" style="background: #0284c7; color: white; font-weight: 700; padding: 0.65rem 1.4rem; border: none; border-radius: 0.4rem; cursor: pointer;">
+                Procesar e Importar Pesadas
+            </button>
+            <button type="button" onclick="toggleSection('import-panel')" class="btn" style="background: #e2e8f0; color: #334155; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 0.4rem; cursor: pointer;">
+                Cancelar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- PANEL COLAPSABLE: NUEVA PESADA MANUAL                                      -->
+<!-- ========================================================================= -->
+<div id="manual-panel" class="form-card" style="display: none; margin-bottom: 1.5rem; background: #ffffff; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #15803d; margin: 0;">
+            + Registrar Ticket de Balanza Manualmente
+        </h3>
+        <button type="button" onclick="toggleSection('manual-panel')" style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer;">&times;</button>
+    </div>
+
+    <form action="{{ url_for('weighbridge.add_weighing') }}" method="POST">
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id if active_shift else 'TC' }}">
+
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">N° Ticket / Comprobante</label>
+                <input class="form-input" type="text" name="ticket_number" placeholder="ej. T-004528" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Fecha y Hora</label>
+                <input class="form-input" type="text" name="weigh_date" value="{{ g_plant_now if g_plant_now else '' }}" placeholder="YYYY-MM-DD HH:MM" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Operación</label>
+                <select class="form-select" name="operation_type" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+                    <option value="ingreso">Ingreso de Materia Prima (Entrada)</option>
+                    <option value="egreso">Egreso / Despacho (Salida)</option>
+                    <option value="interno">Movimiento Interno</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Material / Producto</label>
+                <select class="form-select" name="product" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+                    <option value="semilla">Semilla de Girasol</option>
+                    <option value="expeller">Expeller de Girasol</option>
+                    <option value="aceite">Aceite Crudo</option>
+                    <option value="insumos">Insumos Varios</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Chasis / Camión</label>
+                <input class="form-input" type="text" name="truck_plate" placeholder="ej. AF123XY" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Acoplado / Semi</label>
+                <input class="form-input" type="text" name="trailer_plate" placeholder="ej. AE456ZZ" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Empresa de Transporte</label>
+                <input class="form-input" type="text" name="transport_company" placeholder="ej. Transportes Balcarce" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Chofer (Nombre y DNI)</label>
+                <div style="display: flex; gap: 0.4rem;">
+                    <input class="form-input" type="text" name="driver_name" placeholder="Nombre" style="flex: 2; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+                    <input class="form-input" type="text" name="driver_dni" placeholder="DNI" style="flex: 1; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+                </div>
+            </div>
+        </div>
+
+        <!-- Fila de Pesos -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Peso Bruto (kg)</label>
+                <input class="form-input" type="number" step="1" id="m_gross" name="gross_weight_kg" placeholder="ej. 45000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Tara del Camión (kg)</label>
+                <input class="form-input" type="number" step="1" id="m_tare" name="tare_weight_kg" placeholder="ej. 15000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #0284c7;">Peso Neto Calculado (kg)</label>
+                <input class="form-input" type="number" step="1" id="m_net" name="net_weight_kg" placeholder="ej. 30000" style="width: 100%; padding: 0.55rem; border: 1.5px solid #0284c7; border-radius: 0.4rem; font-weight: 800; color: #0284c7; background: #f0f9ff;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #059669;">Neto en Toneladas (Tn)</label>
+                <input class="form-input" type="text" id="m_tons" readonly placeholder="0.00 Tn" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 800; color: #059669; background: #ecfdf5;">
+            </div>
+        </div>
+
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Procedencia / Origen</label>
+                <input class="form-input" type="text" name="origin" placeholder="ej. Acopio Necochea o Tanque 1" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Destino / Cliente</label>
+                <input class="form-input" type="text" name="destination" placeholder="ej. Silo 2 o Refinería" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Precintos Colocados</label>
+                <input class="form-input" type="text" name="seals_numbers" placeholder="ej. P-0012, P-0013" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Observaciones</label>
+                <input class="form-input" type="text" name="notes" placeholder="Condiciones de entrega, humedad, etc." style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 600; color: #1e293b; cursor: pointer;">
+                <input type="checkbox" name="sync_inventory" value="1" checked style="width: 16px; height: 16px;">
+                <span>Impactar automáticamente en las Existencias de Planta</span>
+            </label>
+
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn" style="background: #15803d; color: white; font-weight: 700; padding: 0.65rem 1.4rem; border: none; border-radius: 0.4rem; cursor: pointer;">
+                    Guardar Pesada
+                </button>
+                <button type="button" onclick="toggleSection('manual-panel')" class="btn" style="background: #e2e8f0; color: #334155; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 0.4rem; cursor: pointer;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- FILTROS DE BUSQUEDA                                                       -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 1.25rem; background: #ffffff; padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0;">
+    <form method="GET" action="{{ url_for('weighbridge.index') }}" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 2; min-width: 180px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Buscar por Patente, Ticket o Chofer</label>
+            <input type="text" name="search" value="{{ current_search }}" placeholder="ej. AF123, 4528 o Gómez..."
+                   class="form-input" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
+        </div>
+
+        <div style="flex: 1; min-width: 140px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Operación</label>
+            <select name="operation_type" class="form-select" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
+                <option value="todos" {% if current_operation == 'todos' %}selected{% endif %}>Todas las operaciones</option>
+                <option value="ingreso" {% if current_operation == 'ingreso' %}selected{% endif %}>Ingreso (Entrada)</option>
+                <option value="egreso" {% if current_operation == 'egreso' %}selected{% endif %}>Egreso / Despacho</option>
+                <option value="interno" {% if current_operation == 'interno' %}selected{% endif %}>Mov. Interno</option>
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 140px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Producto</label>
+            <select name="product" class="form-select" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
+                <option value="todos" {% if current_product == 'todos' %}selected{% endif %}>Todos los productos</option>
+                <option value="semilla" {% if current_product == 'semilla' %}selected{% endif %}>Semilla Girasol</option>
+                <option value="expeller" {% if current_product == 'expeller' %}selected{% endif %}>Expeller</option>
+                <option value="aceite" {% if current_product == 'aceite' %}selected{% endif %}>Aceite Crudo</option>
+                <option value="insumos" {% if current_product == 'insumos' %}selected{% endif %}>Insumos Varios</option>
+            </select>
+        </div>
+
+        <div style="min-width: 130px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Desde</label>
+            <input type="date" name="start_date" value="{{ current_start_date }}"
+                   class="form-input" style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
+        </div>
+
+        <div style="min-width: 130px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Hasta</label>
+            <input type="date" name="end_date" value="{{ current_end_date }}"
+                   class="form-input" style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
+        </div>
+
+        <div style="display: flex; gap: 0.35rem;">
+            <button type="submit" class="btn" style="background: #0f172a; color: white; padding: 0.55rem 1rem; border: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                Filtrar
+            </button>
+            <a href="{{ url_for('weighbridge.index') }}" class="btn" style="background: #e2e8f0; color: #475569; padding: 0.55rem 0.75rem; border: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.85rem; text-decoration: none;" title="Limpiar filtros">
+                Limpiar
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SECCION PRINCIPAL: TABLA DE HISTORIAL DE PESADAS Y BALANZA                -->
+<!-- (Estetica identica a Historial de Cargas y Despachos de Camiones)         -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 2rem; background: #ffffff; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0;">
+            Historial de Pesadas de Balanza ({{ weighings|length }})
+        </h3>
+        <span style="font-size: 0.8rem; color: #64748b;">
+            Mostrando las últimas {{ weighings|length }} pesadas registradas
+        </span>
+    </div>
+
+    <div class="table-responsive" style="overflow-x: auto;">
+        <table class="table" style="font-size: 0.825rem; width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f1f5f9; text-align: left; border-bottom: 1.5px solid #cbd5e1;">
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Fecha / Hora</th>
+                    <th style="padding: 0.65rem 0.5rem;">Camión / Acoplado</th>
+                    <th style="padding: 0.65rem 0.5rem;">Chofer (DNI)</th>
+                    <th style="padding: 0.65rem 0.5rem;">Operación / Material</th>
+                    <th style="padding: 0.65rem 0.5rem;">Ticket / Precintos</th>
+                    <th style="padding: 0.65rem 0.5rem; text-align: right;">Bruto (kg)</th>
+                    <th style="padding: 0.65rem 0.5rem; text-align: right;">Tara (kg)</th>
+                    <th style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap;">Neto (Tn / kg)</th>
+                    <th style="padding: 0.65rem 0.5rem;">Origen / Destino</th>
+                    <th style="padding: 0.65rem 0.5rem;">Responsable</th>
+                    {% if g.user and g.user.role == 'admin_sistema' %}
+                    <th style="padding: 0.65rem 0.5rem; text-align: center;">Acción</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in weighings %}
+                <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s ease;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
+                    <!-- Fecha y Hora -->
+                    <td style="white-space: nowrap; padding: 0.65rem 0.5rem; color: #334155;">
+                        <strong>{{ w.weigh_date.split(' ')[0] if w.weigh_date else '-' }}</strong>
+                        <div style="font-size: 0.72rem; color: #64748b;">{{ w.weigh_date.split(' ')[1] if ' ' in w.weigh_date else '' }}</div>
+                    </td>
+
+                    <!-- Camion y Acoplado -->
+                    <td style="padding: 0.65rem 0.5rem;">
+                        <strong style="color: #0f172a; font-size: 0.875rem;">{{ w.truck_plate or '-' }}</strong>
+                        {% if w.trailer_plate %}
+                        <div style="font-size: 0.72rem; color: #64748b;">Ac: {{ w.trailer_plate }}</div>
+                        {% endif %}
+                        {% if w.transport_company %}
+                        <div style="font-size: 0.7rem; color: #94a3b8;">{{ w.transport_company }}</div>
+                        {% endif %}
+                    </td>
+
+                    <!-- Chofer -->
+                    <td style="padding: 0.65rem 0.5rem; color: #334155;">
+                        {{ w.driver_name or '-' }}
+                        {% if w.driver_dni %}
+                        <div style="font-size: 0.72rem; color: #64748b;">DNI: {{ w.driver_dni }}</div>
+                        {% endif %}
+                    </td>
+
+                    <!-- Operacion y Material con Badges -->
+                    <td style="padding: 0.65rem 0.5rem;">
+                        <span style="font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.03em;
+                            {% if w.operation_type == 'ingreso' %}background: #dcfce7; color: #15803d;
+                            {% elif w.operation_type == 'egreso' and w.product == 'aceite' %}background: #dbeafe; color: #1e40af;
+                            {% elif w.operation_type == 'egreso' and w.product == 'expeller' %}background: #fef3c7; color: #92400e;
+                            {% else %}background: #f1f5f9; color: #475569;{% endif %}">
+                            {{ w.operation_type }}
+                        </span>
+                        <div style="font-size: 0.8rem; font-weight: 600; color: #0f172a; margin-top: 0.25rem;">
+                            {% if w.product == 'semilla' %}🌻 Semilla Girasol
+                            {% elif w.product == 'expeller' %}🌾 Expeller
+                            {% elif w.product == 'aceite' %}🛢️ Aceite Crudo
+                            {% else %}📦 {{ w.product|capitalize }}
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Ticket y Precintos -->
+                    <td style="padding: 0.65rem 0.5rem; font-family: monospace; font-size: 0.8rem; color: #1e3a8a;">
+                        {% if w.ticket_number %}
+                        <strong style="color: #0284c7;">#{{ w.ticket_number }}</strong>
+                        {% else %}
+                        <span style="color: #94a3b8;">-</span>
+                        {% endif %}
+                        {% if w.seals_numbers %}
+                        <div style="font-size: 0.7rem; color: #64748b;">Prec: {{ w.seals_numbers }}</div>
+                        {% endif %}
+                    </td>
+
+                    <!-- Peso Bruto -->
+                    <td style="padding: 0.65rem 0.5rem; text-align: right; color: #475569; font-variant-numeric: tabular-nums;">
+                        {{ "{:,.0f}".format(w.gross_weight_kg) if w.gross_weight_kg else '-' }}
+                    </td>
+
+                    <!-- Tara -->
+                    <td style="padding: 0.65rem 0.5rem; text-align: right; color: #64748b; font-variant-numeric: tabular-nums;">
+                        {{ "{:,.0f}".format(w.tare_weight_kg) if w.tare_weight_kg else '-' }}
+                    </td>
+
+                    <!-- Peso Neto (Tn / kg) -->
+                    <td style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums;">
+                        <strong style="color: #0f172a; font-size: 0.9rem;">{{ "{:,.2f}".format(w.net_weight_tons) }} Tn</strong>
+                        <div style="font-size: 0.72rem; color: #64748b;">{{ "{:,.0f}".format(w.net_weight_kg) }} kg</div>
+                    </td>
+
+                    <!-- Origen y Destino -->
+                    <td style="padding: 0.65rem 0.5rem; font-size: 0.78rem;">
+                        {% if w.origin %}
+                        <div><span style="color: #94a3b8;">De:</span> {{ w.origin }}</div>
+                        {% endif %}
+                        {% if w.destination %}
+                        <div><span style="color: #94a3b8;">A:</span> {{ w.destination }}</div>
+                        {% endif %}
+                        {% if not w.origin and not w.destination %}
+                        <span style="color: #94a3b8;">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Responsable -->
+                    <td style="padding: 0.65rem 0.5rem; color: #64748b; font-size: 0.78rem;">
+                        {{ w.operator_name or '-' }}
+                        {% if w.sync_inventory %}
+                        <span title="Sincronizado con existencias" style="color: #10b981; font-weight: bold;">✔</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Accion (solo admin) -->
+                    {% if g.user and g.user.role == 'admin_sistema' %}
+                    <td style="padding: 0.65rem 0.5rem; text-align: center;">
+                        <form action="{{ url_for('weighbridge.delete_item', weighing_id=w.id) }}" method="POST" onsubmit="return confirm('¿Confirma eliminar la pesada del ticket #{{ w.ticket_number or w.id }}?');" style="margin: 0; display: inline;">
+                            <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem;" title="Eliminar pesada">
+                                🗑️
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{% if g.user and g.user.role == 'admin_sistema' %}11{% else %}10{% endif %}" style="text-align: center; color: #94a3b8; padding: 2.5rem;">
+                        No hay cargas de camiones ni pesadas registradas en el período.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Scripts de Interactividad de Balanza -->
+<script>
+function toggleSection(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.style.display === 'none' || el.style.display === '') {
+        el.style.display = 'block';
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function calcNeto() {
+    const gross = parseFloat(document.getElementById('m_gross').value) || 0;
+    const tare = parseFloat(document.getElementById('m_tare').value) || 0;
+    const net = Math.max(0, gross - tare);
+    const tons = (net / 1000.0).toFixed(2);
+
+    document.getElementById('m_net').value = net > 0 ? net : '';
+    document.getElementById('m_tons').value = net > 0 ? (tons + ' Tn') : '0.00 Tn';
+}
+</script>
+{% endblock %}

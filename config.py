@@ -72,6 +72,12 @@ else:
     BACKUPS_DIR = os.path.join(BASE_DIR, 'backups')
     # Directorio de fotografias de mantenimiento en static/uploads/maintenance
     MAINTENANCE_UPLOADS_DIR = os.path.join(str(BASE_DIR), 'static', 'uploads', 'maintenance')
+    # Directorio de paquetes de actualizacion del sistema
+    UPDATES_DIR = os.path.join(str(BASE_DIR), 'updates')
+    # Carpeta donde se descargan o colocan actualizaciones comprobadas pendientes de instalacion
+    PENDING_UPDATES_DIR = os.path.join(UPDATES_DIR, 'pending')
+    # Carpeta historica de actualizaciones ya aplicadas
+    APPLIED_UPDATES_DIR = os.path.join(UPDATES_DIR, 'applied')
 
 # Intento de creacion de carpetas de operacion en disco local o temporal
 try:
@@ -83,6 +89,9 @@ try:
     os.makedirs(BACKUPS_DIR, exist_ok=True)
     # Crea la carpeta de imagenes de reparaciones de mantenimiento
     os.makedirs(MAINTENANCE_UPLOADS_DIR, exist_ok=True)
+    # Crea las carpetas de actualizaciones pendientes y aplicadas
+    os.makedirs(PENDING_UPDATES_DIR, exist_ok=True)
+    os.makedirs(APPLIED_UPDATES_DIR, exist_ok=True)
 # Manejo de error si el sistema de archivos actual no permite crear carpetas
 except Exception:
     # Fallback definitivo a /tmp para datos si falla la creacion local

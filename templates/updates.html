@@ -49,6 +49,42 @@
     </span>
 </div>
 
+{% if pending_update and pending_update.available %}
+<!-- ========================================================================= -->
+<!-- SECCION DESTACADA: ACTUALIZACION COMPROBADA PENDIENTE                     -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 0.75rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <span style="font-size: 1.25rem;">🚀</span>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e3a8a; margin: 0;">
+                    Actualización Verificada Disponible: v{{ pending_update.version }}
+                </h3>
+                <span style="background: #2563eb; color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 9999px;">
+                    Lista para Instalar
+                </span>
+            </div>
+            <p style="color: #334155; margin: 0.25rem 0; font-size: 0.9rem;">
+                {{ pending_update.description }}
+            </p>
+            <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">
+                Archivo detectado en updates/pending: <code>{{ pending_update.filename }}</code>
+                {% if pending_update.release_date %}&bull; Fecha: {{ pending_update.release_date }}{% endif %}
+            </div>
+        </div>
+        <div>
+            <form action="{{ url_for('updater.install_pending') }}" method="POST" onsubmit="return confirm('¿Confirma que desea aplicar la actualización v{{ pending_update.version }}? El sistema creará un respaldo automático y aplicará las migraciones correspondientes.');">
+                <input type="hidden" name="filename" value="{{ pending_update.filename }}">
+                <button type="submit" class="btn btn-primary" style="background: #2563eb; font-weight: 700; padding: 0.65rem 1.25rem; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);">
+                    Aceptar e Instalar Actualización &rarr;
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ========================================================================= -->
 <!-- SECCION 1: BUSCADOR DE ACTUALIZACIONES REMOTAS ONLINE                    -->
 <!-- ========================================================================= -->

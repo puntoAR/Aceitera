@@ -12,7 +12,7 @@ from config import SECRET_KEY, PORT, HOST, DEBUG, MAINTENANCE_UPLOADS_DIR
 # Bloque de captura para verificar disponibilidad de Flask
 try:
     # Importa componentes principales de Flask para el servidor web y PWA
-    from flask import Flask, render_template, redirect, url_for, g, send_from_directory, make_response
+    from flask import Flask, render_template, redirect, url_for, g, send_from_directory, make_response, flash
 except ModuleNotFoundError:
     print("\n[ERROR CRITICO] Flask no esta instalado en este entorno de Python.")
     print(f"Python actual: {sys.executable}")
@@ -26,6 +26,9 @@ from core.database import init_db
 from core.security import load_logged_in_user
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
+# Importa gestor de politicas de licenciamiento y verificacion de actualizaciones
+from core.licensing import get_licensing_status
+from modules.updater.service import check_system_update_status
 
 # Importa los blueprints de cada modulo de negocio independiente
 from modules.dashboard.routes import dashboard_bp
@@ -39,6 +42,8 @@ from modules.updater.routes import updater_bp
 from modules.admin.routes import admin_bp
 # Importa el blueprint de mantenimiento industrial y pañol de repuestos
 from modules.maintenance.routes import maintenance_bp
+# Importa el blueprint de balanza de camiones (registro, importacion y exportacion)
+from modules.weighbridge.routes import weighbridge_bp
 # Importa request para inspeccionar la ruta solicitada en before_request
 from flask import request
 # Importa el ejecutor de migraciones automaticas
@@ -66,6 +71,53 @@ def before_request():
             # Redirige forzosamente a la pantalla de cambio de clave
             return redirect(url_for('dashboard.change_password'))
 
+    # Verificacion elegante de politicas de licenciamiento (trial, bloqueos o expiracion)
+    if hasattr(g, 'user') and g.user:
+        # Rutas exentas para gestion administrativa, autenticacion y estaticos
+        exempt_prefixes = ('/config', '/auth', '/static', '/change-password', '/logout')
+        is_exempt = any(request.path.startswith(p) for p in exempt_prefixes)
+
+        if not is_exempt:
+            try:
+                lic_status = get_licensing_status()
+                restr = lic_status.get('restrictions', {})
+
+                # 1. Restriccion de carga o modificacion de datos nuevos
+                if restr.get('block_data_entry') and request.method == 'POST':
+                    if g.user.get('role') != 'admin_sistema':
+                        flash(f"Operación suspendida: La carga de nuevos registros se encuentra restringida por políticas de licenciamiento ({lic_status.get('status_label')}). Contacte a soporte de puntoAR para regularizar la suscripción.", "warning")
+                        return redirect(request.referrer or url_for('dashboard.index'))
+
+                # 2. Restriccion de descarga de reportes y exportaciones
+                if restr.get('block_reports') and ('/export' in request.path or '/report' in request.path):
+                    if g.user.get('role') != 'admin_sistema':
+                        flash(f"Exportación restringida: La generación de reportes y descargas está deshabilitada en el estado actual de la licencia ({lic_status.get('status_label')}).", "warning")
+                        return redirect(request.referrer or url_for('dashboard.index'))
+
+                # 3. Restriccion de aplicacion de actualizaciones
+                if restr.get('block_updates') and request.path.startswith('/config/updates/install'):
+                    flash("La instalación de nuevas actualizaciones se encuentra deshabilitada según las políticas de licenciamiento vigentes.", "warning")
+                    return redirect(url_for('updater.index'))
+            except Exception as e:
+                log_error('LICENSING_MIDDLEWARE', 'Fallo al evaluar restricciones de licencia', e)
+
+# Inyecta variables de sistema (licenciamiento y actualizaciones) a todas las plantillas Jinja2
+@app.context_processor
+def inject_system_context():
+    try:
+        licensing = get_licensing_status()
+    except Exception:
+        licensing = None
+    try:
+        update_status = check_system_update_status()
+    except Exception:
+        update_status = {'available': False}
+    return {
+        'licensing_info': licensing,
+        'system_update': update_status
+    }
+
+
 # Registra los blueprints modulares desacoplados
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(production_bp)
@@ -78,6 +130,8 @@ app.register_blueprint(updater_bp)
 app.register_blueprint(admin_bp)
 # Registra el blueprint de mantenimiento industrial y pañol de repuestos
 app.register_blueprint(maintenance_bp)
+# Registra el blueprint de balanza de camiones
+app.register_blueprint(weighbridge_bp)
 
 # Ruta publica para servir el manifiesto PWA que permite la instalacion en celulares
 @app.route('/manifest.json')

@@ -17,7 +17,7 @@ import requests
 import hashlib
 
 # Importa variables de configuracion
-from config import BASE_DIR, DATABASE_PATH, DEFAULT_UPDATE_SERVER_URL
+from config import BASE_DIR, DATABASE_PATH, DEFAULT_UPDATE_SERVER_URL, PENDING_UPDATES_DIR, APPLIED_UPDATES_DIR
 # Importa el gestor de respaldos preventivos y restauracion
 from core.backup_manager import create_backup, restore_backup
 # Importa el motor de migraciones
@@ -240,3 +240,127 @@ def download_and_apply_remote_update(download_url, expected_sha256=None):
         # Limpia siempre el directorio temporal de descarga
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
+
+# Busca paquetes de actualizacion comprobados en updates/pending/
+def get_pending_local_update():
+    """
+    Busca paquetes de actualizacion (.zip) o manifiestos en la carpeta updates/pending/.
+    Permite detectar actualizaciones comprobadas descargadas o provistas para instalacion controlada.
+    """
+    if not os.path.exists(PENDING_UPDATES_DIR):
+        return None
+
+    # Primero busca manifest.json si existe en pending
+    manifest_path = os.path.join(PENDING_UPDATES_DIR, 'manifest.json')
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            pkg_filename = data.get('package_file')
+            pkg_path = os.path.join(PENDING_UPDATES_DIR, pkg_filename) if pkg_filename else None
+            if pkg_path and os.path.exists(pkg_path):
+                return {
+                    'available': True,
+                    'type': 'local',
+                    'filename': pkg_filename,
+                    'path': pkg_path,
+                    'version': data.get('version', '1.1.0'),
+                    'release_date': data.get('release_date', ''),
+                    'description': data.get('description', 'Paquete comprobado disponible para instalación.'),
+                    'changelog': data.get('changelog', [])
+                }
+        except Exception as e:
+            log_error('UPDATER', 'Error al leer manifest.json en updates/pending', e)
+
+    # Si no hay manifest.json, busca cualquier archivo .zip en PENDING_UPDATES_DIR
+    try:
+        items = sorted(os.listdir(PENDING_UPDATES_DIR))
+    except Exception:
+        items = []
+
+    for item in items:
+        if item.endswith('.zip'):
+            zip_path = os.path.join(PENDING_UPDATES_DIR, item)
+            version = '1.1.0'
+            changelog = []
+            desc = 'Paquete de actualización comprobado listo en disco local.'
+            rel_date = ''
+            try:
+                if zipfile.is_zipfile(zip_path):
+                    with zipfile.ZipFile(zip_path, 'r') as zf:
+                        if 'version.json' in zf.namelist():
+                            with zf.open('version.json') as vf:
+                                vdata = json.load(vf)
+                                version = vdata.get('version', version)
+                                changelog = vdata.get('changelog', [])
+                                desc = vdata.get('description', desc)
+                                rel_date = vdata.get('release_date', '')
+            except Exception:
+                pass
+
+            return {
+                'available': True,
+                'type': 'local',
+                'filename': item,
+                'path': zip_path,
+                'version': version,
+                'release_date': rel_date,
+                'description': desc,
+                'changelog': changelog
+            }
+
+    return None
+
+# Comprueba el estado general de actualizaciones (local comprobada prioritaria)
+def check_system_update_status():
+    """
+    Retorna el estado de disponibilidad de actualizaciones para notificaciones flotantes.
+    Prioriza paquetes locales validados en updates/pending/.
+    """
+    pending = get_pending_local_update()
+    if pending:
+        return {
+            'available': True,
+            'source': 'local',
+            'version': pending['version'],
+            'summary': pending.get('description', 'Hay una actualización verificada lista para ser aplicada.'),
+            'filename': pending.get('filename')
+        }
+    return {'available': False}
+
+# Aplica la actualizacion pendiente en disco y la archiva en applied
+def apply_pending_local_update(package_filename):
+    """
+    Aplica una actualizacion verificada desde updates/pending/ y la mueve a updates/applied/.
+    """
+    from datetime import datetime
+    if not package_filename:
+        raise ValueError("Nombre de paquete de actualización no especificado.")
+
+    clean_name = os.path.basename(package_filename)
+    source_path = os.path.join(PENDING_UPDATES_DIR, clean_name)
+    if not os.path.exists(source_path):
+        raise FileNotFoundError(f"No se encontró el paquete en updates/pending: {clean_name}")
+
+    # Aplica la actualizacion con el motor completo (backup + deploy + migrations + tests)
+    result = apply_update_package(source_path)
+
+    # Mueve el paquete procesado a applied
+    os.makedirs(APPLIED_UPDATES_DIR, exist_ok=True)
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    dest_path = os.path.join(APPLIED_UPDATES_DIR, f"{stamp}_{clean_name}")
+    try:
+        shutil.move(source_path, dest_path)
+    except Exception as e:
+        log_error('UPDATER', f'No se pudo archivar paquete {clean_name}', e)
+
+    # Limpia manifest.json si existia en pending
+    manifest_path = os.path.join(PENDING_UPDATES_DIR, 'manifest.json')
+    if os.path.exists(manifest_path):
+        try:
+            os.remove(manifest_path)
+        except Exception:
+            pass
+
+    return result
+

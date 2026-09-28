@@ -128,4 +128,191 @@
         </table>
     </div>
 </div>
+
+<!-- ========================================================================= -->
+<!-- SECCION 3: CONTROL DE LICENCIAMIENTO Y POLITICAS DE USO                   -->
+<!-- (Exclusivo para Administrador del Sistema - Desarrollado por puntoAR)     -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-top: 2rem; border-top: 4px solid #1e3a8a; background: #ffffff;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-size: 1.4rem;">🛡️</span>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0;">
+                    Control de Licenciamiento y Políticas de Uso
+                </h3>
+                <span style="background: {{ licensing.status_color }}; color: #ffffff; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px;">
+                    {{ licensing.status_label }}
+                </span>
+            </div>
+            <p style="color: #64748b; font-size: 0.85rem; margin: 0.35rem 0 0 0;">
+                Administración de derechos de uso, pruebas gratuitas (trial) y restricciones operativas programables sin afectar la estabilidad del sistema.
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Licencia%20BioBalcarce" class="btn" style="background: #f1f5f9; color: #1e3a8a; font-size: 0.82rem; border: 1px solid #cbd5e1;">
+                ✉️ Contactar a puntoAR
+            </a>
+        </div>
+    </div>
+
+    <!-- Panel de Informacion y Metricas de Licencia -->
+    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.5rem; gap: 1rem;">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.85rem;">
+            <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Cliente / Entidad</div>
+            <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-top: 0.2rem;">{{ licensing.client_name }}</div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.15rem;">Token: <code>{{ licensing.license_key }}</code></div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.85rem;">
+            <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Modalidad Vigente</div>
+            <div style="font-size: 1rem; font-weight: 700; color: #1e3a8a; margin-top: 0.2rem; text-transform: capitalize;">
+                {{ licensing.license_mode.replace('_', ' ') }}
+            </div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.15rem;">
+                {% if licensing.days_remaining is not none %}
+                    {% if licensing.days_remaining >= 0 %}
+                        {{ licensing.days_remaining }} días restantes
+                    {% else %}
+                        Vencida hace {{ licensing.days_remaining|abs }} días
+                    {% endif %}
+                {% else %}
+                    Sin fecha límite establecida
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.85rem;">
+            <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Vencimiento Programado</div>
+            <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin-top: 0.2rem;">{{ licensing.expiration_date or 'Indefinido' }}</div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.15rem;">Inicio: {{ licensing.start_date or '-' }}</div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.85rem;">
+            <div style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Estado Operativo</div>
+            <div style="font-size: 1rem; font-weight: 700; color: {{ licensing.status_color }}; margin-top: 0.2rem;">
+                {{ 'Activo' if licensing.is_active else 'Suspendido' }}
+            </div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.15rem;">
+                Máx. usuarios: {{ licensing.max_users }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario de Modificacion de Licencia -->
+    <form action="{{ url_for('config.update_licensing') }}" method="POST">
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.25rem;">
+            <h4 style="font-size: 1rem; font-weight: 700; color: #1e3a8a; margin: 0 0 1rem 0;">
+                Configurar Parámetros y Restricciones
+            </h4>
+
+            <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Cliente / Entidad Licenciada</label>
+                    <input type="text" name="client_name" class="form-input" value="{{ licensing.client_name }}" required>
+                </div>
+
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Modalidad de Licencia</label>
+                    <select name="license_mode" class="form-select" id="select_license_mode" onchange="actualizarModoLicencia(this.value)">
+                        <option value="libre_uso" {% if licensing.license_mode == 'libre_uso' %}selected{% endif %}>Libre Uso (Sin restricciones de tiempo)</option>
+                        <option value="trial" {% if licensing.license_mode == 'trial' %}selected{% endif %}>Período de Prueba (Trial 1 año o personalizado)</option>
+                        <option value="suscripcion" {% if licensing.license_mode == 'suscripcion' %}selected{% endif %}>Suscripción Comercial por Tiempo</option>
+                        <option value="bloqueado" {% if licensing.license_mode == 'bloqueado' %}selected{% endif %}>Bloqueo Administrativo Total</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Fecha de Expiración</label>
+                    <input type="date" name="expiration_date" id="input_exp_date" class="form-input" value="{{ licensing.expiration_date }}">
+                </div>
+
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Estado de Activación</label>
+                    <select name="is_active" class="form-select">
+                        <option value="1" {% if licensing.is_active == 1 %}selected{% endif %}>Habilitado (Activo)</option>
+                        <option value="0" {% if licensing.is_active == 0 %}selected{% endif %}>Inhabilitado (Suspendido)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Accesos rapidos para fijar fecha -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                <span style="font-size: 0.78rem; color: #64748b; align-self: center;">Preconfigurar expiración:</span>
+                <button type="button" class="btn" style="background: #e0f2fe; color: #0284c7; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="setTrialDate(365)">
+                    +1 Año de Prueba Gratis
+                </button>
+                <button type="button" class="btn" style="background: #e0f2fe; color: #0284c7; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="setTrialDate(180)">
+                    +6 Meses
+                </button>
+                <button type="button" class="btn" style="background: #e0f2fe; color: #0284c7; padding: 0.2rem 0.6rem; font-size: 0.75rem;" onclick="setTrialDate(30)">
+                    +30 Días
+                </button>
+            </div>
+
+            <!-- Restricciones programables -->
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem;">
+                    Restricciones a aplicar cuando venza el período o se bloquee la licencia:
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.82rem; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="block_dashboard" style="margin-top: 0.2rem;" {% if licensing.block_dashboard %}checked{% endif %}>
+                        <span><strong>Restringir Dashboard Ejecutivo</strong><br><small style="color: #64748b;">Muestra aviso de regularización en el panel</small></span>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.82rem; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="block_data_entry" style="margin-top: 0.2rem;" {% if licensing.block_data_entry %}checked{% endif %}>
+                        <span><strong>Restringir Carga de Datos Nuevos</strong><br><small style="color: #64748b;">Solo lectura de registros existentes</small></span>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.82rem; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="block_reports" style="margin-top: 0.2rem;" {% if licensing.block_reports %}checked{% endif %}>
+                        <span><strong>Restringir Exportación de Reportes / Excel</strong><br><small style="color: #64748b;">Bloquea descargas de informes</small></span>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.82rem; color: #334155; cursor: pointer;">
+                        <input type="checkbox" name="block_updates" style="margin-top: 0.2rem;" {% if licensing.block_updates %}checked{% endif %}>
+                        <span><strong>Restringir Nuevas Actualizaciones</strong><br><small style="color: #64748b;">Impide aplicar nuevas mejoras</small></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Token y Notas -->
+            <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Token / Clave de Licencia</label>
+                    <input type="text" name="license_key" class="form-input" value="{{ licensing.license_key }}" style="font-family: monospace;">
+                </div>
+                <div>
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Notas / Observaciones de Licencia</label>
+                    <input type="text" name="status_notes" class="form-input" value="{{ licensing.status_notes or '' }}" placeholder="Ej: Implementación inicial en planta Balcarce">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="background: #1e3a8a; font-weight: 700; padding: 0.6rem 1.5rem;">
+                Guardar Políticas de Licenciamiento &rarr;
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function setTrialDate(days) {
+    const today = new Date();
+    today.setDate(today.getDate() + days);
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('input_exp_date').value = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('select_license_mode').value = 'trial';
+}
+function actualizarModoLicencia(modo) {
+    if (modo === 'trial' && !document.getElementById('input_exp_date').value) {
+        setTrialDate(365);
+    }
+}
+</script>
 {% endblock %}

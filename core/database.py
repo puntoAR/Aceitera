@@ -545,13 +545,98 @@ def init_db():
         );
         """)
 
+        # Crea la tabla de pesadas y movimientos de balanza de camiones
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS truck_scale_weighings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_number TEXT,
+            weigh_date TEXT NOT NULL,
+            operation_type TEXT NOT NULL,
+            product TEXT NOT NULL,
+            truck_plate TEXT,
+            trailer_plate TEXT,
+            transport_company TEXT,
+            driver_name TEXT,
+            driver_dni TEXT,
+            gross_weight_kg REAL DEFAULT 0.0,
+            tare_weight_kg REAL DEFAULT 0.0,
+            net_weight_kg REAL DEFAULT 0.0,
+            net_weight_tons REAL DEFAULT 0.0,
+            origin TEXT,
+            destination TEXT,
+            seals_numbers TEXT,
+            notes TEXT,
+            operator_name TEXT,
+            shift_id TEXT,
+            sync_inventory INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+        # Crea la tabla de configuracion de licenciamiento y limitaciones programables
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS system_licensing_config (
+            id INTEGER PRIMARY KEY,
+            client_name TEXT DEFAULT 'BioBalcarce S.A.',
+            plan_name TEXT DEFAULT 'Plan Libre Uso Anual (puntoAR)',
+            license_mode TEXT DEFAULT 'libre_uso',
+            license_key TEXT DEFAULT 'PTAR-ACTV-2026-OK',
+            start_date TEXT DEFAULT '2026-09-01',
+            activation_date TEXT DEFAULT '2026-09-01',
+            expiration_date TEXT DEFAULT '2027-09-01',
+            is_active INTEGER DEFAULT 1,
+            max_active_users INTEGER DEFAULT 0,
+            max_users INTEGER DEFAULT 50,
+            block_dashboard INTEGER DEFAULT 0,
+            block_data_entry INTEGER DEFAULT 0,
+            block_reports INTEGER DEFAULT 0,
+            block_updates INTEGER DEFAULT 0,
+            status_notes TEXT DEFAULT 'Licencia inicial de planta',
+            custom_notice_message TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by TEXT
+        );
+        """)
+
         # Confirma las transacciones de creacion de tablas
         conn.commit()
+
+    # Asegura columnas y fila unica de licenciamiento
+    with get_db_connection() as conn:
+        ensure_licensing_schema(conn)
 
     # Ejecuta el llenado inicial de datos semilla para turnos y equipos base
     seed_initial_data()
     # Registra en el log la finalizacion exitosa de la inicializacion
     log_info('DATABASE', 'Base de datos y esquemas inicializados correctamente')
+
+# Asegura que la tabla system_licensing_config posea todas las columnas requeridas
+def ensure_licensing_schema(conn):
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(system_licensing_config);")
+    cols = {row[1] for row in cursor.fetchall()}
+    needed = [
+        ("client_name", "TEXT DEFAULT 'BioBalcarce S.A.'"),
+        ("license_key", "TEXT DEFAULT 'PTAR-ACTV-2026-OK'"),
+        ("start_date", "TEXT DEFAULT '2026-09-01'"),
+        ("is_active", "INTEGER DEFAULT 1"),
+        ("max_users", "INTEGER DEFAULT 50"),
+        ("status_notes", "TEXT DEFAULT 'Licencia inicial de planta'")
+    ]
+    for cname, cdef in needed:
+        if cname not in cols:
+            try:
+                cursor.execute(f"ALTER TABLE system_licensing_config ADD COLUMN {cname} {cdef};")
+            except Exception:
+                pass
+    # Asegura la existencia de la fila 1
+    cursor.execute("SELECT id FROM system_licensing_config WHERE id = 1;")
+    if not cursor.fetchone():
+        cursor.execute("""
+            INSERT OR IGNORE INTO system_licensing_config (id, client_name, license_mode, license_key, start_date, expiration_date, is_active, max_users)
+            VALUES (1, 'BioBalcarce S.A.', 'libre_uso', 'PTAR-ACTV-2026-OK', '2026-09-01', '2027-09-01', 1, 50);
+        """)
+    conn.commit()
 
 # Llena la base de datos con los equipos y parametros reales de BioBalcarce
 def seed_initial_data():
