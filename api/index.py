@@ -14,22 +14,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 try:
     # Importa la instancia de la aplicacion Flask desde run.py
     from run import app
-    # Exporta tambien como handler para compatibilidad con ejecutores WSGI de Vercel
+    # Exporta explicitamente como app para el runtime de Vercel
+    app = app
+    # Exporta tambien como handler para ejecutores WSGI compatibles
     handler = app
-# Captura cualquier falla durante el arranque de la funcion serverless
-except Exception as startup_err:
+# Captura cualquier falla durante el arranque de la funcion serverless (incluye BaseException)
+except BaseException as startup_err:
     # Captura la traza completa del fallo de arranque
     _err_trace = traceback.format_exc()
-    # Define la aplicacion WSGI de contingencia para reportar el error en pantalla
-    def emergency_handler(environ, start_response):
-        # Establece el codigo HTTP 500 de error interno
-        status = '500 Internal Server Error'
-        # Define cabeceras de respuesta en formato HTML UTF-8
-        response_headers = [('Content-Type', 'text/html; charset=utf-8')]
-        # Notifica las cabeceras al servidor WSGI
-        start_response(status, response_headers)
-        # Construye la plantilla HTML visual con el detalle tecnico del incidente
-        body = f"""<!DOCTYPE html>
+    # Emite la traza directamente a stderr para los registros de ejecucion de Vercel
+    sys.stderr.write(f"\n[CRITICAL STARTUP ERROR] {startup_err}\n{_err_trace}\n")
+    # Construye el contenido HTML de contingencia
+    emergency_html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -51,9 +47,31 @@ except Exception as startup_err:
     </div>
 </body>
 </html>"""
-        # Retorna el cuerpo codificado en bytes
-        return [body.encode('utf-8')]
-    # Asigna el handler de contingencia como app
-    app = emergency_handler
-    # Asigna tambien a handler
-    handler = emergency_handler
+    # Intenta instanciar una aplicacion Flask valida para @vercel/python
+    try:
+        # Importa la clase Flask y generador de respuestas
+        from flask import Flask, make_response
+        # Crea aplicacion Flask de emergencia
+        emergency_app = Flask(__name__)
+        # Configura ruta universal para atrapar cualquier peticion
+        @emergency_app.route('/', defaults={'path': ''})
+        @emergency_app.route('/<path:path>')
+        def catch_all_emergency(path):
+            # Retorna el mensaje de error con codigo HTTP 500
+            return make_response(emergency_html, 500, {'Content-Type': 'text/html; charset=utf-8'})
+        # Asigna la aplicacion de emergencia como app oficial
+        app = emergency_app
+        # Asigna tambien a handler
+        handler = emergency_app
+    # Si Flask tampoco esta disponible recurre a WSGI nativo
+    except BaseException:
+        # Define funcion WSGI pura de emergencia
+        def emergency_handler(environ, start_response):
+            # Envia codigo 500
+            start_response('500 Internal Server Error', [('Content-Type', 'text/html; charset=utf-8')])
+            # Retorna cuerpo en bytes
+            return [emergency_html.encode('utf-8')]
+        # Asigna handler WSGI
+        app = emergency_handler
+        # Asigna handler WSGI
+        handler = emergency_handler

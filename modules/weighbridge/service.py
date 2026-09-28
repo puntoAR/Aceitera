@@ -2,8 +2,16 @@
 import io
 import csv
 import datetime
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+# Intento protegido de importacion de la libreria openpyxl para manipular planillas Excel
+try:
+    # Importa el modulo openpyxl
+    import openpyxl
+    # Importa clases de formato y estilo para celdas Excel
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+# Captura la ausencia de openpyxl en entornos restringidos
+except ImportError:
+    # Asigna None para permitir la carga del servicio sin dependencias obligatorias
+    openpyxl = None
 from core.database import get_db_connection
 from core.timezone import get_plant_now_str
 from core.audit import record_audit_event
@@ -236,6 +244,10 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
         reader = csv.reader(io.StringIO(content), delimiter=delimiter)
         raw_rows = list(reader)
     elif filename.endswith(('.xlsx', '.xls')):
+        # Verifica que openpyxl este instalado antes de abrir el libro
+        if openpyxl is None:
+            # Lanza error si no se encuentra la biblioteca necesaria
+            raise ValueError("El soporte para archivos Excel (.xlsx) requiere la librería openpyxl instalada.")
         # Procesa archivo Excel con openpyxl
         if isinstance(file_storage, bytes):
             wb = openpyxl.load_workbook(io.BytesIO(file_storage), data_only=True)
@@ -415,6 +427,10 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
 
 # Exporta los registros a un archivo Excel (.xlsx) estructurado
 def export_weighings_to_excel(weighings=None, as_stream=False):
+    # Verifica la disponibilidad de la libreria openpyxl
+    if openpyxl is None:
+        # Lanza excepcion descriptiva si no se encuentra instalada
+        raise RuntimeError("La exportación a formato Excel requiere la librería openpyxl instalada.")
     if weighings is None:
         weighings = get_recent_weighings(limit=5000)
     wb = openpyxl.Workbook()
