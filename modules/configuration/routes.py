@@ -14,6 +14,8 @@ from core.error_logger import log_info, log_error
 from core.audit import record_audit_event
 # Importa funciones de gestion de licenciamiento puntoAR
 from core.licensing import get_licensing_status, update_licensing_config
+# Importa utilidades de conversion numerica segura
+from core.utils import safe_float, safe_int
 
 # Define el Blueprint para las rutas de configuracion
 config_bp = Blueprint('config', __name__, url_prefix='/config')
@@ -42,11 +44,11 @@ def update_tank(tank_id):
         # Extrae los parametros del formulario
         name = request.form.get('name')
         geometry_type = request.form.get('geometry_type')
-        diameter_m = float(request.form.get('diameter_m', 0.0))
-        length_m = float(request.form.get('length_m', 0.0))
-        height_m = float(request.form.get('height_m', 0.0))
-        heel_volume_l = float(request.form.get('heel_volume_l', 0.0))
-        default_density = float(request.form.get('default_density', 0.92))
+        diameter_m = safe_float(request.form.get('diameter_m'), 0.0)
+        length_m = safe_float(request.form.get('length_m'), 0.0)
+        height_m = safe_float(request.form.get('height_m'), 0.0)
+        heel_volume_l = safe_float(request.form.get('heel_volume_l'), 0.0)
+        default_density = safe_float(request.form.get('default_density'), 0.92)
         is_active = 1 if request.form.get('is_active') == 'on' else 0
         # Actualiza la configuracion del tanque en base de datos
         update_tank_config(tank_id, name, geometry_type, diameter_m, length_m, height_m, heel_volume_l, default_density, is_active)
@@ -68,17 +70,17 @@ def update_tank(tank_id):
 def update_silo(silo_id):
     # Bloque para captura de excepciones
     try:
-        # Extrae datos del formulario
+        # Extrae datos del formulario de forma segura
         name = request.form.get('name')
         product_assigned = request.form.get('product_assigned')
-        diameter_m = float(request.form.get('diameter_m', 0.0))
-        sheet_height_m = float(request.form.get('sheet_height_m', 0.99))
-        total_sheets = int(request.form.get('total_sheets', 1))
-        bottom_cone_height_m = float(request.form.get('bottom_cone_height_m', 0.0))
+        diameter_m = safe_float(request.form.get('diameter_m'), 0.0)
+        sheet_height_m = safe_float(request.form.get('sheet_height_m'), 0.99)
+        total_sheets = safe_int(request.form.get('total_sheets'), 1)
+        bottom_cone_height_m = safe_float(request.form.get('bottom_cone_height_m'), 0.0)
         bottom_cone_type = request.form.get('bottom_cone_type', 'cone')
-        min_diam_m = float(request.form.get('bottom_cone_min_diam_m', 0.0))
-        copete_max_height_m = float(request.form.get('copete_max_height_m', 0.0))
-        default_ph = float(request.form.get('default_ph', 40.0))
+        min_diam_m = safe_float(request.form.get('bottom_cone_min_diam_m'), 0.0)
+        copete_max_height_m = safe_float(request.form.get('copete_max_height_m'), 0.0)
+        default_ph = safe_float(request.form.get('default_ph'), 40.0)
         is_active = 1 if request.form.get('is_active') == 'on' else 0
         # Actualiza la configuracion del silo
         update_silo_config(silo_id, name, product_assigned, diameter_m, sheet_height_m, total_sheets,
@@ -129,7 +131,7 @@ def update_licensing():
         expiration_date = request.form.get('expiration_date', '')
         start_date = request.form.get('start_date', '')
         license_key = request.form.get('license_key', '')
-        max_users = int(request.form.get('max_users', 50))
+        max_users = safe_int(request.form.get('max_users'), 50)
         is_active = 1 if request.form.get('is_active') == '1' else 0
         block_dashboard = 1 if request.form.get('block_dashboard') == 'on' else 0
         block_data_entry = 1 if request.form.get('block_data_entry') == 'on' else 0

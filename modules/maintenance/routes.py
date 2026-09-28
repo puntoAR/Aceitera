@@ -18,6 +18,8 @@ import csv
 import io
 # Importa funcion de registro de excepciones tecnicas
 from core.error_logger import log_error
+# Importa utilidades de conversion numerica segura
+from core.utils import safe_float, safe_int
 
 # Crea el Blueprint para el modulo de mantenimiento
 maintenance_bp = Blueprint('maintenance', __name__, url_prefix='/maintenance')
@@ -184,9 +186,9 @@ def save_spare_part():
         # Indicador de consumible (1 si esta marcado, 0 si no)
         is_consumable = request.form.get('is_consumable') == '1'
         # Stock actual inicial
-        stock_quantity = float(request.form.get('stock_quantity', 0.0))
+        stock_quantity = safe_float(request.form.get('stock_quantity'), 0.0)
         # Stock minimo de seguridad
-        min_stock = float(request.form.get('min_stock', 0.0))
+        min_stock = safe_float(request.form.get('min_stock'), 0.0)
         # Unidad de medida
         unit = request.form.get('unit', 'unidades')
         # Ubicacion fisica
@@ -197,7 +199,7 @@ def save_spare_part():
         saved_id = create_or_update_spare_part(
             code, name, category, equipment_assigned, is_consumable,
             stock_quantity, min_stock, unit, location, notes,
-            part_id=int(part_id) if part_id else None
+            part_id=safe_int(part_id, default=None)
         )
         # Emite mensaje flash
         flash(f"Repuesto '{code}' guardado correctamente.", "success")
@@ -215,11 +217,13 @@ def spare_part_movement():
     # Bloque de captura
     try:
         # ID del repuesto
-        part_id = int(request.form.get('spare_part_id'))
+        part_id = safe_int(request.form.get('spare_part_id'), default=None)
+        if not part_id:
+            raise ValueError("Debe seleccionar un repuesto válido.")
         # Tipo de movimiento
         movement_type = request.form.get('movement_type')
         # Cantidad del movimiento
-        quantity = float(request.form.get('quantity', 0.0))
+        quantity = safe_float(request.form.get('quantity'), 0.0)
         # Motivo o reparacion
         reason = request.form.get('reason', '')
         # Actividad vinculada opcional
@@ -229,7 +233,7 @@ def spare_part_movement():
         # Registra el movimiento mediante el servicio
         new_stock = record_spare_part_movement(
             part_id, movement_type, quantity, operator_name,
-            reason=reason, activity_id=int(activity_id) if activity_id else None
+            reason=reason, activity_id=safe_int(activity_id, default=None)
         )
         # Emite mensaje flash
         flash(f"Movimiento de stock asentado con éxito. Nuevo stock: {new_stock}.", "success")

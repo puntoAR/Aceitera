@@ -13,6 +13,8 @@ from modules.configuration.service import get_active_shift
 from core.error_logger import log_error
 # Importa auditoria de eventos
 from core.audit import record_audit_event
+# Importa utilidades de conversion numerica segura
+from core.utils import safe_float
 
 # Define el Blueprint para produccion
 production_bp = Blueprint('production', __name__, url_prefix='/production')
@@ -43,9 +45,9 @@ def add_weighing():
         shift_id = request.form.get('shift_id')
         operator_name = request.form.get('operator_name')
         sample_point = request.form.get('sample_point')
-        gross_weight_kg = float(request.form.get('gross_weight_kg', 0.0))
-        tare_weight_kg = float(request.form.get('tare_weight_kg', 0.0))
-        fill_time_seconds = float(request.form.get('fill_time_seconds', 0.0))
+        gross_weight_kg = safe_float(request.form.get('gross_weight_kg'), 0.0)
+        tare_weight_kg = safe_float(request.form.get('tare_weight_kg'), 0.0)
+        fill_time_seconds = safe_float(request.form.get('fill_time_seconds'), 0.0)
         line_status = request.form.get('line_status', 'operando')
         notes = request.form.get('notes', '')
         # Registra la pesada mediante el servicio
@@ -71,9 +73,9 @@ def add_weighing():
 def add_stop():
     # Bloque de captura de errores
     try:
-        # Extrae datos de la parada
+        # Extrae datos de la parada de forma segura
         shift_id = request.form.get('shift_id')
-        duration_minutes = float(request.form.get('duration_minutes', 0.0))
+        duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
         reason = request.form.get('reason', 'Mantenimiento / Despeje')
         operator_name = request.form.get('operator_name', 'Operario')
         # Registra la parada

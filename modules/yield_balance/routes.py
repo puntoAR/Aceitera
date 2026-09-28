@@ -13,6 +13,8 @@ from modules.laboratory.service import get_shift_lab_averages
 from core.error_logger import log_error
 # Importa auditoria
 from core.audit import record_audit_event
+# Importa utilidades de conversion numerica segura
+from core.utils import safe_float
 
 # Define Blueprint de rendimiento y balance
 yield_bp = Blueprint('yield', __name__, url_prefix='/yield')
@@ -49,15 +51,15 @@ def index():
 def add_reconciliation():
     # Bloque de captura de errores
     try:
-        # Extrae valores del formulario
+        # Extrae valores del formulario de forma segura
         shift_id = request.form.get('shift_id')
-        seed_processed_kg = float(request.form.get('seed_processed_kg', 0.0))
-        expeller_produced_kg = float(request.form.get('expeller_produced_kg', 0.0))
-        oil_produced_kg = float(request.form.get('oil_produced_kg', 0.0))
-        seed_fat_pct = float(request.form.get('seed_fat_pct', 45.0))
-        expeller_fat_pct = float(request.form.get('expeller_fat_pct', 10.0))
-        identified_waste_kg = float(request.form.get('identified_waste_kg', 0.0))
-        moisture_loss_kg = float(request.form.get('moisture_loss_kg', 0.0))
+        seed_processed_kg = safe_float(request.form.get('seed_processed_kg'), 0.0)
+        expeller_produced_kg = safe_float(request.form.get('expeller_produced_kg'), 0.0)
+        oil_produced_kg = safe_float(request.form.get('oil_produced_kg'), 0.0)
+        seed_fat_pct = safe_float(request.form.get('seed_fat_pct'), 45.0)
+        expeller_fat_pct = safe_float(request.form.get('expeller_fat_pct'), 10.0)
+        identified_waste_kg = safe_float(request.form.get('identified_waste_kg'), 0.0)
+        moisture_loss_kg = safe_float(request.form.get('moisture_loss_kg'), 0.0)
         notes = request.form.get('notes', '')
         # Ejecuta la conciliacion
         result = reconcile_shift(

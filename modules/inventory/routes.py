@@ -12,6 +12,8 @@ from modules.configuration.service import get_all_tanks, get_all_silos, get_acti
 from core.error_logger import log_error
 # Importa modulo de auditoria
 from core.audit import record_audit_event
+# Importa utilidades de parseo numerico seguro
+from core.utils import safe_float, safe_int
 
 # Define el Blueprint de inventario
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
@@ -37,12 +39,18 @@ def index():
 def add_tank_reading():
     # Bloque de captura de errores
     try:
-        # Extrae datos del formulario
-        tank_id = int(request.form.get('tank_id'))
-        level_m = float(request.form.get('level_m', 0.0))
+        # Extrae datos del formulario de forma segura
+        tank_id = safe_int(request.form.get('tank_id'))
+        level_m = safe_float(request.form.get('level_m'), 0.0)
         shift_id = request.form.get('shift_id')
         operator_name = request.form.get('operator_name')
-        density_override = float(request.form.get('density_override', 0.0)) or None
+        density_override = safe_float(request.form.get('density_override'), default=None)
+        if density_override is not None and density_override <= 0:
+            density_override = None
+
+        if not tank_id:
+            raise ValueError("Debe seleccionar un tanque válido.")
+
         # Registra el nivel mediante el servicio
         result = record_tank_level(tank_id, level_m, shift_id, operator_name, density_override)
         # Registra en auditoria
@@ -63,15 +71,21 @@ def add_tank_reading():
 def add_silo_reading():
     # Bloque de captura de excepciones
     try:
-        # Extrae datos del formulario
-        silo_id = int(request.form.get('silo_id'))
-        covered_sheets = float(request.form.get('covered_sheets', 0.0))
-        partial_sheet_h = float(request.form.get('partial_sheet_height_m', 0.0))
+        # Extrae datos del formulario de forma segura
+        silo_id = safe_int(request.form.get('silo_id'))
+        covered_sheets = safe_float(request.form.get('covered_sheets'), 0.0)
+        partial_sheet_h = safe_float(request.form.get('partial_sheet_height_m'), 0.0)
         cone_status = request.form.get('cone_occupied_status', 'lleno')
-        copete_height_m = float(request.form.get('copete_height_m', 0.0))
-        ph_override = float(request.form.get('ph_override', 0.0)) or None
+        copete_height_m = safe_float(request.form.get('copete_height_m'), 0.0)
+        ph_override = safe_float(request.form.get('ph_override'), default=None)
+        if ph_override is not None and ph_override <= 0:
+            ph_override = None
         shift_id = request.form.get('shift_id')
         operator_name = request.form.get('operator_name')
+
+        if not silo_id:
+            raise ValueError("Debe seleccionar un silo válido.")
+
         # Registra cubicaje de silo
         result = record_silo_measurement(
             silo_id, covered_sheets, partial_sheet_h, cone_status,
@@ -95,16 +109,20 @@ def add_silo_reading():
 def add_movement():
     # Bloque de captura de errores
     try:
-        # Extrae datos del formulario
+        # Extrae datos del formulario de forma segura
         product = request.form.get('product')
         movement_type = request.form.get('movement_type')
         origin = request.form.get('origin', '')
         destination = request.form.get('destination', '')
-        quantity_kg = float(request.form.get('quantity_kg', 0.0))
+        quantity_kg = safe_float(request.form.get('quantity_kg'), 0.0)
         document_ref = request.form.get('document_ref', '')
         shift_id = request.form.get('shift_id')
         operator_name = request.form.get('operator_name')
         notes = request.form.get('notes', '')
+
+        if not product or not movement_type:
+            raise ValueError("Producto y tipo de movimiento son campos obligatorios.")
+
         # Registra el movimiento
         record_inventory_movement(product, movement_type, origin, destination, quantity_kg, document_ref, shift_id, operator_name, notes)
         # Registra en auditoria

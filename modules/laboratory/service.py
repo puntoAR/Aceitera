@@ -15,6 +15,8 @@ from core.error_logger import log_info, log_error
 from core.audit import record_audit_event
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
 from core.timezone import get_plant_now_str
+# Importa utilidades de conversion numerica segura
+from core.utils import safe_float, safe_int
 
 # Registra una determinacion analitica de laboratorio con calculo de parametros o ingreso directo
 def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes='', press_number=None):
@@ -52,19 +54,19 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
 
     # Prioridad A: Entrada directa de porcentajes si fueron provistos en el formulario rapido
     if raw_data.get('direct_moisture_pct') is not None and str(raw_data.get('direct_moisture_pct')).strip() != '':
-        moisture_pct = float(raw_data['direct_moisture_pct'])
+        moisture_pct = safe_float(raw_data.get('direct_moisture_pct'), default=None)
     if raw_data.get('direct_fat_pct') is not None and str(raw_data.get('direct_fat_pct')).strip() != '':
-        fat_pct = float(raw_data['direct_fat_pct'])
+        fat_pct = safe_float(raw_data.get('direct_fat_pct'), default=None)
     if raw_data.get('direct_acidity_pct') is not None and str(raw_data.get('direct_acidity_pct')).strip() != '':
-        acidity_pct = float(raw_data['direct_acidity_pct'])
+        acidity_pct = safe_float(raw_data.get('direct_acidity_pct'), default=None)
     if raw_data.get('direct_fm_pct') is not None and str(raw_data.get('direct_fm_pct')).strip() != '':
-        foreign_matter_pct = float(raw_data['direct_fm_pct'])
+        foreign_matter_pct = safe_float(raw_data.get('direct_fm_pct'), default=None)
 
     # Prioridad B: Calculo de humedad si se proveyeron pesadas gravimetricas y no se paso directo
     if moisture_pct is None and raw_data.get('moisture_initial_g') and raw_data.get('moisture_dry_g'):
-        init_g = float(raw_data['moisture_initial_g'])
-        dry_g = float(raw_data['moisture_dry_g'])
-        tare_g = float(raw_data.get('moisture_tare_g', 0.0))
+        init_g = safe_float(raw_data.get('moisture_initial_g'), 0.0)
+        dry_g = safe_float(raw_data.get('moisture_dry_g'), 0.0)
+        tare_g = safe_float(raw_data.get('moisture_tare_g'), 0.0)
         # Si se especifico tara de capsula
         if tare_g > 0:
             moisture_pct = calculate_moisture_with_tare(tare_g, init_g, dry_g)
@@ -73,23 +75,23 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
 
     # Prioridad C: Calculo de materia grasa si se proveyeron pesadas gravimetricas y no se paso directo
     if fat_pct is None and raw_data.get('fat_sample_g') and raw_data.get('fat_final_flask_g') and raw_data.get('fat_tare_flask_g'):
-        sample_g = float(raw_data['fat_sample_g'])
-        final_flask_g = float(raw_data['fat_final_flask_g'])
-        tare_flask_g = float(raw_data['fat_tare_flask_g'])
+        sample_g = safe_float(raw_data.get('fat_sample_g'), 0.0)
+        final_flask_g = safe_float(raw_data.get('fat_final_flask_g'), 0.0)
+        tare_flask_g = safe_float(raw_data.get('fat_tare_flask_g'), 0.0)
         fat_pct = calculate_fat_pct(sample_g, final_flask_g, tare_flask_g)
 
     # Prioridad D: Calculo de materia extrana si se proveyeron datos de zarandeo
     if foreign_matter_pct is None and raw_data.get('fm_sample_g') and raw_data.get('fm_impurities_g'):
-        fm_sample_g = float(raw_data['fm_sample_g'])
-        fm_impurities_g = float(raw_data['fm_impurities_g'])
+        fm_sample_g = safe_float(raw_data.get('fm_sample_g'), 0.0)
+        fm_impurities_g = safe_float(raw_data.get('fm_impurities_g'), 0.0)
         foreign_matter_pct = calculate_foreign_matter_pct(fm_sample_g, fm_impurities_g)
 
     # Prioridad E: Calculo de acidez libre si es aceite vegetal y se titularon muestras
     if acidity_pct is None and product == 'aceite' and raw_data.get('acidity_sample_g') and raw_data.get('acidity_naoh_ml'):
-        acidity_sample_g = float(raw_data['acidity_sample_g'])
-        naoh_ml = float(raw_data['acidity_naoh_ml'])
-        naoh_n = float(raw_data.get('acidity_naoh_normality', 0.0997))
-        ft = float(raw_data.get('acidity_ft_factor', 0.282))
+        acidity_sample_g = safe_float(raw_data.get('acidity_sample_g'), 0.0)
+        naoh_ml = safe_float(raw_data.get('acidity_naoh_ml'), 0.0)
+        naoh_n = safe_float(raw_data.get('acidity_naoh_normality'), 0.0997)
+        ft = safe_float(raw_data.get('acidity_ft_factor'), 0.282)
         acidity_pct = calculate_oil_acidity_pct(acidity_sample_g, naoh_ml, naoh_n, ft)
 
     # Estampa de tiempo oficial de planta (Argentina UTC-3)
@@ -325,11 +327,11 @@ def record_oil_truck_dispatch(shift_id, operator_name, truck_plate, trailer_plat
     status = str(transport_status).strip()
     seals = str(seals_numbers).strip()
     sample_deliv = 'SI' if str(sample_delivered).strip().upper() in ('SI', 'S', '1', 'TRUE', 'YES') else 'NO'
-    qty_kg = float(quantity_kg or 0.0)
+    qty_kg = safe_float(quantity_kg, 0.0)
     qty_tons = round(qty_kg / 1000.0, 3)
-    tank_id = int(tank_source_id) if tank_source_id else None
-    temp_c = float(oil_temperature_c) if oil_temperature_c else None
-    acid_pct = float(oil_acidity_pct) if oil_acidity_pct else None
+    tank_id = safe_int(tank_source_id, default=None)
+    temp_c = safe_float(oil_temperature_c, default=None)
+    acid_pct = safe_float(oil_acidity_pct, default=None)
 
     # Valida que los datos criticos no esten vacios
     if not plate or not driver or not seals or not status:

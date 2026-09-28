@@ -10,6 +10,7 @@ from modules.weighbridge.service import (
 )
 from core.error_logger import log_error
 from core.timezone import get_plant_now_str
+from core.utils import safe_float
 
 # Define el Blueprint de balanza
 weighbridge_bp = Blueprint('weighbridge', __name__, url_prefix='/weighbridge')
@@ -61,9 +62,9 @@ def add_weighing():
         transport_company = request.form.get('transport_company')
         driver_name = request.form.get('driver_name')
         driver_dni = request.form.get('driver_dni')
-        gross_weight = float(request.form.get('gross_weight_kg', 0.0))
-        tare_weight = float(request.form.get('tare_weight_kg', 0.0))
-        net_weight = float(request.form.get('net_weight_kg', 0.0)) if request.form.get('net_weight_kg') else None
+        gross_weight = safe_float(request.form.get('gross_weight_kg'), 0.0)
+        tare_weight = safe_float(request.form.get('tare_weight_kg'), 0.0)
+        net_weight = safe_float(request.form.get('net_weight_kg'), default=None)
         origin = request.form.get('origin')
         destination = request.form.get('destination')
         seals_numbers = request.form.get('seals_numbers')
