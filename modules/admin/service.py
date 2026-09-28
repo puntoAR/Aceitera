@@ -89,25 +89,101 @@ def reject_user(user_id):
     )
     return True
 
-# Blanquea la contrasena de un usuario asignando una clave segura provisoria
-def admin_blanquear_password(user_id):
-    # Genera una contrasena segura y memorable
-    temp_password = generate_secure_password(length=8)
-    # Actualiza la contrasena en la base de datos y marca cambio obligatorio
-    reset_user_password(user_id, temp_password, must_change=True)
+# Blanquea o actualiza la contrasena de un usuario asignando una clave provisoria o personalizada
+def admin_blanquear_password(user_id, custom_password=None, must_change=True):
+    # Si se especifico una clave personalizada no vacia
+    if custom_password and str(custom_password).strip():
+        # Utiliza la clave personalizada provista
+        temp_password = str(custom_password).strip()
+    else:
+        # Genera una contrasena segura y memorable
+        temp_password = generate_secure_password(length=8)
+    # Actualiza la contrasena en la base de datos y define flag de cambio obligatorio
+    reset_user_password(user_id, temp_password, must_change=must_change)
     
     # Obtiene datos del usuario para auditoria
     with get_db_connection() as conn:
+        # Consulta los datos identificatorios del usuario
         u = conn.execute("SELECT full_name, username, dni FROM users WHERE id = ?;", (user_id,)).fetchone()
+
+    # Registra el evento en auditoria con el detalle de credenciales
+    record_audit_event(
+        category='USUARIOS',
+        action='BLANQUEO_PASSWORD',
+        details=f"Blanqueo de contraseña realizado por el Administrador para {u['full_name']} (Usuario: {u['username']}, DNI: {u['dni']}). Cambio obligatorio: {'SI' if must_change else 'NO'}."
+    )
+    # Retorna la clave temporal para comunicarsela al usuario
+    return temp_password
+
+# Actualiza los datos de perfil de un usuario existente en el sistema
+def admin_update_user(user_id, username, full_name, dni, phone, role):
+    # Limpia y normaliza el nombre de usuario
+    u_name = str(username).strip()
+    # Limpia y normaliza el nombre completo
+    f_name = str(full_name).strip()
+    # Limpia y normaliza el documento de identidad
+    d_num = str(dni).strip()
+    # Limpia y normaliza el numero de telefono
+    p_num = str(phone).strip() if phone else ""
+    # Limpia y normaliza el rol
+    r_val = str(role).strip()
+
+    # Valida que los campos criticos no esten vacios
+    if not u_name:
+        # Lanza error si falta el nombre de usuario
+        raise ValueError("El nombre de usuario es obligatorio.")
+    if not f_name:
+        # Lanza error si falta el nombre y apellido
+        raise ValueError("El nombre y apellido son obligatorios.")
+    if not d_num:
+        # Lanza error si falta el DNI
+        raise ValueError("El número de DNI es obligatorio.")
+
+    # Valida que el rol seleccionado sea valido
+    if r_val not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
+        # Lanza error si el rol no es valido
+        raise ValueError(f"Rol '{r_val}' no permitido. Debe ser: usuario, gerencia o admin_sistema.")
+
+    # Abre conexion para verificar unicidad y actualizar datos
+    with get_db_connection() as conn:
+        # Comprueba que el usuario a editar exista
+        cur_u = conn.execute("SELECT id, username, full_name, dni, phone, role FROM users WHERE id = ?;", (user_id,)).fetchone()
+        # Si no existe el registro
+        if not cur_u:
+            # Lanza excepcion de usuario no encontrado
+            raise ValueError(f"Usuario con ID {user_id} no encontrado.")
+
+        # Verifica unicidad del nombre de usuario descartando el mismo usuario
+        dup_u = conn.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?;", (u_name, user_id)).fetchone()
+        # Si otro usuario ya tiene ese nombre de usuario
+        if dup_u:
+            # Lanza error de duplicidad
+            raise ValueError(f"El nombre de usuario '{u_name}' ya está en uso por otra cuenta.")
+
+        # Verifica unicidad del DNI descartando el mismo usuario
+        dup_d = conn.execute("SELECT id FROM users WHERE dni = ? AND id != ?;", (d_num, user_id)).fetchone()
+        # Si otro usuario ya tiene ese DNI registrado
+        if dup_d:
+            # Lanza error de duplicidad
+            raise ValueError(f"El DNI '{d_num}' ya se encuentra registrado en otra cuenta.")
+
+        # Actualiza los datos del usuario en la base de datos
+        conn.execute("""
+            UPDATE users
+            SET username = ?, full_name = ?, dni = ?, phone = ?, role = ?
+            WHERE id = ?;
+        """, (u_name, f_name, d_num, p_num, r_val, user_id))
+        # Confirma la transaccion
+        conn.commit()
 
     # Registra el evento en auditoria
     record_audit_event(
         category='USUARIOS',
-        action='BLANQUEO_PASSWORD',
-        details=f"Blanqueo de contraseña realizado por el Administrador para {u['full_name']} (DNI {u['dni']}). Clave provisoria generada."
+        action='EDICION_PERFIL',
+        details=f"Perfil actualizado para {f_name} (ID {user_id}): @{cur_u['username']} -> @{u_name}, DNI: {d_num}, Rol: {r_val}."
     )
-    # Retorna la clave temporal para comunicarsela al usuario
-    return temp_password
+    # Retorna confirmacion de exito
+    return True
 
 # Actualiza el rol de un usuario existente
 def change_user_role(user_id, new_role):

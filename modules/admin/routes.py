@@ -1,6 +1,8 @@
 # Modulo de rutas web para la administracion de usuarios, aprobaciones, auditoria y errores
-# Importa Blueprint, render_template, request, redirect, url_for, flash de Flask
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+# Importa Blueprint, render_template, request, redirect, url_for, flash, session de Flask
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+# Importa la conexion a base de datos
+from core.database import get_db_connection
 # Importa los decoradores de seguridad
 from core.security import roles_required
 # Importa las funciones del servicio de administracion
@@ -8,7 +10,7 @@ from modules.admin.service import (
     get_pending_users, get_all_users, approve_user, reject_user,
     admin_blanquear_password, change_user_role, toggle_user_active,
     get_audit_logs, get_system_errors, resolve_system_error,
-    admin_create_user
+    admin_create_user, admin_update_user
 )
 
 # Crea el blueprint de administracion
@@ -23,15 +25,18 @@ def users_list():
     pending = get_pending_users()
     # Obtiene lista general de usuarios
     users = get_all_users()
+    # Extrae credenciales del ultimo blanqueo si existieran para mostrarlas destacadas
+    last_reset_creds = session.pop('last_reset_creds', None)
     # Informacion sobre el estado de persistencia de almacenamiento
     from config import IS_VERCEL, USE_TURSO
+    # Define diccionario con el estado del almacenamiento
     storage_status = {
         'is_vercel': IS_VERCEL,
         'use_turso': USE_TURSO,
         'is_ephemeral': IS_VERCEL and not USE_TURSO
     }
-    # Renderiza la plantilla de gestion de usuarios
-    return render_template('admin_users.html', pending=pending, users=users, storage_status=storage_status)
+    # Renderiza la plantilla de gestion de usuarios con todas las variables necesarias
+    return render_template('admin_users.html', pending=pending, users=users, storage_status=storage_status, last_reset_creds=last_reset_creds)
 
 # Endpoint para la creacion directa de un nuevo perfil de usuario por el Administrador
 @admin_bp.route('/users/create', methods=['POST'])
@@ -96,16 +101,81 @@ def reject_user_route(user_id):
         flash(f'Error al procesar el rechazo: {e}', 'danger')
     return redirect(url_for('admin.users_list'))
 
-# Endpoint para blanquear la contrasena de un usuario
+# Endpoint para blanquear o reasignar la contrasena de un usuario
 @admin_bp.route('/users/reset-password/<int:user_id>', methods=['POST'])
+# Requiere rol exclusivo de administrador del sistema
 @roles_required('admin_sistema')
 def reset_password_route(user_id):
+    # Obtiene la clave personalizada si fue provista en el formulario
+    custom_pwd = request.form.get('custom_password', '').strip()
+    # Verifica si se tildo la casilla para exigir cambio obligatorio
+    must_change = request.form.get('must_change') == '1'
+    # Bloque de captura de errores para la operacion
     try:
-        # Ejecuta el blanqueo y obtiene la clave provisoria generada
-        new_pwd = admin_blanquear_password(user_id)
-        flash(f'Contraseña blanqueada con éxito. Clave provisoria generada: {new_pwd} (Se solicitará cambio obligatorio en su primer ingreso).', 'warning')
+        # Consulta los datos identificatorios del usuario en base de datos
+        with get_db_connection() as conn:
+            # Obtiene el registro completo del usuario
+            u = conn.execute("SELECT id, username, full_name, dni, phone FROM users WHERE id = ?;", (user_id,)).fetchone()
+            # Si el usuario no fue encontrado
+            if not u:
+                # Lanza excepcion de validacion
+                raise ValueError("El usuario solicitado no existe.")
+        # Ejecuta el blanqueo o asignacion de clave personalizada
+        new_pwd = admin_blanquear_password(user_id, custom_password=custom_pwd if custom_pwd else None, must_change=must_change)
+        # Guarda las credenciales generadas en la sesion para el banner informativo
+        session['last_reset_creds'] = {
+            # Nombre de usuario para iniciar sesion
+            'username': u['username'],
+            # Nombre completo del titular
+            'full_name': u['full_name'],
+            # DNI alternativo para login
+            'dni': u['dni'] or '-',
+            # Telefono de contacto
+            'phone': u['phone'] or '',
+            # Clave asignada
+            'password': new_pwd,
+            # Indicador de obligatoriedad de cambio
+            'must_change': must_change
+        }
+        # Emite notificacion flash con datos claros de acceso
+        flash(f"Contraseña actualizada para {u['full_name']}. Usuario login: '{u['username']}' (o DNI: '{u['dni']}') | Nueva clave: '{new_pwd}'", 'success')
+    # Captura errores controlados o imprevistos
     except Exception as e:
+        # Emite alerta de peligro con el mensaje de error
         flash(f'Error al blanquear contraseña: {e}', 'danger')
+    # Redirige de regreso al panel de administracion de usuarios
+    return redirect(url_for('admin.users_list'))
+
+# Endpoint para editar los datos de perfil de un usuario existente
+@admin_bp.route('/users/edit/<int:user_id>', methods=['POST'])
+# Requiere permisos de administrador del sistema
+@roles_required('admin_sistema')
+def edit_user_route(user_id):
+    # Obtiene el nombre de usuario login sanitizado
+    username = request.form.get('username', '').strip()
+    # Obtiene el nombre completo del usuario
+    full_name = request.form.get('full_name', '').strip()
+    # Obtiene el numero de documento nacional de identidad
+    dni = request.form.get('dni', '').strip()
+    # Obtiene el numero telefonico de contacto
+    phone = request.form.get('phone', '').strip()
+    # Obtiene el rol operativo o jerarquico asignado
+    role = request.form.get('role', 'usuario').strip()
+    # Bloque de captura de errores durante la actualizacion
+    try:
+        # Ejecuta el servicio de modificacion de perfil
+        admin_update_user(user_id, username, full_name, dni, phone, role)
+        # Emite confirmacion flash exitosa
+        flash(f"Perfil de '{full_name}' (@{username}) actualizado con éxito.", 'success')
+    # Captura violaciones de unicidad o campos vacios
+    except ValueError as ve:
+        # Emite advertencia con la explicacion correspondiente
+        flash(str(ve), 'danger')
+    # Captura cualquier otro error de base de datos
+    except Exception as e:
+        # Emite mensaje de falla tecnica
+        flash(f"Error al actualizar usuario: {e}", 'danger')
+    # Redirige al listado general de usuarios
     return redirect(url_for('admin.users_list'))
 
 # Endpoint para modificar el rol de un usuario existente

@@ -74,17 +74,42 @@ def verify_otp_code(user_id, code):
 def authenticate_user(identifier, pin_or_password):
     # Limpia espacios en blanco del identificador
     ident = str(identifier).strip()
-    # Limpia espacios en blanco de la clave
+    # Limpia caracteres de puntuacion comunes en DNI como puntos y guiones
+    ident_clean_dni = ident.replace('.', '').replace('-', '').replace(' ', '')
+    # Limpia espacios en blanco de la clave ingresada
     secret = str(pin_or_password).strip()
 
     # Abre conexion para buscar el usuario por username o por DNI
     with get_db_connection() as conn:
-        # Busca coincidencia en username o en dni
+        # Busca coincidencia insensible a mayusculas/minusculas en username o coincidencia en DNI
         user = conn.execute("""
             SELECT * FROM users
-            WHERE (username = ? OR dni = ?)
+            WHERE (LOWER(username) = LOWER(?) OR dni = ? OR dni = ?)
             LIMIT 1;
-        """, (ident, ident)).fetchone()
+        """, (ident, ident, ident_clean_dni)).fetchone()
+
+        # Si no hubo coincidencia directa y el identificador no es solo numerico
+        if not user and not ident.isdigit():
+            # Consulta usuarios para verificar coincidencia por alias de nombre y apellido
+            all_users = conn.execute("SELECT * FROM users;").fetchall()
+            # Recorre cada usuario para calcular alias naturales
+            for cand in all_users:
+                # Obtiene las palabras del nombre completo en minusculas
+                fn_parts = [p.lower() for p in (cand['full_name'] or '').split() if p]
+                # Si tiene al menos nombre y apellido
+                if len(fn_parts) >= 2:
+                    # Genera alias tipo primera letra + apellido (ej: cschisano)
+                    alias1 = fn_parts[0][0] + fn_parts[-1]
+                    # Genera alias tipo nombre.apellido (ej: cristian.schisano)
+                    alias2 = f"{fn_parts[0]}.{fn_parts[-1]}"
+                    # Genera alias todo junto (ej: cristianschisano)
+                    alias3 = "".join(fn_parts)
+                    # Si el identificador ingresado coincide con algun alias
+                    if ident.lower() in (alias1, alias2, alias3):
+                        # Asigna el usuario candidato encontrado
+                        user = cand
+                        # Finaliza la busqueda de alias
+                        break
 
     # Si no existe ningun usuario con ese identificador
     if not user:

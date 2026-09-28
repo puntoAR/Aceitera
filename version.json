@@ -1,5 +1,5 @@
 {
-  "version": "1.1.7",
+  "version": "1.1.8",
   "release_date": "2026-09-28",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
@@ -20,6 +20,7 @@
     "v1.1.4 - Dashboard: disposicion flex horizontal garantizada para panel de mantenimiento al costado",
     "v1.1.5 - Dashboard: optimizacion de maquetado e interfaz flex en vista principal",
     "v1.1.6 - Diagnostico interactivo de errores y excepciones: tarjetas cliqueables para inspeccionar archivo y linea de origen exactos en codigo fuente, visualizacion de instrucciones causantes, boton de copiado de traza tecnica, correccion de insercion de movimientos de inventario y registro de marcas de resolucion",
-    "v1.1.7 - Correccion de arranque serverless en Vercel: definicion de carpetas de actualizacion en /tmp, emulador DB-API cursor() para Turso Cloud SQLite y arranque protegido tolerante a fallos"
+    "v1.1.7 - Correccion de arranque serverless en Vercel: definicion de carpetas de actualizacion en /tmp, emulador DB-API cursor() para Turso Cloud SQLite y arranque protegido tolerante a fallos",
+    "v1.1.8 - Gestion avanzada de usuarios y credenciales: edicion completa de perfiles (nombre de usuario login, nombre completo, DNI, telefono, rol), blanqueo interactivo con clave personalizada o autogenerada, notificacion destacada de credenciales con copiado para WhatsApp, autenticacion inteligente tolerante a mayusculas/minusculas, DNI puntuado y resolucion automatica de alias por nombre y apellido"
   ]
 }

@@ -15,7 +15,7 @@ from core.security import authenticate_user, register_user, generate_otp_code, v
 from modules.admin.service import (
     get_pending_users, approve_user, admin_blanquear_password,
     get_audit_logs, get_system_errors, resolve_system_error,
-    admin_create_user
+    admin_create_user, admin_update_user
 )
 # Importa servicio de movimientos de inventario
 from modules.inventory.service import record_inventory_movement
@@ -35,10 +35,19 @@ class TestRolesAndSecurity(unittest.TestCase):
         init_db()
         # Limpia usuarios creados durante tests y asegura estado de claves de prueba
         with get_db_connection() as conn:
+            # Elimina codigos de recuperacion asociados a usuarios que no son base
+            conn.execute("DELETE FROM password_reset_codes WHERE user_id NOT IN (SELECT id FROM users WHERE username IN ('admin', 'gerente', 'operario', 'laboratorio'));")
+            # Elimina usuarios secundarios creados en tests anteriores
             conn.execute("DELETE FROM users WHERE username NOT IN ('admin', 'gerente', 'operario', 'laboratorio');")
+            # Asegura la existencia de operario
+            conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
+            # Restablece clave predeterminada de operario
             conn.execute("UPDATE users SET pin = '1111', must_change_password = 0 WHERE username = 'operario';")
+            # Restablece clave predeterminada de gerente
             conn.execute("UPDATE users SET pin = '3333', must_change_password = 0 WHERE username = 'gerente';")
+            # Restablece clave predeterminada de admin
             conn.execute("UPDATE users SET pin = '1234', must_change_password = 0 WHERE username = 'admin';")
+            # Confirma las operaciones
             conn.commit()
 
     # Prueba 1: Acceso restringido del rol 'usuario' (Carga, Cubicaje y Lab unicamente)
@@ -549,6 +558,186 @@ class TestRolesAndSecurity(unittest.TestCase):
         response = test_client.get('/login')
         # Verifica que el codigo de estado HTTP sea 200 OK
         self.assertEqual(response.status_code, 200)
+
+    # Prueba 14: Edicion de perfil de usuario y validaciones de duplicados por el Administrador
+    def test_admin_update_user_and_routes(self):
+        # Inicia sesion con usuario administrador
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+        # Crea un usuario dedicado para probar la edicion de perfil
+        with get_db_connection() as conn:
+            # Elimina registros previos si existieran
+            conn.execute("DELETE FROM users WHERE username IN ('temp_user_edit', 'cschisano');")
+            # Inserta el usuario de prueba
+            cur = conn.execute("""
+                INSERT INTO users (username, full_name, dni, pin, role, approval_status, must_change_password, is_active)
+                VALUES ('temp_user_edit', 'Temp Name', '99887766', '1234', 'usuario', 'aprobado', 0, 1);
+            """)
+            # Guarda identificador asignado
+            user_id = cur.lastrowid
+            # Confirma la insercion
+            conn.commit()
+
+        # Actualiza el perfil asignando nombre de usuario cschisano y DNI
+        res = admin_update_user(user_id, 'cschisano', 'Cristian Schisano', '36442025', '2266123456', 'usuario')
+        # Verifica que la actualizacion haya retornado True
+        self.assertTrue(res)
+
+        # Comprueba en base de datos que los campos fueron modificados
+        with get_db_connection() as conn:
+            # Consulta el registro actualizado
+            u_updated = conn.execute("SELECT username, full_name, dni, phone, role FROM users WHERE id = ?;", (user_id,)).fetchone()
+            # Verifica que el username sea cschisano
+            self.assertEqual(u_updated['username'], 'cschisano')
+            # Verifica que el full_name sea Cristian Schisano
+            self.assertEqual(u_updated['full_name'], 'Cristian Schisano')
+            # Verifica que el DNI sea 36442025
+            self.assertEqual(u_updated['dni'], '36442025')
+            # Verifica el telefono
+            self.assertEqual(u_updated['phone'], '2266123456')
+
+        # Comprueba que intentar asignar el mismo username cschisano a otro usuario lance ValueError
+        with get_db_connection() as conn:
+            # Obtiene el id del gerente
+            g_id = conn.execute("SELECT id FROM users WHERE username = 'gerente';").fetchone()['id']
+        # Intenta usar username cschisano en otro id y espera ValueError
+        with self.assertRaises(ValueError):
+            # Ejecuta actualizacion conflictiva
+            admin_update_user(g_id, 'cschisano', 'Otro Nombre', '99999999', '111', 'gerencia')
+
+        # Comprueba que intentar asignar el mismo DNI 36442025 a otro usuario lance ValueError
+        with self.assertRaises(ValueError):
+            # Ejecuta actualizacion conflictiva de DNI
+            admin_update_user(g_id, 'gerente_alt', 'Otro Nombre', '36442025', '111', 'gerencia')
+
+        # Prueba endpoint web POST /admin/users/edit/<id>
+        resp_post = self.client.post(f'/admin/users/edit/{user_id}', data={
+            # Envia username confirmado
+            'username': 'cschisano',
+            # Envia nombre completo
+            'full_name': 'Cristian Schisano',
+            # Envia DNI
+            'dni': '36442025',
+            # Envia nuevo telefono
+            'phone': '2266998877',
+            # Envia rol
+            'role': 'usuario'
+        }, follow_redirects=True)
+        # Verifica status HTTP 200 tras redireccion
+        self.assertEqual(resp_post.status_code, 200)
+        # Verifica mensaje flash de exito
+        self.assertIn('actualizado con', resp_post.data.decode('utf-8'))
+
+        # Limpia el usuario de prueba al finalizar
+        with get_db_connection() as conn:
+            # Elimina el registro de prueba
+            conn.execute("DELETE FROM users WHERE id = ?;", (user_id,))
+            # Confirma borrado
+            conn.commit()
+
+    # Prueba 15: Asignacion de contrasena personalizada y blanqueo interactivo
+    def test_admin_blanquear_custom_password_and_route(self):
+        # Crea un usuario dedicado para probar asignacion de clave
+        with get_db_connection() as conn:
+            # Elimina registros previos si existieran
+            conn.execute("DELETE FROM users WHERE username = 'user_pwd_test';")
+            # Inserta usuario de prueba
+            cur = conn.execute("""
+                INSERT INTO users (username, full_name, dni, pin, role, approval_status, must_change_password, is_active)
+                VALUES ('user_pwd_test', 'User Clave Test', '88776655', 'original_pin', 'usuario', 'aprobado', 0, 1);
+            """)
+            # Guarda identificador
+            user_id = cur.lastrowid
+            # Confirma la insercion
+            conn.commit()
+
+        # Asigna una contrasena personalizada especifica con cambio obligatorio deshabilitado
+        pwd = admin_blanquear_password(user_id, custom_password='clave_personalizada', must_change=False)
+        # Verifica que la clave devuelta sea la personalizada
+        self.assertEqual(pwd, 'clave_personalizada')
+
+        # Verifica en la base de datos el pin y el flag must_change_password
+        with get_db_connection() as conn:
+            # Consulta el registro
+            u_check = conn.execute("SELECT pin, must_change_password FROM users WHERE id = ?;", (user_id,)).fetchone()
+            # Verifica el pin
+            self.assertEqual(u_check['pin'], 'clave_personalizada')
+            # Verifica que no exige cambio obligatorio
+            self.assertEqual(u_check['must_change_password'], 0)
+
+        # Inicia sesion como admin para probar endpoint web
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}, follow_redirects=True)
+        # Envia solicitud POST de asignacion de clave personalizada con cambio forzoso
+        resp = self.client.post(f'/admin/users/reset-password/{user_id}', data={
+            # Clave provisoria elegida por el admin
+            'custom_password': 'clave_provisoria_123',
+            # Exige cambio obligatorio
+            'must_change': '1'
+        }, follow_redirects=True)
+        # Verifica codigo HTTP 200
+        self.assertEqual(resp.status_code, 200)
+        # Verifica mensaje flash y banner de credenciales en el HTML
+        html = resp.data.decode('utf-8')
+        # Verifica presencia del banner de credenciales
+        self.assertIn('Credenciales de Acceso Actualizadas', html)
+        # Verifica presencia de la clave asignada
+        self.assertIn('clave_provisoria_123', html)
+
+        # Limpia el usuario de prueba al finalizar
+        with get_db_connection() as conn:
+            # Elimina registro de prueba
+            conn.execute("DELETE FROM users WHERE id = ?;", (user_id,))
+            # Confirma eliminacion
+            conn.commit()
+
+    # Prueba 16: Autenticacion inteligente, case-insensitivity y resolucion automatica de alias
+    def test_smart_authentication_and_alias_resolution(self):
+        # Inserta un usuario con username igual a su DNI numerico y nombre Cristian Schisano
+        with get_db_connection() as conn:
+            # Elimina si existiera previamente
+            conn.execute("DELETE FROM users WHERE dni = '36442025';")
+            # Inserta el registro de prueba simulando registro inicial
+            conn.execute("""
+                INSERT INTO users (username, full_name, dni, pin, role, approval_status, must_change_password, is_active)
+                VALUES ('36442025', 'Cristian Schisano', '36442025', 'clave_test', 'usuario', 'aprobado', 0, 1);
+            """)
+            # Confirma insercion
+            conn.commit()
+
+        # Intento 1: Autenticacion usando el alias natural cschisano (primera letra + apellido)
+        r1 = authenticate_user('cschisano', 'clave_test')
+        # Verifica exito en la autenticacion
+        self.assertTrue(r1['success'])
+        # Verifica que el usuario identificado sea Cristian Schisano
+        self.assertEqual(r1['user']['full_name'], 'Cristian Schisano')
+
+        # Intento 2: Autenticacion con mayusculas Cschisano
+        r2 = authenticate_user('Cschisano', 'clave_test')
+        # Verifica exito
+        self.assertTrue(r2['success'])
+
+        # Intento 3: Autenticacion con DNI formateado con puntos 36.442.025
+        r3 = authenticate_user('36.442.025', 'clave_test')
+        # Verifica exito
+        self.assertTrue(r3['success'])
+
+        # Intento 4: Autenticacion con DNI plano 36442025
+        r4 = authenticate_user('36442025', 'clave_test')
+        # Verifica exito
+        self.assertTrue(r4['success'])
+
+        # Intento 5: Clave incorrecta debe devolver bad_password
+        r5 = authenticate_user('cschisano', 'clave_incorrecta')
+        # Verifica fallo
+        self.assertFalse(r5['success'])
+        # Verifica tipo de error
+        self.assertEqual(r5['error_type'], 'bad_password')
+
+        # Limpia el usuario de prueba
+        with get_db_connection() as conn:
+            # Elimina registro
+            conn.execute("DELETE FROM users WHERE dni = '36442025';")
+            # Confirma borrado
+            conn.commit()
 
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':

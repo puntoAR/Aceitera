@@ -48,6 +48,95 @@
 </div>
 {% endif %}
 
+{% if last_reset_creds %}
+<!-- BANNER DE CREDENCIALES GENERADAS O ACTUALIZADAS -->
+<div id="credential-alert-banner" style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.1);">
+    <!-- Contenedor flexible de credenciales y botones de accion -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <!-- Bloque con datos de acceso -->
+        <div>
+            <!-- Encabezado con icono y titulo -->
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <!-- Icono de llave -->
+                <span style="font-size: 1.5rem;">🔑</span>
+                <!-- Titulo destacado -->
+                <h3 style="margin: 0; color: #065f46; font-size: 1.15rem; font-weight: 700;">Credenciales de Acceso Actualizadas</h3>
+            <!-- Cierre del encabezado -->
+            </div>
+            <!-- Parrafo descriptivo -->
+            <p style="margin: 0 0 0.75rem 0; color: #047857; font-size: 0.9rem;">
+                <!-- Indicacion de titular -->
+                Se ha asignado la contraseña para <strong>{{ last_reset_creds.full_name }}</strong>. Puede compartirlas directamente con el operario:
+            <!-- Cierre de parrafo -->
+            </p>
+            <!-- Cuadro de credenciales destacadas -->
+            <div style="background: white; border: 1px solid #a7f3d0; border-radius: 0.5rem; padding: 0.85rem 1.25rem; font-family: monospace; font-size: 0.95rem; color: #0f172a; display: inline-block;">
+                <!-- Fila de usuario login -->
+                <div><strong>Usuario (Login):</strong> <span style="color: #059669; font-weight: 700;">{{ last_reset_creds.username }}</span></div>
+                {% if last_reset_creds.dni and last_reset_creds.dni != '-' %}
+                <!-- Fila de DNI alternativo para ingresar -->
+                <div><strong>DNI (Login alternativo):</strong> {{ last_reset_creds.dni }}</div>
+                {% endif %}
+                <!-- Fila de clave asignada -->
+                <div><strong>Contraseña Asignada:</strong> <span style="background: #fef3c7; color: #92400e; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 700;">{{ last_reset_creds.password }}</span></div>
+                <!-- Detalle sobre cambio obligatorio -->
+                <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.35rem; font-family: sans-serif;">
+                    {% if last_reset_creds.must_change %}
+                    <!-- Aviso de cambio forzoso en primer ingreso -->
+                    ⚠️ Se solicitará cambio obligatorio de clave en el primer inicio de sesión.
+                    {% else %}
+                    <!-- Aviso de clave definitiva -->
+                    ✓ Clave definitiva lista para operar inmediatamente.
+                    {% endif %}
+                <!-- Cierre de detalle -->
+                </div>
+            <!-- Cierre del cuadro de credenciales -->
+            </div>
+        <!-- Cierre del bloque de datos -->
+        </div>
+        <!-- Bloque de botones para copiar o compartir -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Boton interactivo para copiar credenciales al portapapeles -->
+            <button type="button" onclick="navigator.clipboard.writeText('BioBalcarce\nUsuario: {{ last_reset_creds.username }}\nContraseña: {{ last_reset_creds.password }}\nIngreso: ' + window.location.origin).then(() => alert('¡Credenciales copiadas al portapapeles!'));" class="btn" style="background: #059669; color: white; border: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                <!-- Texto del boton de copia -->
+                📋 Copiar para Enviar (WhatsApp/SMS)
+            <!-- Cierre del boton -->
+            </button>
+            {% if last_reset_creds.phone %}
+            <!-- Enlace directo para abrir chat de WhatsApp con el operario -->
+            <a href="https://wa.me/{{ last_reset_creds.phone }}?text=Hola%20{{ last_reset_creds.full_name|urlencode }},%20tus%20credenciales%20de%20acceso%20a%20BioBalcarce%20son:%0AUsuario:%20{{ last_reset_creds.username }}%0AContrase%C3%B1a:%20{{ last_reset_creds.password }}%0AIngreso:%20https://bio-balcarce.vercel.app" target="_blank" class="btn" style="background: #25d366; color: white; text-decoration: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; text-align: center;">
+                <!-- Texto de boton WhatsApp -->
+                💬 Enviar por WhatsApp
+            <!-- Cierre de enlace -->
+            </a>
+            {% endif %}
+        <!-- Cierre del bloque de botones -->
+        </div>
+    <!-- Cierre de contenedor flexible -->
+    </div>
+<!-- Cierre de banner de credenciales -->
+</div>
+{% endif %}
+
+<!-- GUIA Y AYUDA ADMINISTRATIVA SOBRE BLANQUEO Y NOMBRES DE USUARIO -->
+<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 0.5rem; padding: 0.85rem 1.15rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #1e40af; line-height: 1.5;">
+    <!-- Titulo del mensaje informativo -->
+    <div style="font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
+        <!-- Icono de bombilla -->
+        <span>💡</span> Información Importante sobre Gestión de Credenciales:
+    <!-- Cierre del titulo -->
+    </div>
+    <!-- Texto aclaratorio -->
+    <span>
+        <!-- Aclaracion sobre conservacion de usuario -->
+        La opción <strong>🔑 Clave / Blanquear</strong> actualiza únicamente la contraseña y <u>no elimina al usuario</u> de la base de datos (por lo tanto no es necesario crearlo de nuevo).<br>
+        <!-- Aclaracion sobre como modificar el usuario si era el DNI -->
+        Si un usuario prefiere ingresar con su nombre (por ejemplo <code>cschisano</code>) en lugar de su DNI numérico, simplemente use el botón <strong>✏️ Editar</strong> en la tabla inferior y cambie su nombre de usuario.
+    <!-- Cierre de span -->
+    </span>
+<!-- Cierre de tarjeta informativa -->
+</div>
+
 <!-- SECCION 1: SOLICITUDES DE REGISTRO PENDIENTES -->
 <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -310,24 +399,209 @@
                         <span style="display: block; font-size: 0.68rem; color: #d97706; margin-top: 0.15rem;">(Clave provisoria)</span>
                         {% endif %}
                     </td>
-                    <!-- Acciones: Blanquear y Habilitar/Desactivar -->
+                    <!-- Acciones: Editar, Clave/Blanquear y Habilitar/Desactivar -->
                     <td style="padding: 0.65rem; text-align: right;">
+                        <!-- Contenedor flexible para alinear las acciones a la derecha -->
                         <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end; flex-wrap: wrap;">
-                            <!-- Boton Blanquear contrasena -->
-                            <form action="{{ url_for('admin.reset_password_route', user_id=u.id) }}" method="POST" onsubmit="return confirm('¿Blanquear contraseña para {{ u.full_name }}? Se generará una nueva clave provisoria.');">
-                                <button type="submit" class="btn" style="background: #f59e0b; color: white; border: none; padding: 0.3rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600;" title="Blanquear contraseña y generar clave provisoria">
-                                    🔑 Blanquear
-                                </button>
-                            </form>
-                            <!-- Boton Habilitar / Desactivar -->
-                            <form action="{{ url_for('admin.toggle_active_route', user_id=u.id) }}" method="POST">
+                            <!-- Boton para desplegar formulario de edicion de perfil -->
+                            <button type="button" onclick="const er = document.getElementById('edit-row-{{ u.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none'); document.getElementById('reset-row-{{ u.id }}').style.display = 'none';" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.3rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Editar usuario, nombre, DNI, teléfono o rol">
+                                <!-- Icono y texto de edicion -->
+                                ✏️ Editar
+                            <!-- Cierre del boton de edicion -->
+                            </button>
+                            <!-- Boton para desplegar formulario de blanqueo o asignacion de contrasena -->
+                            <button type="button" onclick="const rr = document.getElementById('reset-row-{{ u.id }}'); rr.style.display = (rr.style.display === 'none' ? 'table-row' : 'none'); document.getElementById('edit-row-{{ u.id }}').style.display = 'none';" class="btn" style="background: #f59e0b; color: white; border: none; padding: 0.3rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Asignar contraseña personalizada o generar aleatoria">
+                                <!-- Icono y texto de contrasena -->
+                                🔑 Clave
+                            <!-- Cierre del boton de contrasena -->
+                            </button>
+                            <!-- Formulario de cambio de estado activo o inactivo -->
+                            <form action="{{ url_for('admin.toggle_active_route', user_id=u.id) }}" method="POST" style="margin: 0;">
+                                <!-- Campo oculto con el nuevo estado deseado -->
                                 <input type="hidden" name="is_active" value="{% if u.is_active %}0{% else %}1{% endif %}">
-                                <button type="submit" class="btn" style="background: {% if u.is_active %}#64748b{% else %}#10b981{% endif %}; color: white; border: none; padding: 0.3rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem;">
+                                <!-- Boton de envio con estilo condicional segun estado -->
+                                <button type="submit" class="btn" style="background: {% if u.is_active %}#64748b{% else %}#10b981{% endif %}; color: white; border: none; padding: 0.3rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; cursor: pointer;">
+                                    <!-- Texto condicional segun activacion -->
                                     {% if u.is_active %}Desactivar{% else %}Activar{% endif %}
+                                <!-- Cierre del boton de activacion -->
                                 </button>
+                            <!-- Cierre de formulario de activacion -->
                             </form>
+                        <!-- Cierre de contenedor flexible de acciones -->
                         </div>
+                    <!-- Cierre de celda de acciones -->
                     </td>
+                <!-- Cierre de fila principal de usuario -->
+                </tr>
+
+                <!-- FILA EXPANDIBLE: FORMULARIO DE EDICION DE PERFIL -->
+                <tr id="edit-row-{{ u.id }}" style="display: none; background: #f0f9ff; border-bottom: 2px solid #bae6fd;">
+                    <!-- Celda que ocupa todo el ancho de la tabla -->
+                    <td colspan="6" style="padding: 1rem 1.25rem;">
+                        <!-- Formulario de envio para actualizar el perfil -->
+                        <form action="{{ url_for('admin.edit_user_route', user_id=u.id) }}" method="POST" style="margin: 0;">
+                            <!-- Encabezado del formulario de edicion -->
+                            <div style="font-weight: 700; color: #0369a1; margin-bottom: 0.75rem; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <!-- Titulo con identificador -->
+                                <span>✏️</span> Modificar Perfil de {{ u.full_name }} (ID #{{ u.id }})
+                            <!-- Cierre del encabezado -->
+                            </div>
+                            <!-- Cuadricula para distribuir los campos de edicion -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+                                <!-- Campo de nombre de usuario login -->
+                                <div>
+                                    <!-- Etiqueta del campo -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.25rem;">Nombre de Usuario (Login)</label>
+                                    <!-- Casilla de texto con valor actual -->
+                                    <input type="text" name="username" value="{{ u.username }}" required class="form-input" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
+                                    <!-- Nota aclaratoria -->
+                                    <small style="color: #64748b; font-size: 0.7rem;">Ej: cschisano</small>
+                                <!-- Cierre del bloque de usuario -->
+                                </div>
+                                <!-- Campo de nombre y apellido -->
+                                <div>
+                                    <!-- Etiqueta del campo -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.25rem;">Nombre y Apellido</label>
+                                    <!-- Casilla de texto con nombre actual -->
+                                    <input type="text" name="full_name" value="{{ u.full_name }}" required class="form-input" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
+                                    <!-- Nota aclaratoria -->
+                                    <small style="color: #64748b; font-size: 0.7rem;">Nombre completo del operario</small>
+                                <!-- Cierre del bloque de nombre -->
+                                </div>
+                                <!-- Campo de DNI -->
+                                <div>
+                                    <!-- Etiqueta del campo -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.25rem;">DNI</label>
+                                    <!-- Casilla de texto con documento actual -->
+                                    <input type="text" name="dni" value="{{ u.dni or '' }}" required class="form-input" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
+                                    <!-- Nota aclaratoria -->
+                                    <small style="color: #64748b; font-size: 0.7rem;">Sin puntos (login alternativo)</small>
+                                <!-- Cierre del bloque de DNI -->
+                                </div>
+                                <!-- Campo de telefono -->
+                                <div>
+                                    <!-- Etiqueta del campo -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.25rem;">Teléfono / WhatsApp</label>
+                                    <!-- Casilla de texto con telefono actual -->
+                                    <input type="text" name="phone" value="{{ u.phone or '' }}" class="form-input" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
+                                    <!-- Nota aclaratoria -->
+                                    <small style="color: #64748b; font-size: 0.7rem;">Ej: 2266123456</small>
+                                <!-- Cierre del bloque de telefono -->
+                                </div>
+                                <!-- Campo de rol -->
+                                <div>
+                                    <!-- Etiqueta del campo -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #334155; display: block; margin-bottom: 0.25rem;">Nivel de Acceso (Rol)</label>
+                                    <!-- Selector desplegable de roles -->
+                                    <select name="role" class="form-select" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
+                                        <!-- Opcion operario -->
+                                        <option value="usuario" {% if u.role == 'usuario' %}selected{% endif %}>Usuario (Operario)</option>
+                                        <!-- Opcion gerencia -->
+                                        <option value="gerencia" {% if u.role in ['administrador', 'gerencia'] %}selected{% endif %}>Gerencia</option>
+                                        <!-- Opcion administrador de sistema -->
+                                        <option value="admin_sistema" {% if u.role == 'admin_sistema' %}selected{% endif %}>Admin Sistema</option>
+                                    <!-- Cierre de selector -->
+                                    </select>
+                                    <!-- Nota de rol -->
+                                    <small style="color: #64748b; font-size: 0.7rem;">Permisos del perfil</small>
+                                <!-- Cierre del bloque de rol -->
+                                </div>
+                            <!-- Cierre de cuadricula -->
+                            </div>
+                            <!-- Fila de botones de accion -->
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <!-- Boton de cancelar edicion -->
+                                <button type="button" onclick="document.getElementById('edit-row-{{ u.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.4rem 0.85rem; border-radius: 0.35rem; font-size: 0.8rem; cursor: pointer;">
+                                    <!-- Texto cancelar -->
+                                    Cancelar
+                                <!-- Cierre del boton cancelar -->
+                                </button>
+                                <!-- Boton de envio de actualizacion -->
+                                <button type="submit" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.4rem 1.15rem; border-radius: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    <!-- Texto guardar -->
+                                    💾 Guardar Cambios
+                                <!-- Cierre del boton guardar -->
+                                </button>
+                            <!-- Cierre de fila de botones -->
+                            </div>
+                        <!-- Cierre del formulario de edicion -->
+                        </form>
+                    <!-- Cierre de la celda de edicion -->
+                    </td>
+                <!-- Cierre de fila expandible de edicion -->
+                </tr>
+
+                <!-- FILA EXPANDIBLE: ASIGNACION / BLANQUEO DE CONTRASEÑA -->
+                <tr id="reset-row-{{ u.id }}" style="display: none; background: #fffbeb; border-bottom: 2px solid #fde68a;">
+                    <!-- Celda completa para el formulario de clave -->
+                    <td colspan="6" style="padding: 1rem 1.25rem;">
+                        <!-- Formulario de envio para reasignar clave -->
+                        <form action="{{ url_for('admin.reset_password_route', user_id=u.id) }}" method="POST" style="margin: 0;">
+                            <!-- Encabezado del formulario de restablecimiento -->
+                            <div style="font-weight: 700; color: #92400e; margin-bottom: 0.75rem; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem;">
+                                <!-- Titulo con datos del usuario -->
+                                <span>🔑</span> Asignar Nueva Contraseña a {{ u.full_name }} (Login: @{{ u.username }})
+                            <!-- Cierre del encabezado -->
+                            </div>
+                            <!-- Contenedor flexible de entradas -->
+                            <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                                <!-- Bloque de campo de clave -->
+                                <div style="flex: 1; min-width: 240px;">
+                                    <!-- Etiqueta descriptiva -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #78350f; display: block; margin-bottom: 0.25rem;">
+                                        <!-- Texto con explicacion -->
+                                        Escriba la nueva contraseña (o pulse Aleatoria para generar una provisoria):
+                                    <!-- Cierre de etiqueta -->
+                                    </label>
+                                    <!-- Contenedor con input y boton generador -->
+                                    <div style="display: flex; gap: 0.35rem;">
+                                        <!-- Casilla de texto para escribir clave personalizada -->
+                                        <input type="text" id="pwd_input_{{ u.id }}" name="custom_password" placeholder="Ej: 1234 o Bio-2026!" class="form-input" style="font-size: 0.85rem; padding: 0.4rem 0.6rem; flex: 1;">
+                                        <!-- Boton para autogenerar una clave -->
+                                        <button type="button" onclick="document.getElementById('pwd_input_{{ u.id }}').value = 'Bio-' + Math.floor(1000 + Math.random() * 9000) + '!';" class="btn" style="background: #fde68a; color: #78350f; border: 1px solid #fcd34d; font-size: 0.75rem; padding: 0.35rem 0.55rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                            <!-- Icono y texto de aleatoria -->
+                                            🎲 Aleatoria
+                                        <!-- Cierre del boton aleatoria -->
+                                        </button>
+                                    <!-- Cierre del flex de clave -->
+                                    </div>
+                                <!-- Cierre del bloque de clave -->
+                                </div>
+                                <!-- Bloque de casilla de verificacion -->
+                                <div style="display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0.45rem;">
+                                    <!-- Casilla para forzar cambio de clave en proximo inicio -->
+                                    <input type="checkbox" id="must_change_{{ u.id }}" name="must_change" value="1" checked style="width: 1rem; height: 1rem; cursor: pointer;">
+                                    <!-- Etiqueta de la casilla -->
+                                    <label for="must_change_{{ u.id }}" style="font-size: 0.8rem; color: #78350f; cursor: pointer;">
+                                        <!-- Texto de cambio obligatorio -->
+                                        Exigir cambio obligatorio en el primer inicio de sesión
+                                    <!-- Cierre de la etiqueta -->
+                                    </label>
+                                <!-- Cierre del bloque de checkbox -->
+                                </div>
+                            <!-- Cierre de contenedor flexible de entradas -->
+                            </div>
+                            <!-- Fila de botones de accion -->
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <!-- Boton para cancelar -->
+                                <button type="button" onclick="document.getElementById('reset-row-{{ u.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.4rem 0.85rem; border-radius: 0.35rem; font-size: 0.8rem; cursor: pointer;">
+                                    <!-- Texto cancelar -->
+                                    Cancelar
+                                <!-- Cierre del boton cancelar -->
+                                </button>
+                                <!-- Boton de envio de actualizacion de clave -->
+                                <button type="submit" class="btn" style="background: #f59e0b; color: white; border: none; padding: 0.4rem 1.15rem; border-radius: 0.35rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    <!-- Texto confirmar -->
+                                    🔑 Guardar Nueva Contraseña
+                                <!-- Cierre del boton confirmar -->
+                                </button>
+                            <!-- Cierre de fila de botones -->
+                            </div>
+                        <!-- Cierre del formulario de reseteo -->
+                        </form>
+                    <!-- Cierre de la celda de reseteo -->
+                    </td>
+                <!-- Cierre de la fila expandible de reseteo -->
                 </tr>
                 {% endfor %}
             </tbody>

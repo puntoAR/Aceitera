@@ -778,20 +778,17 @@ def seed_initial_data():
             # Confirma la insercion de los turnos en la base
             conn.commit()
 
-        # Inserta usuarios y perfiles predeterminados si no existen
-        user_count = conn.execute("SELECT COUNT(*) FROM users;").fetchone()[0]
-        # Si no hay usuarios creados en el sistema
-        if user_count == 0:
-            # Inserta usuario Administrador del Sistema (acceso total a todos los modulos)
-            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('admin', 'Administrador del Sistema', 'admin_sistema', '1234', '10000000', '5492266000001', 'aprobado');")
-            # Inserta usuario Gerencia (acceso exclusivo a Dashboard)
-            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('gerente', 'Gerencia General', 'gerencia', '3333', '20000000', '5492266000002', 'aprobado');")
-            # Inserta usuario Operario de Planta (acceso a produccion y cubicaje)
-            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
-            # Inserta usuario Analista de Laboratorio (acceso a laboratorio y cubicaje)
-            conn.execute("INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('laboratorio', 'Analista de Calidad', 'usuario', '2222', '40000000', '5492266000004', 'aprobado');")
-            # Confirma los usuarios creados
-            conn.commit()
+        # Inserta usuarios y perfiles predeterminados si no existen en el sistema
+        # Inserta usuario Administrador del Sistema si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('admin', 'Administrador del Sistema', 'admin_sistema', '1234', '10000000', '5492266000001', 'aprobado');")
+        # Inserta usuario Gerencia si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('gerente', 'Gerencia General', 'gerencia', '3333', '20000000', '5492266000002', 'aprobado');")
+        # Inserta usuario Operario de Planta si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
+        # Inserta usuario Analista de Laboratorio si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('laboratorio', 'Analista de Calidad', 'usuario', '2222', '40000000', '5492266000004', 'aprobado');")
+        # Confirma los usuarios creados
+        conn.commit()
 
         # Inicializa el turno activo si no hay ninguno seleccionado
         active_shift_count = conn.execute("SELECT COUNT(*) FROM active_shift;").fetchone()[0]
