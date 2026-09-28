@@ -29,38 +29,130 @@ class TursoRow(dict):
             return self._values[item]
         return super().__getitem__(item)
 
+# Cursor compatible con la API de sqlite3 para Turso Cloud
 class TursoCursor:
-    """Cursor compatible con la API de sqlite3 para Turso Cloud."""
+    # Constructor que inicializa columnas, filas transformadas y lastrowid
     def __init__(self, cols, rows, last_insert_rowid=None):
+        # Asigna nombres de columnas
         self.cols = cols
+        # Instancia filas TursoRow con acceso por clave o indice
         self._rows = [TursoRow(cols, r) for r in rows]
+        # Puntero de posicion para fetchone
         self._idx = 0
+        # ID autoincremental de la ultima insercion
         self.lastrowid = int(last_insert_rowid) if last_insert_rowid is not None else None
 
+    # Obtiene la siguiente fila del cursor o None si se acabaron
     def fetchone(self):
+        # Comprueba si quedan filas por leer
         if self._idx < len(self._rows):
+            # Obtiene la fila actual
             r = self._rows[self._idx]
+            # Avanza el indice del cursor
             self._idx += 1
+            # Retorna la fila
             return r
+        # Retorna None si no hay mas filas
         return None
 
+    # Obtiene todas las filas restantes del cursor
     def fetchall(self):
+        # Toma el slice de filas restantes
         res = self._rows[self._idx:]
+        # Lleva el indice al final
         self._idx = len(self._rows)
+        # Retorna la lista de filas
         return res
 
+    # Habilita la iteracion directa sobre las filas del cursor
+    def __iter__(self):
+        # Retorna un iterador sobre las filas restantes
+        return iter(self._rows[self._idx:])
+
+# Cursor intermediario para emular la interfaz de sqlite3.Cursor sobre TursoConnection
+class TursoStatementCursor:
+    # Metodo constructor que recibe la conexion activa de Turso
+    def __init__(self, connection):
+        # Almacena la referencia a la conexion de Turso
+        self._connection = connection
+        # Inicializa el cursor interno de resultados en None
+        self._cursor = None
+        # Identificador autoincremental de la ultima fila insertada
+        self.lastrowid = None
+
+    # Ejecuta una sentencia SQL en Turso y actualiza el estado del cursor
+    def execute(self, sql, params=()):
+        # Delega la ejecucion HTTP a la conexion de Turso
+        self._cursor = self._connection.execute(sql, params)
+        # Sincroniza el ultimo rowid insertado
+        self.lastrowid = self._cursor.lastrowid
+        # Retorna self para permitir encadenamiento de llamadas
+        return self
+
+    # Ejecuta una misma sentencia SQL para una secuencia de parametros
+    def executemany(self, sql, seq_of_params):
+        # Itera secuencialmente sobre la lista de parametros
+        for p in seq_of_params:
+            # Ejecuta cada tupla de parametros individualmente
+            self.execute(sql, p)
+        # Retorna el cursor actualizado
+        return self
+
+    # Obtiene la siguiente fila del conjunto de resultados
+    def fetchone(self):
+        # Verifica si existe un conjunto activo de resultados
+        if self._cursor is not None:
+            # Retorna la siguiente fila disponible
+            return self._cursor.fetchone()
+        # Retorna None si no hay resultados disponibles
+        return None
+
+    # Obtiene todas las filas restantes del conjunto de resultados
+    def fetchall(self):
+        # Verifica si existe un conjunto activo de resultados
+        if self._cursor is not None:
+            # Retorna la totalidad de filas restantes
+            return self._cursor.fetchall()
+        # Retorna lista vacia si no hay cursor
+        return []
+
+    # Permite la iteracion directa sobre el cursor (ej: for row in cursor:)
+    def __iter__(self):
+        # Verifica si existe cursor de resultados disponible
+        if self._cursor is not None:
+            # Retorna el iterador sobre las filas restantes
+            return iter(self._cursor)
+        # Retorna iterador vacio en caso contrario
+        return iter([])
+
+    # Cierra el cursor liberando referencias a los resultados
+    def close(self):
+        # Reinicia el cursor a None
+        self._cursor = None
+
+# Conexion cliente HTTP a Turso Cloud SQLite compatible con sqlite3
 class TursoConnection:
-    """Conexión cliente HTTP a Turso Cloud SQLite compatible con sqlite3."""
+    # Constructor que configura URL del pipeline y encabezados de autorizacion
     def __init__(self, url, token):
+        # Limpia y normaliza el protocolo libsql:// a https://
         cleaned_url = url.replace('libsql://', 'https://').rstrip('/')
+        # Asegura la ruta del pipeline v2 de Turso
         if not cleaned_url.endswith('/v2/pipeline'):
+            # Concatena el sufijo de pipeline v2
             cleaned_url += '/v2/pipeline'
+        # Almacena la URL final de la API
         self.pipeline_url = cleaned_url
+        # Almacena el token de autorizacion
         self.token = token
+        # Configura encabezados HTTP obligatorios
         self.headers = {
+            # Cabecera Bearer con el token de Turso
             "Authorization": f"Bearer {self.token}",
+            # Especifica payload JSON
             "Content-Type": "application/json"
         }
+        # Inicializa atributo row_factory compatible con sqlite3
+        self.row_factory = None
 
     def _to_turso_arg(self, val):
         if val is None:
@@ -131,13 +223,42 @@ class TursoConnection:
 
         return TursoCursor(col_names, parsed_rows, last_rowid)
 
+    # Retorna un cursor compatible con sqlite3.Cursor
+    def cursor(self):
+        # Crea y entrega una instancia de TursoStatementCursor vinculada a esta conexion
+        return TursoStatementCursor(self)
+
+    # Ejecuta una misma sentencia SQL sobre una lista de parametros
+    def executemany(self, sql, seq_of_params):
+        # Itera sobre cada grupo de parametros suministrado
+        for p in seq_of_params:
+            # Ejecuta la sentencia para el parametro actual
+            self.execute(sql, p)
+
+    # Ejecuta multiples sentencias SQL separadas por punto y coma
+    def executescript(self, sql_script):
+        # Divide el script en declaraciones individuales
+        for stmt in str(sql_script).split(';'):
+            # Limpia espacios en blanco de cada sentencia
+            clean_stmt = stmt.strip()
+            # Si la sentencia no esta vacia la ejecuta
+            if clean_stmt:
+                # Ejecuta la instruccion individual en Turso
+                self.execute(clean_stmt)
+
+    # Confirma transaccion en Turso (auto-commit en pipeline HTTP)
     def commit(self):
+        # No requiere accion adicional al operar en modo auto-commit
         pass
 
+    # Revierte transaccion en Turso
     def rollback(self):
+        # No requiere accion adicional al operar en modo auto-commit
         pass
 
+    # Cierra conexion de Turso
     def close(self):
+        # No requiere cierre de socket persistente al ser HTTP stateless
         pass
 
 # Obtiene una conexion a la base de datos (SQLite local o Turso Cloud)

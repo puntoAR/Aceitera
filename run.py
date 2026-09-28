@@ -157,10 +157,16 @@ def serve_maintenance_upload(filename):
 
 # Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
 with app.app_context():
-    # Verifica y crea las tablas si no existen
-    init_db()
-    # Aplica las migraciones de esquema incrementales
-    apply_pending_migrations()
+    # Bloque protegido para inicializar base de datos sin abortar el contenedor en fallos transitorios
+    try:
+        # Verifica y crea las tablas si no existen
+        init_db()
+        # Aplica las migraciones de esquema incrementales
+        apply_pending_migrations()
+    # Captura cualquier error de conectividad o arranque en base de datos
+    except Exception as startup_db_err:
+        # Registra la excepcion en el log de auditoria de errores
+        log_error('DATABASE_STARTUP', 'Fallo al inicializar base de datos en arranque', startup_db_err)
 
 # Manejador de error HTTP 404 (Pagina no encontrada)
 @app.errorhandler(404)

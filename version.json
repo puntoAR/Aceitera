@@ -20,6 +20,6 @@
     "v1.1.4 - Dashboard: disposicion flex horizontal garantizada para panel de mantenimiento al costado",
     "v1.1.5 - Dashboard: optimizacion de maquetado e interfaz flex en vista principal",
     "v1.1.6 - Diagnostico interactivo de errores y excepciones: tarjetas cliqueables para inspeccionar archivo y linea de origen exactos en codigo fuente, visualizacion de instrucciones causantes, boton de copiado de traza tecnica, correccion de insercion de movimientos de inventario y registro de marcas de resolucion",
-    "v1.1.7 - Correccion de arranque serverless en Vercel: definicion de carpetas de actualizacion en entorno efimero /tmp y controlador WSGI de contingencia para diagnostico de excepciones"
+    "v1.1.7 - Correccion de arranque serverless en Vercel: definicion de carpetas de actualizacion en /tmp, emulador DB-API cursor() para Turso Cloud SQLite y arranque protegido tolerante a fallos"
   ]
 }

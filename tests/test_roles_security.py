@@ -436,6 +436,18 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertEqual(turso._to_turso_arg(3.14), {"type": "float", "value": 3.14})
         # Comprueba serializacion de cadena de texto
         self.assertEqual(turso._to_turso_arg("test"), {"type": "text", "value": "test"})
+        # Comprueba que TursoConnection provea metodo cursor() compatible con sqlite3
+        cur_stmt = turso.cursor()
+        # Verifica que el cursor no sea nulo
+        self.assertIsNotNone(cur_stmt)
+        # Comprueba que el cursor posea metodo execute
+        self.assertTrue(callable(getattr(cur_stmt, 'execute', None)))
+        # Comprueba que el cursor posea metodo executemany
+        self.assertTrue(callable(getattr(cur_stmt, 'executemany', None)))
+        # Comprueba que el cursor posea metodo fetchone
+        self.assertTrue(callable(getattr(cur_stmt, 'fetchone', None)))
+        # Comprueba que el cursor posea metodo fetchall
+        self.assertTrue(callable(getattr(cur_stmt, 'fetchall', None)))
 
     # Prueba 12: Registro de movimiento de inventario sin errores de marcadores SQL
     def test_inventory_movement_flow_and_no_error(self):
