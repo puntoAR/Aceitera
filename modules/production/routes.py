@@ -4,8 +4,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from core.security import roles_required
 # Importa los metodos del servicio de produccion
 from modules.production.service import (
-    record_weighing, update_weighing, get_recent_weighings,
-    record_line_stop, get_shift_stops, get_shift_speed_summary
+    record_weighing, update_weighing, delete_weighing, get_recent_weighings,
+    record_line_stop, update_line_stop, delete_line_stop, get_shift_stops, get_shift_speed_summary
 )
 # Importa el servicio de configuracion para obtener el turno activo
 from modules.configuration.service import get_active_shift
@@ -69,27 +69,84 @@ def add_weighing():
 
 # Endpoint para registrar una parada de linea
 @production_bp.route('/stop', methods=['POST'])
-@roles_required('usuario', 'admin_sistema')
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
 def add_stop():
     # Bloque de captura de errores
     try:
         # Extrae datos de la parada de forma segura
         shift_id = request.form.get('shift_id')
+        stop_date = request.form.get('stop_date')
         duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
         reason = request.form.get('reason', 'Mantenimiento / Despeje')
-        operator_name = request.form.get('operator_name', 'Operario')
-        # Registra la parada
-        record_line_stop(shift_id, duration_minutes, reason, operator_name)
+        operator_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Registra la parada (si shift_id o stop_date no vienen, usa turno y fecha por defecto según hora)
+        result = record_line_stop(
+            shift_id=shift_id,
+            duration_minutes=duration_minutes,
+            reason=reason,
+            operator_name=operator_name,
+            stop_date=stop_date
+        )
         # Registra parada en auditoria
-        record_audit_event('PRODUCCION', 'PARADA_LINEA', f"Parada de {duration_minutes} min registrada en turno {shift_id}. Motivo: {reason}.", status='ADVERTENCIA')
+        record_audit_event('PRODUCCION', 'PARADA_LINEA', f"Parada de {duration_minutes} min registrada en turno {result['shift_id']} ({result['start_time']}). Motivo: {reason}.", status='ADVERTENCIA', user_override=operator_name)
         # Emite notificacion de advertencia informativa
-        flash(f'Parada de línea registrada ({duration_minutes} min): {reason}', 'warning')
+        flash(f"Parada de línea registrada ({duration_minutes} min en turno {result['shift_id']}): {reason}", 'warning')
     except Exception as e:
         # Registra error en log
         log_error('PRODUCTION_ROUTE', 'Error al registrar parada de linea', e)
         # Notifica error
         flash(f'Error al registrar parada: {str(e)}', 'danger')
     # Redirige a produccion
+    return redirect(url_for('production.index'))
+
+# Endpoint para editar una parada de linea historica
+@production_bp.route('/stop/edit/<int:stop_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def edit_stop(stop_id):
+    try:
+        duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
+        reason = request.form.get('reason', '').strip()
+        shift_id = request.form.get('shift_id')
+        stop_date = request.form.get('stop_date')
+        edit_reason = request.form.get('edit_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not edit_reason:
+            flash('Debe especificar el motivo de la modificación para el registro de auditoría.', 'warning')
+            return redirect(url_for('production.index'))
+
+        update_line_stop(
+            stop_id=stop_id,
+            duration_minutes=duration_minutes,
+            reason=reason,
+            edit_reason=edit_reason,
+            operator_name=op_name,
+            shift_id=shift_id,
+            stop_date=stop_date
+        )
+        flash(f'Parada #{stop_id} actualizada correctamente.', 'success')
+    except Exception as e:
+        log_error('PRODUCTION_ROUTE', f'Error al editar parada #{stop_id}', e)
+        flash(f'Error al modificar parada: {str(e)}', 'danger')
+    return redirect(url_for('production.index'))
+
+# Endpoint para eliminar una parada de linea
+@production_bp.route('/stop/delete/<int:stop_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def delete_stop_route(stop_id):
+    try:
+        delete_reason = request.form.get('delete_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not delete_reason:
+            flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
+            return redirect(url_for('production.index'))
+
+        delete_line_stop(stop_id=stop_id, delete_reason=delete_reason, operator_name=op_name)
+        flash(f'Parada #{stop_id} eliminada correctamente. Trazabilidad registrada en auditoría.', 'success')
+    except Exception as e:
+        log_error('PRODUCTION_ROUTE', f'Error al eliminar parada #{stop_id}', e)
+        flash(f'Error al eliminar parada: {str(e)}', 'danger')
     return redirect(url_for('production.index'))
 
 # API JSON para actualizar graficos en tiempo real desde JavaScript
@@ -138,4 +195,23 @@ def edit_weighing(weighing_id):
     except Exception as e:
         log_error('PRODUCTION_ROUTE', f'Error al editar pesada #{weighing_id}', e)
         flash(f'Error al modificar pesada: {str(e)}', 'danger')
+    return redirect(url_for('production.index'))
+
+# Endpoint para eliminar una pesada historica
+@production_bp.route('/weighing/delete/<int:weighing_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def delete_weighing_route(weighing_id):
+    try:
+        delete_reason = request.form.get('delete_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not delete_reason:
+            flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
+            return redirect(url_for('production.index'))
+
+        delete_weighing(weighing_id=weighing_id, delete_reason=delete_reason, operator_name=op_name)
+        flash(f'Pesada #{weighing_id} eliminada correctamente. Registro de auditoría guardado.', 'success')
+    except Exception as e:
+        log_error('PRODUCTION_ROUTE', f'Error al eliminar pesada #{weighing_id}', e)
+        flash(f'Error al eliminar pesada: {str(e)}', 'danger')
     return redirect(url_for('production.index'))

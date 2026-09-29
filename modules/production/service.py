@@ -14,7 +14,7 @@ from modules.calculations.speed_calc import (
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
-from core.timezone import get_plant_now_str, determine_time_slot
+from core.timezone import get_plant_now_str, determine_time_slot, get_plant_now
 # Importa el servicio de auditoria de eventos
 from core.audit import record_audit_event
 
@@ -157,32 +157,150 @@ def get_recent_weighings(shift_id=None, limit=50):
         # Retorna lista de diccionarios
         return [dict(row) for row in rows]
 
-# Registra una parada o detencion en la linea de proceso
-def record_line_stop(shift_id, duration_minutes, reason, operator_name):
-    # Obtiene la fecha y hora oficial de planta (Argentina UTC-3)
+# Registra una parada o detencion en la linea de proceso con seleccion de turno y fecha
+def record_line_stop(shift_id=None, duration_minutes=0.0, reason='Mantenimiento', operator_name=None, stop_date=None, start_time=None):
+    """
+    Registra una parada o detención de planta.
+    Si shift_id o stop_date no se proporcionan, toma automáticamente el turno al que corresponde
+    el horario de carga y el día de carga oficial de planta (UTC-3).
+    """
+    now = get_plant_now()
     now_str = get_plant_now_str()
-    # Abre conexion para registrar la parada
+    slot_info = determine_time_slot(now)
+
+    # Si no se pasó fecha, toma la fecha operativa actual de la planta
+    clean_date = str(stop_date).strip() if stop_date and str(stop_date).strip() else None
+
+    # Si no se pasó shift_id o viene 'auto' o vacío, toma el turno correspondiente al horario de carga
+    clean_shift = str(shift_id).strip().upper() if shift_id and str(shift_id).strip() and str(shift_id).strip().lower() != 'auto' else None
+    if not clean_shift:
+        clean_shift = slot_info['shift_id']
+
+    # Determina la marca de tiempo de inicio
+    if start_time and str(start_time).strip():
+        final_start_time = str(start_time).strip()
+    elif clean_date:
+        time_part = now.strftime('%H:%M:%S')
+        final_start_time = f"{clean_date} {time_part}"
+    else:
+        final_start_time = now_str
+
+    duration_val = float(duration_minutes or 0.0)
+
     with get_db_connection() as conn:
-        # Inserta la detencion en la tabla line_stops
-        conn.execute("""
+        cursor = conn.execute("""
             INSERT INTO line_stops (shift_id, start_time, duration_minutes, reason, operator_name)
             VALUES (?, ?, ?, ?, ?);
-        """, (shift_id, now_str, duration_minutes, reason, operator_name))
-        # Confirma la transaccion
+        """, (clean_shift, final_start_time, duration_val, reason, operator_name or 'Operario'))
         conn.commit()
-    # Registra el evento en log
-    log_info('PRODUCTION', f'Parada de linea registrada en turno {shift_id}: {duration_minutes} min ({reason}).')
+        stop_id = cursor.lastrowid
+
+    log_info('PRODUCTION', f'Parada ID {stop_id} registrada: {duration_val} min en turno {clean_shift} ({reason}) el {final_start_time}.')
+    return {
+        'id': stop_id,
+        'shift_id': clean_shift,
+        'start_time': final_start_time,
+        'duration_minutes': duration_val,
+        'reason': reason,
+        'operator_name': operator_name
+    }
+
+# Actualiza y ajusta una detencion de linea historica con registro en auditoria
+def update_line_stop(stop_id, duration_minutes, reason, edit_reason='', operator_name=None, shift_id=None, stop_date=None):
+    """
+    Modifica una detención de planta y registra la trazabilidad en la bitácora de auditoría.
+    """
+    duration_val = float(duration_minutes or 0.0)
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Detención con ID #{stop_id} no encontrada.")
+        old_dict = dict(old)
+
+        new_shift = shift_id if shift_id and str(shift_id).strip() and str(shift_id).strip().lower() != 'auto' else old_dict['shift_id']
+
+        if stop_date and str(stop_date).strip():
+            old_time_part = old_dict['start_time'].split(' ')[-1] if ' ' in old_dict['start_time'] else '12:00:00'
+            new_start_time = f"{str(stop_date).strip()} {old_time_part}"
+        else:
+            new_start_time = old_dict['start_time']
+
+        conn.execute("""
+            UPDATE line_stops
+            SET duration_minutes = ?, reason = ?, shift_id = ?, start_time = ?
+            WHERE id = ?;
+        """, (duration_val, reason, new_shift, new_start_time, stop_id))
+        conn.commit()
+
+    details = (
+        f"Parada #{stop_id} modificada por {operator_name or 'usuario'}. Motivo del ajuste: '{edit_reason or 'Corrección de datos'}'. "
+        f"Antes: [{old_dict.get('duration_minutes')} min, Turno {old_dict.get('shift_id')}, Motivo: {old_dict.get('reason')}, Inicio: {old_dict.get('start_time')}]. "
+        f"Ahora: [{duration_val} min, Turno {new_shift}, Motivo: {reason}, Inicio: {new_start_time}]."
+    )
+    record_audit_event('PRODUCCION', 'EDICION_PARADA', details, user_override=operator_name)
+    log_info('PRODUCTION', details)
+    return True
+
+# Elimina una detencion de linea y asienta en bitacora de auditoria
+def delete_line_stop(stop_id, delete_reason='', operator_name=None):
+    """
+    Elimina una detención de planta y registra el evento en la bitácora de auditoría.
+    """
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Detención con ID #{stop_id} no encontrada.")
+        old_dict = dict(old)
+
+        conn.execute("DELETE FROM line_stops WHERE id = ?;", (stop_id,))
+        conn.commit()
+
+    details = (
+        f"Parada #{stop_id} eliminada por {operator_name or 'usuario'}. Motivo: '{delete_reason or 'Registro erróneo'}'. "
+        f"Datos eliminados: [{old_dict.get('duration_minutes')} min en Turno {old_dict.get('shift_id')}, Motivo: {old_dict.get('reason')}, Inicio: {old_dict.get('start_time')}]."
+    )
+    record_audit_event('PRODUCCION', 'ELIMINACION_PARADA', details, user_override=operator_name)
+    log_info('PRODUCTION', details)
+    return True
+
+# Elimina una pesada historica con registro en bitacora de auditoria
+def delete_weighing(weighing_id, delete_reason='', operator_name=None):
+    """
+    Elimina una pesada de producción y registra el evento en la bitácora de auditoría.
+    """
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM production_weighings WHERE id = ?;", (weighing_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Pesada con ID #{weighing_id} no encontrada.")
+        old_dict = dict(old)
+
+        conn.execute("DELETE FROM production_weighings WHERE id = ?;", (weighing_id,))
+        conn.commit()
+
+    details = (
+        f"Pesada #{weighing_id} ({old_dict.get('sample_point')}) eliminada por {operator_name or 'usuario'}. Motivo: '{delete_reason or 'Ingreso incorrecto'}'. "
+        f"Datos eliminados: [Neto={old_dict.get('net_weight_kg')} kg, Tiempo={old_dict.get('fill_time_seconds')} s, Velocidad={old_dict.get('speed_kg_h')} kg/h, Turno={old_dict.get('shift_id')}, Fecha={old_dict.get('timestamp')}]."
+    )
+    record_audit_event('PRODUCCION', 'ELIMINACION_PESADA', details, user_override=operator_name)
+    log_info('PRODUCTION', details)
+    return True
 
 # Obtiene las paradas registradas para un turno
-def get_shift_stops(shift_id):
+def get_shift_stops(shift_id=None):
     # Abre conexion a base de datos
     with get_db_connection() as conn:
-        # Consulta las paradas del turno especificado
-        rows = conn.execute("""
-            SELECT * FROM line_stops
-            WHERE shift_id = ?
-            ORDER BY start_time DESC;
-        """, (shift_id,)).fetchall()
+        if shift_id:
+            rows = conn.execute("""
+                SELECT * FROM line_stops
+                WHERE shift_id = ?
+                ORDER BY start_time DESC;
+            """, (shift_id,)).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT * FROM line_stops
+                ORDER BY start_time DESC
+                LIMIT 50;
+            """).fetchall()
         # Retorna lista de diccionarios
         return [dict(row) for row in rows]
 

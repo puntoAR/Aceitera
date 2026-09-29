@@ -493,11 +493,16 @@
                     </td>
                     <td>{{ a.acidity_pct ~ '%' if a.acidity_pct is not none else '-' }}</td>
                     <td style="color: #475569; max-width: 220px;">{{ a.notes or '-' }}</td>
-                    <td>{{ a.operator_name }}</td>
-                    <td style="text-align: right;">
-                        <button type="button" onclick="const er = document.getElementById('edit-analysis-{{ a.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Editar parámetros analíticos">
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" onclick="const er = document.getElementById('edit-analysis-{{ a.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; margin-right: 0.25rem;" title="Editar parámetros analíticos">
                             ✏️ Editar
                         </button>
+                        <form action="{{ url_for('laboratory.delete_analysis_route', analysis_id=a.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const r = prompt('Motivo de eliminación de análisis #{{ a.id }} (obligatorio para auditoría):'); if(!r) return false; this.delete_reason.value = r; return true;">
+                            <input type="hidden" name="delete_reason" value="">
+                            <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Eliminar análisis">
+                                🗑️ Eliminar
+                            </button>
+                        </form>
                     </td>
                 </tr>
 

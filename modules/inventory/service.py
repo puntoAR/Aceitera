@@ -17,6 +17,10 @@ from modules.calculations.silo_calc import (
 from core.error_logger import log_info, log_error
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
 from core.timezone import get_plant_now_str
+# Importa el servicio de auditoria de eventos
+from core.audit import record_audit_event
+# Importa utilidades de casteo seguro
+from core.utils import safe_float, safe_int
 
 # Registra una medicion de nivel de aceite en un tanque con calculo de litros y kg
 def record_tank_level(tank_id, level_m, shift_id, operator_name, density_override=None):
@@ -83,6 +87,83 @@ def record_tank_level(tank_id, level_m, shift_id, operator_name, density_overrid
         'oil_kg': conversion['total_mass_kg'],
         'density_applied': density
     }
+
+# Obtiene las mediciones recientes de tanques
+def get_recent_tank_readings(limit=50):
+    with get_db_connection() as conn:
+        rows = conn.execute("""
+            SELECT it.*, et.code as tank_code, et.name as tank_name, et.geometry_type
+            FROM inventory_tanks it
+            LEFT JOIN equipment_tanks et ON it.tank_id = et.id
+            ORDER BY it.timestamp DESC, it.id DESC
+            LIMIT ?;
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+# Actualiza y recalcula una medicion de tanque con registro en auditoria
+def update_tank_reading(reading_id, level_m, density_override=None, edit_reason='', operator_name=None):
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM inventory_tanks WHERE id = ?;", (reading_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Medición de tanque con ID #{reading_id} no encontrada.")
+        old_dict = dict(old)
+
+        tank = conn.execute("SELECT * FROM equipment_tanks WHERE id = ?;", (old_dict['tank_id'],)).fetchone()
+        if not tank:
+            raise ValueError(f"Tanque #{old_dict['tank_id']} no encontrado.")
+
+        geom_type = tank['geometry_type']
+        diameter_m = tank['diameter_m']
+        length_m = tank['length_m']
+        height_m = tank['height_m']
+        heel_l = tank['heel_volume_l']
+
+        density = density_override if density_override and density_override > 0 else (old_dict.get('density_applied') or tank['default_density'])
+        level_val = float(level_m or 0.0)
+
+        if geom_type == 'horizontal_cylinder':
+            volume_m3 = calculate_horizontal_tank_volume(diameter_m, length_m, level_val)
+        else:
+            volume_m3 = calculate_vertical_tank_volume(diameter_m, height_m, level_val)
+
+        conversion = convert_volume_to_mass(volume_m3, density, heel_l)
+
+        conn.execute("""
+            UPDATE inventory_tanks
+            SET level_m = ?, volume_m3 = ?, liters = ?, oil_kg = ?, density_applied = ?
+            WHERE id = ?;
+        """, (level_val, conversion['volume_m3'], conversion['total_liters'], conversion['total_mass_kg'], density, reading_id))
+        conn.commit()
+
+    details = (
+        f"Cubicaje de tanque #{reading_id} ({tank['code']}) modificado por {operator_name or 'usuario'}. "
+        f"Motivo: '{edit_reason or 'Ajuste de medición'}'. "
+        f"Antes: [Nivel={old_dict.get('level_m')}m, Vol={old_dict.get('volume_m3')}m³, Masa={old_dict.get('oil_kg')}kg, Densidad={old_dict.get('density_applied')}]. "
+        f"Ahora: [Nivel={level_val}m, Vol={conversion['volume_m3']}m³, Masa={conversion['total_mass_kg']}kg, Densidad={density}]."
+    )
+    record_audit_event('INVENTARIO', 'EDICION_CUBICAJE_TANQUE', details, user_override=operator_name)
+    log_info('INVENTORY', details)
+    return True
+
+# Elimina una medicion de tanque con registro en auditoria
+def delete_tank_reading(reading_id, delete_reason='', operator_name=None):
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM inventory_tanks WHERE id = ?;", (reading_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Medición de tanque con ID #{reading_id} no encontrada.")
+        old_dict = dict(old)
+
+        conn.execute("DELETE FROM inventory_tanks WHERE id = ?;", (reading_id,))
+        conn.commit()
+
+    details = (
+        f"Cubicaje de tanque #{reading_id} (Tanque ID {old_dict.get('tank_id')}) eliminado por {operator_name or 'usuario'}. "
+        f"Motivo: '{delete_reason or 'Eliminación de lectura errónea'}'. "
+        f"Datos eliminados: [Nivel={old_dict.get('level_m')}m, Masa={old_dict.get('oil_kg')}kg, Litros={old_dict.get('liters')}, Fecha={old_dict.get('timestamp')}]."
+    )
+    record_audit_event('INVENTARIO', 'ELIMINACION_CUBICAJE_TANQUE', details, user_override=operator_name)
+    log_info('INVENTORY', details)
+    return True
 
 # Registra un cubicaje de silo de semilla o expeller
 def record_silo_measurement(silo_id, covered_sheets, partial_sheet_height_m,
@@ -153,6 +234,93 @@ def record_silo_measurement(silo_id, covered_sheets, partial_sheet_height_m,
         'stock_kg': mass_info['total_mass_kg'],
         'stock_tons': mass_info['total_tons']
     }
+
+# Obtiene las mediciones recientes de silos
+def get_recent_silo_readings(limit=50):
+    with get_db_connection() as conn:
+        rows = conn.execute("""
+            SELECT isil.*, es.code as silo_code, es.name as silo_name, es.product_assigned
+            FROM inventory_silos isil
+            LEFT JOIN equipment_silos es ON isil.silo_id = es.id
+            ORDER BY isil.timestamp DESC, isil.id DESC
+            LIMIT ?;
+        """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+# Actualiza y recalcula una medicion de silo con registro en auditoria
+def update_silo_reading(reading_id, covered_sheets, partial_sheet_height_m,
+                        cone_occupied_status, copete_height_m, ph_override=None, edit_reason='', operator_name=None):
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM inventory_silos WHERE id = ?;", (reading_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Medición de silo con ID #{reading_id} no encontrada.")
+        old_dict = dict(old)
+
+        silo = conn.execute("SELECT * FROM equipment_silos WHERE id = ?;", (old_dict['silo_id'],)).fetchone()
+        if not silo:
+            raise ValueError(f"Silo #{old_dict['silo_id']} no encontrado.")
+
+        diameter_m = silo['diameter_m']
+        sheet_h = silo['sheet_height_m']
+        cone_h = silo['bottom_cone_height_m']
+        cone_type = silo['bottom_cone_type']
+        min_diam = silo['bottom_cone_min_diam_m']
+        product = silo['product_assigned']
+
+        cov_sheets = float(covered_sheets or 0.0)
+        part_h = float(partial_sheet_height_m or 0.0)
+        cop_h = float(copete_height_m or 0.0)
+        ph_applied = ph_override if ph_override and float(ph_override) > 0 else (old_dict.get('ph_applied') or silo['default_ph'])
+
+        vol_breakdown = calculate_silo_total_volume(
+            diameter_m, sheet_h, cov_sheets, part_h,
+            cone_h, cone_type, min_diam, cone_occupied_status, cop_h
+        )
+        total_volume_m3 = vol_breakdown['total_volume_m3']
+
+        if product == 'expeller':
+            mass_info = convert_silo_volume_to_expeller_mass(total_volume_m3, float(ph_applied) * 10.0)
+        else:
+            mass_info = convert_silo_volume_to_seed_mass(total_volume_m3, float(ph_applied))
+
+        conn.execute("""
+            UPDATE inventory_silos
+            SET covered_sheets = ?, partial_sheet_height_m = ?, cone_occupied_status = ?,
+                copete_height_m = ?, ph_applied = ?, volume_m3 = ?, stock_kg = ?
+            WHERE id = ?;
+        """, (cov_sheets, part_h, cone_occupied_status,
+              cop_h, ph_applied, total_volume_m3, mass_info['total_mass_kg'], reading_id))
+        conn.commit()
+
+    details = (
+        f"Cubicaje de silo #{reading_id} ({silo['code']} - {product}) modificado por {operator_name or 'usuario'}. "
+        f"Motivo: '{edit_reason or 'Ajuste de cubicaje'}'. "
+        f"Antes: [Chapas={old_dict.get('covered_sheets')}, Cono={old_dict.get('cone_occupied_status')}, Copete={old_dict.get('copete_height_m')}m, Stock={old_dict.get('stock_kg')}kg]. "
+        f"Ahora: [Chapas={cov_sheets}, Cono={cone_occupied_status}, Copete={cop_h}m, Stock={mass_info['total_mass_kg']}kg ({mass_info['total_tons']} Tn)]."
+    )
+    record_audit_event('INVENTARIO', 'EDICION_CUBICAJE_SILO', details, user_override=operator_name)
+    log_info('INVENTORY', details)
+    return True
+
+# Elimina una medicion de silo con registro en auditoria
+def delete_silo_reading(reading_id, delete_reason='', operator_name=None):
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM inventory_silos WHERE id = ?;", (reading_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Medición de silo con ID #{reading_id} no encontrada.")
+        old_dict = dict(old)
+
+        conn.execute("DELETE FROM inventory_silos WHERE id = ?;", (reading_id,))
+        conn.commit()
+
+    details = (
+        f"Cubicaje de silo #{reading_id} (Silo ID {old_dict.get('silo_id')}) eliminado por {operator_name or 'usuario'}. "
+        f"Motivo: '{delete_reason or 'Eliminación de cubicaje erróneo'}'. "
+        f"Datos eliminados: [Chapas={old_dict.get('covered_sheets')}, Stock={old_dict.get('stock_kg')}kg, Fecha={old_dict.get('timestamp')}]."
+    )
+    record_audit_event('INVENTARIO', 'ELIMINACION_CUBICAJE_SILO', details, user_override=operator_name)
+    log_info('INVENTORY', details)
+    return True
 
 # Registra un movimiento externo de producto (despacho, ingreso de cereal, trasvase)
 def record_inventory_movement(product, movement_type, origin, destination, quantity_kg,

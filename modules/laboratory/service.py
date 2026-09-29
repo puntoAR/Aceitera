@@ -177,6 +177,31 @@ def update_analysis(analysis_id, sampling_point, moisture_pct, fat_pct,
     log_info('LAB', f"Análisis #{analysis_id} modificado por {operator_name or 'usuario'}: {details}")
     return True
 
+# Elimina una determinacion analitica de laboratorio con registro en auditoria
+def delete_analysis(analysis_id, delete_reason='', operator_name=None):
+    """
+    Elimina un análisis de laboratorio y registra el evento en la bitácora de auditoría.
+    """
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM lab_analyses WHERE id = ?;", (analysis_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Análisis con ID #{analysis_id} no encontrado.")
+        old_dict = dict(old)
+
+        conn.execute("DELETE FROM lab_analyses WHERE id = ?;", (analysis_id,))
+        conn.commit()
+
+    details = (
+        f"Análisis #{analysis_id} ({old_dict.get('sample_code', '-')}, {old_dict.get('product', '-')}) eliminado por {operator_name or 'usuario'}. "
+        f"Motivo: '{delete_reason or 'Eliminación de análisis erróneo'}'. "
+        f"Datos eliminados: [Punto={old_dict.get('sampling_point')}, H={old_dict.get('moisture_pct')}%, "
+        f"MG={old_dict.get('fat_pct')}%, Acidez={old_dict.get('acidity_pct')}%, "
+        f"Turno={old_dict.get('shift_id')}, Fecha={old_dict.get('timestamp')}]."
+    )
+    record_audit_event('LABORATORIO', 'ELIMINACION_ANALISIS', details, user_override=operator_name)
+    log_info('LAB', details)
+    return True
+
 # Obtiene los analisis recientes de laboratorio
 def get_recent_analyses(product=None, limit=50):
     # Abre conexion a base de datos

@@ -1,10 +1,12 @@
 # Importa componentes de Flask
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
 # Importa decorador de autorizacion por roles
 from core.security import roles_required
 # Importa metodos del servicio de inventario
 from modules.inventory.service import (
-    record_tank_level, record_silo_measurement, record_inventory_movement, get_total_plant_stocks
+    record_tank_level, record_silo_measurement, record_inventory_movement, get_total_plant_stocks,
+    get_recent_tank_readings, update_tank_reading, delete_tank_reading,
+    get_recent_silo_readings, update_silo_reading, delete_silo_reading
 )
 # Importa metodos de configuracion para listar equipos
 from modules.configuration.service import get_all_tanks, get_all_silos, get_active_shift
@@ -30,8 +32,19 @@ def index():
     silos = get_all_silos(only_active=True)
     # Obtiene el turno activo
     active_shift = get_active_shift()
+    # Obtiene historico reciente de cubicajes
+    recent_tank_readings = get_recent_tank_readings(limit=50)
+    recent_silo_readings = get_recent_silo_readings(limit=50)
     # Renderiza la plantilla de inventario
-    return render_template('inventory.html', stocks=stocks, tanks=tanks, silos=silos, active_shift=active_shift)
+    return render_template(
+        'inventory.html',
+        stocks=stocks,
+        tanks=tanks,
+        silos=silos,
+        active_shift=active_shift,
+        recent_tank_readings=recent_tank_readings,
+        recent_silo_readings=recent_silo_readings
+    )
 
 # Endpoint para registrar medicion de nivel de tanque de aceite
 @inventory_bp.route('/tank-reading', methods=['POST'])
@@ -143,3 +156,91 @@ def add_movement():
 def api_stocks():
     # Retorna stocks en formato JSON
     return jsonify(get_total_plant_stocks())
+
+# Endpoint para editar una medicion de tanque
+@inventory_bp.route('/tank-reading/edit/<int:reading_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def edit_tank_reading(reading_id):
+    try:
+        level_m = safe_float(request.form.get('level_m'), 0.0)
+        density_override = safe_float(request.form.get('density_override'), default=None)
+        if density_override is not None and density_override <= 0:
+            density_override = None
+        edit_reason = request.form.get('edit_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not edit_reason:
+            flash('Debe especificar el motivo del ajuste para el registro de auditoría.', 'warning')
+            return redirect(url_for('inventory.index'))
+
+        update_tank_reading(reading_id, level_m, density_override, edit_reason, op_name)
+        flash(f'Medición de tanque #{reading_id} actualizada correctamente.', 'success')
+    except Exception as e:
+        log_error('INVENTORY_ROUTE', f'Error al editar medición de tanque #{reading_id}', e)
+        flash(f'Error al modificar medición de tanque: {str(e)}', 'danger')
+    return redirect(url_for('inventory.index'))
+
+# Endpoint para eliminar una medicion de tanque
+@inventory_bp.route('/tank-reading/delete/<int:reading_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def delete_tank_reading_route(reading_id):
+    try:
+        delete_reason = request.form.get('delete_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not delete_reason:
+            flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
+            return redirect(url_for('inventory.index'))
+
+        delete_tank_reading(reading_id, delete_reason, op_name)
+        flash(f'Medición de tanque #{reading_id} eliminada. Existencias recalculadas.', 'success')
+    except Exception as e:
+        log_error('INVENTORY_ROUTE', f'Error al eliminar medición de tanque #{reading_id}', e)
+        flash(f'Error al eliminar medición de tanque: {str(e)}', 'danger')
+    return redirect(url_for('inventory.index'))
+
+# Endpoint para editar un cubicaje de silo
+@inventory_bp.route('/silo-reading/edit/<int:reading_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def edit_silo_reading(reading_id):
+    try:
+        covered_sheets = safe_float(request.form.get('covered_sheets'), 0.0)
+        partial_sheet_h = safe_float(request.form.get('partial_sheet_height_m'), 0.0)
+        cone_status = request.form.get('cone_occupied_status', 'lleno')
+        copete_height_m = safe_float(request.form.get('copete_height_m'), 0.0)
+        ph_override = safe_float(request.form.get('ph_override'), default=None)
+        if ph_override is not None and ph_override <= 0:
+            ph_override = None
+        edit_reason = request.form.get('edit_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not edit_reason:
+            flash('Debe especificar el motivo del ajuste para el registro de auditoría.', 'warning')
+            return redirect(url_for('inventory.index'))
+
+        update_silo_reading(reading_id, covered_sheets, partial_sheet_h, cone_status, copete_height_m, ph_override, edit_reason, op_name)
+        flash(f'Cubicaje de silo #{reading_id} actualizado correctamente.', 'success')
+    except Exception as e:
+        log_error('INVENTORY_ROUTE', f'Error al editar cubicaje de silo #{reading_id}', e)
+        flash(f'Error al modificar cubicaje de silo: {str(e)}', 'danger')
+    return redirect(url_for('inventory.index'))
+
+# Endpoint para eliminar un cubicaje de silo
+@inventory_bp.route('/silo-reading/delete/<int:reading_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def delete_silo_reading_route(reading_id):
+    try:
+        delete_reason = request.form.get('delete_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not delete_reason:
+            flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
+            return redirect(url_for('inventory.index'))
+
+        delete_silo_reading(reading_id, delete_reason, op_name)
+        flash(f'Cubicaje de silo #{reading_id} eliminado. Existencias recalculadas.', 'success')
+    except Exception as e:
+        log_error('INVENTORY_ROUTE', f'Error al eliminar cubicaje de silo #{reading_id}', e)
+        flash(f'Error al eliminar cubicaje de silo: {str(e)}', 'danger')
+    return redirect(url_for('inventory.index'))
+

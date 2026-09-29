@@ -143,10 +143,27 @@
             + Registrar Parada / Detención
         </h3>
         <form action="{{ url_for('production.add_stop') }}" method="POST">
-            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
             <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
 
-            <div class="form-group" style="margin-bottom: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div class="form-group">
+                    <label class="form-label" for="stop_date">Fecha</label>
+                    <input class="form-input" type="date" id="stop_date" name="stop_date" style="font-size: 0.82rem;">
+                    <small style="color: #64748b; font-size: 0.7rem;">Auto: Día operativo actual</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="shift_id">Turno</label>
+                    <select class="form-select" id="shift_id" name="shift_id" style="font-size: 0.82rem;">
+                        <option value="">Auto (según horario)</option>
+                        <option value="TM">Turno Mañana (TM)</option>
+                        <option value="TT">Turno Tarde (TT)</option>
+                        <option value="TN">Turno Noche (TN)</option>
+                    </select>
+                    <small style="color: #64748b; font-size: 0.7rem;">Auto: Según hora de carga</small>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.75rem;">
                 <label class="form-label" for="duration_minutes">Duración de Parada (minutos)</label>
                 <input class="form-input" type="number" step="1" id="duration_minutes" name="duration_minutes" placeholder="ej. 30" required>
             </div>
@@ -171,11 +188,54 @@
 
         <!-- Historial de paradas del turno -->
         <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
-            <h4 style="font-size: 0.9rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Paradas en este turno:</h4>
+            <h4 style="font-size: 0.9rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Paradas registradas:</h4>
             {% for stop in stops %}
-            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.35rem 0; border-bottom: 1px dashed #f1f5f9;">
-                <span><strong>{{ stop.duration_minutes }} min</strong> - {{ stop.reason }}</span>
-                <span style="color: #94a3b8;">{{ stop.start_time.split(' ')[-1][:5] }}</span>
+            <div style="border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
+                    <div>
+                        <strong>{{ stop.duration_minutes }} min</strong> - {{ stop.reason }}
+                        <span style="font-size: 0.72rem; background: #fee2e2; color: #991b1b; padding: 0.1rem 0.35rem; border-radius: 0.2rem; margin-left: 0.3rem; font-weight: 600;">{{ stop.shift_id }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="color: #94a3b8; font-size: 0.75rem;">{{ stop.start_time.split(' ')[0] if ' ' in stop.start_time else '' }} {{ stop.start_time.split(' ')[-1][:5] }}</span>
+                        <button type="button" onclick="const se = document.getElementById('edit-stop-{{ stop.id }}'); se.style.display = (se.style.display === 'none' ? 'block' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.15rem 0.35rem; font-size: 0.72rem; border-radius: 0.2rem; cursor: pointer;" title="Editar parada">✏️</button>
+                        <form action="{{ url_for('production.delete_stop_route', stop_id=stop.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const r = prompt('Motivo de eliminación de parada #{{ stop.id }} (obligatorio para auditoría):'); if(!r) return false; this.delete_reason.value = r; return true;">
+                            <input type="hidden" name="delete_reason" value="">
+                            <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.15rem 0.35rem; font-size: 0.72rem; border-radius: 0.2rem; cursor: pointer;" title="Eliminar parada">🗑️</button>
+                        </form>
+                    </div>
+                </div>
+                <!-- Mini form inline para editar la parada -->
+                <div id="edit-stop-{{ stop.id }}" style="display: none; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 0.35rem; padding: 0.5rem; margin-top: 0.4rem;">
+                    <form action="{{ url_for('production.edit_stop', stop_id=stop.id) }}" method="POST" style="margin: 0;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.4rem;">
+                            <div>
+                                <label style="font-size: 0.7rem; color: #475569; display: block;">Duración (min)</label>
+                                <input type="number" step="1" name="duration_minutes" value="{{ stop.duration_minutes }}" class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.4rem;" required>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.7rem; color: #475569; display: block;">Turno</label>
+                                <select name="shift_id" class="form-select" style="font-size: 0.75rem; padding: 0.25rem 0.4rem;">
+                                    <option value="TM" {% if stop.shift_id == 'TM' %}selected{% endif %}>TM (06-14)</option>
+                                    <option value="TT" {% if stop.shift_id == 'TT' %}selected{% endif %}>TT (14-22)</option>
+                                    <option value="TN" {% if stop.shift_id == 'TN' %}selected{% endif %}>TN (22-06)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 0.4rem;">
+                            <label style="font-size: 0.7rem; color: #475569; display: block;">Motivo de Parada</label>
+                            <input type="text" name="reason" value="{{ stop.reason }}" class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.4rem;" required>
+                        </div>
+                        <div style="margin-bottom: 0.4rem;">
+                            <label style="font-size: 0.7rem; color: #b91c1c; font-weight: 600; display: block;">Motivo de Edición (Auditoría)</label>
+                            <input type="text" name="edit_reason" placeholder="Motivo del ajuste..." class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.4rem; border: 1px solid #f87171;" required>
+                        </div>
+                        <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                            <button type="button" onclick="document.getElementById('edit-stop-{{ stop.id }}').style.display='none';" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; background: #e2e8f0; border: none; border-radius: 0.2rem; cursor: pointer;">Cancelar</button>
+                            <button type="submit" class="btn" style="padding: 0.2rem 0.6rem; font-size: 0.72rem; background: #dc2626; color: white; border: none; border-radius: 0.2rem; font-weight: 600; cursor: pointer;">Guardar</button>
+                        </div>
+                    </form>
+                </div>
             </div>
             {% else %}
             <p style="font-size: 0.85rem; color: #94a3b8;">Sin detenciones registradas en el turno.</p>
@@ -235,10 +295,16 @@
                         </span>
                     </td>
                     <td>{{ w.operator_name }}</td>
-                    <td style="text-align: right;">
-                        <button type="button" onclick="const er = document.getElementById('edit-weighing-{{ w.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Editar pesada y ajustar cálculo">
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" onclick="const er = document.getElementById('edit-weighing-{{ w.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; margin-right: 0.25rem;" title="Editar pesada y ajustar cálculo">
                             ✏️ Editar
                         </button>
+                        <form action="{{ url_for('production.delete_weighing_route', weighing_id=w.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const r = prompt('Motivo de eliminación de pesada #{{ w.id }} (obligatorio para auditoría):'); if(!r) return false; this.delete_reason.value = r; return true;">
+                            <input type="hidden" name="delete_reason" value="">
+                            <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Eliminar pesada">
+                                🗑️ Eliminar
+                            </button>
+                        </form>
                     </td>
                 </tr>
 

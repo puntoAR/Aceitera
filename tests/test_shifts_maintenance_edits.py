@@ -6,8 +6,15 @@ from core.database import get_db_connection, init_db
 from core.timezone import determine_time_slot, get_current_time_slot, get_plant_now
 from core.security import register_user, authenticate_user, has_module_access, get_user_allowed_modules
 from modules.admin.service import admin_update_user, approve_user
-from modules.production.service import record_weighing, update_weighing
-from modules.laboratory.service import record_analysis, update_analysis
+from modules.production.service import (
+    record_weighing, update_weighing, delete_weighing,
+    record_line_stop, update_line_stop, delete_line_stop, get_shift_stops
+)
+from modules.laboratory.service import record_analysis, update_analysis, delete_analysis
+from modules.inventory.service import (
+    record_tank_level, update_tank_reading, delete_tank_reading,
+    record_silo_measurement, update_silo_reading, delete_silo_reading, get_total_plant_stocks
+)
 from modules.dashboard.service import get_shift_and_daily_performance, get_executive_dashboard_data
 
 class TestShiftsMaintenanceEdits(unittest.TestCase):
@@ -310,5 +317,234 @@ class TestShiftsMaintenanceEdits(unittest.TestCase):
             self.assertEqual(row['moisture_pct'], 7.2)
             self.assertEqual(row['fat_pct'], 8.1)
 
+    def test_line_stop_custom_date_shift_and_fallback(self):
+        """Valida que record_line_stop permita shift_id y stop_date custom, y fallback automático."""
+        # 1. Con fecha y turno explícitos
+        stop1 = record_line_stop(
+            shift_id='TN',
+            duration_minutes=45.0,
+            reason='Mantenimiento Programado',
+            operator_name='Carlos Operario',
+            stop_date='2026-10-10'
+        )
+        self.assertEqual(stop1['shift_id'], 'TN')
+        self.assertTrue(stop1['start_time'].startswith('2026-10-10'))
+        self.assertEqual(stop1['duration_minutes'], 45.0)
+
+        # 2. Con fallback automático (sin shift_id ni stop_date)
+        now_slot = determine_time_slot(get_plant_now())
+        stop2 = record_line_stop(
+            duration_minutes=20.0,
+            reason='Despeje tolva'
+        )
+        self.assertEqual(stop2['shift_id'], now_slot['shift_id'])
+        self.assertTrue(stop2['start_time'].startswith(now_slot['operational_date']) or stop2['start_time'].startswith(now_slot['calendar_date']))
+
+    def test_line_stop_update_and_delete_with_audit(self):
+        """Valida la edición y eliminación de paradas de planta con trazabilidad en auditoría."""
+        stop = record_line_stop(shift_id='TM', duration_minutes=30.0, reason='Atasco')
+        stop_id = stop['id']
+
+        # Edición
+        update_line_stop(
+            stop_id=stop_id,
+            duration_minutes=40.0,
+            reason='Atasco y Limpieza',
+            edit_reason='Ajuste de duración real',
+            operator_name='Supervisor',
+            shift_id='TT'
+        )
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+            self.assertEqual(row['duration_minutes'], 40.0)
+            self.assertEqual(row['reason'], 'Atasco y Limpieza')
+            self.assertEqual(row['shift_id'], 'TT')
+
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'EDICION_PARADA' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit)
+            self.assertIn('Ajuste de duración real', audit['details'])
+
+        # Eliminación
+        delete_line_stop(stop_id=stop_id, delete_reason='Cargado por error en turno incorrecto', operator_name='Supervisor')
+        with get_db_connection() as conn:
+            row_del = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+            self.assertIsNone(row_del)
+
+            audit_del = conn.execute("SELECT * FROM audit_logs WHERE action = 'ELIMINACION_PARADA' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit_del)
+            self.assertIn('Cargado por error', audit_del['details'])
+
+    def test_weighing_delete_with_audit(self):
+        """Valida la eliminación de pesadas de producción con registro en bitácora de auditoría."""
+        w = record_weighing(shift_id='TM', operator_name='Op', sample_point='salida_expeller',
+                            gross_weight_kg=15.0, tare_weight_kg=2.0, fill_time_seconds=30.0)
+        w_id = w['id']
+
+        delete_weighing(weighing_id=w_id, delete_reason='Muestra duplicada cargada sin tara', operator_name='Jefe Turno')
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM production_weighings WHERE id = ?;", (w_id,)).fetchone()
+            self.assertIsNone(row)
+
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'ELIMINACION_PESADA' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit)
+            self.assertIn('Muestra duplicada', audit['details'])
+
+    def test_tank_reading_edit_delete_and_stock_recalculation(self):
+        """Valida edición y eliminación de cubicaje de tanques de aceite y su recálculo de existencias."""
+        # Registra medición en tanque 1 (diámetro 2.5m)
+        r = record_tank_level(tank_id=1, level_m=1.0, shift_id='TM', operator_name='Op Tanque')
+        r_id = r['id']
+        stocks1 = get_total_plant_stocks()
+
+        # Edición a nivel más alto (2.2m < 2.5m)
+        update_tank_reading(reading_id=r_id, level_m=2.2, edit_reason='Error de regla de medición', operator_name='Supervisor')
+        stocks2 = get_total_plant_stocks()
+        self.assertGreater(stocks2['total_oil_kg'], stocks1['total_oil_kg'])
+
+        with get_db_connection() as conn:
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'EDICION_CUBICAJE_TANQUE' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit)
+            self.assertIn('Error de regla', audit['details'])
+
+        # Eliminación
+        delete_tank_reading(reading_id=r_id, delete_reason='Medición inválida por movimiento de carga', operator_name='Supervisor')
+        stocks3 = get_total_plant_stocks()
+
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM inventory_tanks WHERE id = ?;", (r_id,)).fetchone()
+            self.assertIsNone(row)
+            audit_del = conn.execute("SELECT * FROM audit_logs WHERE action = 'ELIMINACION_CUBICAJE_TANQUE' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit_del)
+            self.assertIn('Medición inválida', audit_del['details'])
+
+    def test_silo_reading_edit_delete_and_stock_recalculation(self):
+        """Valida edición y eliminación de cubicaje de silos (semilla/expeller) y su recálculo de existencias."""
+        s = record_silo_measurement(silo_id=1, covered_sheets=2.0, partial_sheet_height_m=0.0,
+                                    cone_status='lleno', copete_height_m=0.0, shift_id='TM', operator_name='Op Silo')
+        s_id = s['id']
+        stocks1 = get_total_plant_stocks()
+
+        # Edición
+        update_silo_reading(reading_id=s_id, covered_sheets=4.0, partial_sheet_height_m=0.2,
+                            cone_occupied_status='lleno', copete_height_m=0.5, edit_reason='Corrección de chapas vista superior', operator_name='Supervisor')
+        stocks2 = get_total_plant_stocks()
+        # El stock debe haber aumentado
+        self.assertGreater(stocks2['total_seed_kg'] + stocks2['total_expeller_kg'],
+                           stocks1['total_seed_kg'] + stocks1['total_expeller_kg'])
+
+        with get_db_connection() as conn:
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'EDICION_CUBICAJE_SILO' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit)
+            self.assertIn('Corrección de chapas', audit['details'])
+
+        # Eliminación
+        delete_silo_reading(reading_id=s_id, delete_reason='Cubicaje erróneo', operator_name='Supervisor')
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM inventory_silos WHERE id = ?;", (s_id,)).fetchone()
+            self.assertIsNone(row)
+            audit_del = conn.execute("SELECT * FROM audit_logs WHERE action = 'ELIMINACION_CUBICAJE_SILO' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit_del)
+            self.assertIn('Cubicaje erróneo', audit_del['details'])
+
+    def test_laboratory_analysis_delete_with_audit(self):
+        """Valida la eliminación de análisis de laboratorio con registro en auditoría."""
+        a = record_analysis(sample_code='DEL-LAB-01', product='semilla', sampling_point='Tolva',
+                            shift_id='TM', operator_name='Analista', raw_data={'direct_moisture_pct': 9.5})
+        a_id = a['id']
+
+        delete_analysis(analysis_id=a_id, delete_reason='Muestra contaminada descartada', operator_name='Jefe Lab')
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM lab_analyses WHERE id = ?;", (a_id,)).fetchone()
+            self.assertIsNone(row)
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'ELIMINACION_ANALISIS' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(audit)
+            self.assertIn('Muestra contaminada', audit['details'])
+
+    def test_http_routes_for_deletions_and_edits(self):
+        """Valida los endpoints HTTP para eliminación y edición de paradas, pesadas, tanques, silos y análisis."""
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['role'] = 'admin_sistema'
+            sess['full_name'] = 'Administrador del Sistema'
+
+        # 1. Registrar parada HTTP con turno y fecha
+        res_stop = self.app.post('/production/stop', data={
+            'duration_minutes': '25',
+            'reason': 'Corte Eléctrico',
+            'shift_id': 'TT',
+            'stop_date': '2026-10-12'
+        }, follow_redirects=False)
+        self.assertEqual(res_stop.status_code, 302)
+
+        with get_db_connection() as conn:
+            stop_row = conn.execute("SELECT id FROM line_stops WHERE reason = 'Corte Eléctrico' ORDER BY id DESC LIMIT 1;").fetchone()
+            st_id = stop_row['id']
+
+        # 2. Editar parada HTTP
+        res_edit_st = self.app.post(f'/production/stop/edit/{st_id}', data={
+            'duration_minutes': '35',
+            'reason': 'Corte Eléctrico General',
+            'shift_id': 'TT',
+            'stop_date': '2026-10-12',
+            'edit_reason': 'Ajuste de tiempo por informe de EDEN'
+        }, follow_redirects=False)
+        self.assertEqual(res_edit_st.status_code, 302)
+
+        # 3. Eliminar parada HTTP
+        res_del_st = self.app.post(f'/production/stop/delete/{st_id}', data={
+            'delete_reason': 'Prueba HTTP eliminación'
+        }, follow_redirects=False)
+        self.assertEqual(res_del_st.status_code, 302)
+
+        # 4. Eliminar pesada HTTP
+        w = record_weighing(shift_id='TM', operator_name='Op', sample_point='salida_expeller',
+                            gross_weight_kg=12.0, tare_weight_kg=1.0, fill_time_seconds=30.0)
+        res_del_w = self.app.post(f'/production/weighing/delete/{w["id"]}', data={
+            'delete_reason': 'Prueba HTTP pesada delete'
+        }, follow_redirects=False)
+        self.assertEqual(res_del_w.status_code, 302)
+
+        # 5. Editar y Eliminar tanque HTTP
+        tr = record_tank_level(tank_id=1, level_m=1.5, shift_id='TM', operator_name='Op')
+        res_edit_tr = self.app.post(f'/inventory/tank-reading/edit/{tr["id"]}', data={
+            'level_m': '2.1',
+            'density_override': '0.922',
+            'edit_reason': 'Prueba HTTP tanque edit'
+        }, follow_redirects=False)
+        self.assertEqual(res_edit_tr.status_code, 302)
+
+        res_del_tr = self.app.post(f'/inventory/tank-reading/delete/{tr["id"]}', data={
+            'delete_reason': 'Prueba HTTP tanque delete'
+        }, follow_redirects=False)
+        self.assertEqual(res_del_tr.status_code, 302)
+
+        # 6. Editar y Eliminar silo HTTP
+        sr = record_silo_measurement(silo_id=1, covered_sheets=1.0, partial_sheet_height_m=0.0,
+                                     cone_status='lleno', copete_height_m=0.0, shift_id='TM', operator_name='Op')
+        res_edit_sr = self.app.post(f'/inventory/silo-reading/edit/{sr["id"]}', data={
+            'covered_sheets': '2.5',
+            'partial_sheet_height_m': '0.1',
+            'cone_occupied_status': 'lleno',
+            'copete_height_m': '0.2',
+            'ph_override': '',
+            'edit_reason': 'Prueba HTTP silo edit'
+        }, follow_redirects=False)
+        self.assertEqual(res_edit_sr.status_code, 302)
+
+        res_del_sr = self.app.post(f'/inventory/silo-reading/delete/{sr["id"]}', data={
+            'delete_reason': 'Prueba HTTP silo delete'
+        }, follow_redirects=False)
+        self.assertEqual(res_del_sr.status_code, 302)
+
+        # 7. Eliminar análisis lab HTTP
+        la = record_analysis(sample_code='HTTP-DEL-01', product='aceite', sampling_point='Salida Prensa',
+                             shift_id='TM', operator_name='Analista', raw_data={'direct_moisture_pct': 0.1})
+        res_del_la = self.app.post(f'/laboratory/analysis/delete/{la["id"]}', data={
+            'delete_reason': 'Prueba HTTP lab delete'
+        }, follow_redirects=False)
+        self.assertEqual(res_del_la.status_code, 302)
+
 if __name__ == '__main__':
     unittest.main()
+

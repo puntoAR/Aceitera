@@ -207,4 +207,209 @@
         </button>
     </form>
 </div>
+
+<!-- ========================================================================= -->
+<!-- HISTORIAL DE MEDICIONES DE TANQUES DE ACEITE                              -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-top: 1.5rem;">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #b45309; margin-bottom: 1rem;">
+        Historial de Mediciones de Tanques de Aceite
+    </h3>
+    <div class="table-responsive">
+        <table class="table" style="font-size: 0.85rem;">
+            <thead>
+                <tr style="background: #fffbeb;">
+                    <th>Fecha / Hora</th>
+                    <th>Tanque</th>
+                    <th>Nivel (m)</th>
+                    <th>Volumen (m³)</th>
+                    <th>Litros</th>
+                    <th>Aceite (kg)</th>
+                    <th>Densidad</th>
+                    <th>Operario</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recent_tank_readings %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="white-space: nowrap;">{{ r.timestamp }}</td>
+                    <td><strong>{{ r.tank_code }}</strong> <small style="color: #64748b;">({{ r.tank_name }})</small></td>
+                    <td><strong>{{ r.level_m }} m</strong></td>
+                    <td>{{ "{:,.2f}".format(r.volume_m3 or 0.0) }} m³</td>
+                    <td>{{ "{:,.0f}".format(r.liters or 0.0).replace(",", ".") }} L</td>
+                    <td><strong style="color: #b45309;">{{ "{:,.0f}".format(r.oil_kg or 0.0).replace(",", ".") }} kg</strong></td>
+                    <td>{{ r.density_applied or '-' }}</td>
+                    <td>{{ r.operator_name }}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" onclick="const row = document.getElementById('edit-tank-{{ r.id }}'); row.style.display = (row.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; margin-right: 0.25rem;" title="Editar medición de tanque">
+                            ✏️ Editar
+                        </button>
+                        <form action="{{ url_for('inventory.delete_tank_reading_route', reading_id=r.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const res = prompt('Motivo de eliminación de medición #{{ r.id }} (obligatorio para auditoría):'); if(!res) return false; this.delete_reason.value = res; return true;">
+                            <input type="hidden" name="delete_reason" value="">
+                            <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Eliminar medición">
+                                🗑️ Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- FILA DE EDICION INLINE PARA TANQUE -->
+                <tr id="edit-tank-{{ r.id }}" style="display: none; background: #fffbeb; border-bottom: 2px solid #fcd34d;">
+                    <td colspan="9" style="padding: 1rem 1.25rem;">
+                        <form action="{{ url_for('inventory.edit_tank_reading', reading_id=r.id) }}" method="POST" style="margin: 0;">
+                            <div style="font-weight: 700; color: #92400e; margin-bottom: 0.65rem; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>✏️ Modificar Medición #{{ r.id }} ({{ r.tank_code }} - {{ r.timestamp }})</span>
+                                <span style="font-size: 0.75rem; font-weight: normal; color: #78350f;">El cambio recalculará el stock y se registrará en auditoría.</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Nivel (metros)</label>
+                                    <input type="number" step="0.01" name="level_m" value="{{ r.level_m }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Densidad (kg/L)</label>
+                                    <input type="number" step="0.001" name="density_override" value="{{ r.density_applied or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #b91c1c; display: block; margin-bottom: 0.2rem;">Motivo del Ajuste (Auditoría Obligatoria)</label>
+                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de cinta de nivel / error de tipeo..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button type="button" onclick="document.getElementById('edit-tank-{{ r.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.35rem 0.8rem; border-radius: 0.3rem; font-size: 0.8rem; cursor: pointer;">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn" style="background: #d97706; color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    💾 Guardar y Recalcular
+                                </button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay mediciones de tanques registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- HISTORIAL DE CUBICAJES DE SILOS (SEMILLA / EXPELLER)                     -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-top: 1.5rem;">
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #15803d; margin-bottom: 1rem;">
+        Historial de Cubicajes de Silos (Semilla / Expeller)
+    </h3>
+    <div class="table-responsive">
+        <table class="table" style="font-size: 0.85rem;">
+            <thead>
+                <tr style="background: #f0fdf4;">
+                    <th>Fecha / Hora</th>
+                    <th>Silo</th>
+                    <th>Producto</th>
+                    <th>Chapas</th>
+                    <th>Cono Inferior</th>
+                    <th>Copete</th>
+                    <th>Volumen (m³)</th>
+                    <th>Stock Calculado</th>
+                    <th>Operario</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent_silo_readings %}
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="white-space: nowrap;">{{ s.timestamp }}</td>
+                    <td><strong>{{ s.silo_code }}</strong> <small style="color: #64748b;">({{ s.silo_name }})</small></td>
+                    <td>
+                        <span style="font-weight: 600; font-size: 0.75rem; padding: 0.15rem 0.45rem; border-radius: 0.25rem; {{ 'background: #e0f2fe; color: #0369a1;' if s.product_assigned == 'expeller' else 'background: #dcfce7; color: #15803d;' }}">
+                            {{ s.product_assigned.capitalize() }}
+                        </span>
+                    </td>
+                    <td><strong>{{ s.covered_sheets }}</strong> ch + {{ s.partial_sheet_height_m or 0.0 }}m</td>
+                    <td style="text-transform: capitalize;">{{ s.cone_occupied_status }}</td>
+                    <td>{{ s.copete_height_m or 0.0 }} m</td>
+                    <td>{{ "{:,.1f}".format(s.volume_m3 or 0.0) }} m³</td>
+                    <td>
+                        <strong style="color: {{ '#0369a1' if s.product_assigned == 'expeller' else '#15803d' }};">
+                            {{ "{:,.0f}".format(s.stock_kg or 0.0).replace(",", ".") }} kg
+                        </strong>
+                        <div style="font-size: 0.72rem; color: #64748b;">{{ "{:,.1f}".format((s.stock_kg or 0.0) / 1000.0).replace(",", ".") }} Tn</div>
+                    </td>
+                    <td>{{ s.operator_name }}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" onclick="const row = document.getElementById('edit-silo-{{ s.id }}'); row.style.display = (row.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; margin-right: 0.25rem;" title="Editar cubicaje de silo">
+                            ✏️ Editar
+                        </button>
+                        <form action="{{ url_for('inventory.delete_silo_reading_route', reading_id=s.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const res = prompt('Motivo de eliminación de cubicaje #{{ s.id }} (obligatorio para auditoría):'); if(!res) return false; this.delete_reason.value = res; return true;">
+                            <input type="hidden" name="delete_reason" value="">
+                            <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.2rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Eliminar cubicaje">
+                                🗑️ Eliminar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+
+                <!-- FILA DE EDICION INLINE PARA SILO -->
+                <tr id="edit-silo-{{ s.id }}" style="display: none; background: #f0fdf4; border-bottom: 2px solid #86efac;">
+                    <td colspan="10" style="padding: 1rem 1.25rem;">
+                        <form action="{{ url_for('inventory.edit_silo_reading', reading_id=s.id) }}" method="POST" style="margin: 0;">
+                            <div style="font-weight: 700; color: #166534; margin-bottom: 0.65rem; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>✏️ Modificar Cubicaje #{{ s.id }} ({{ s.silo_code }} - {{ s.product_assigned }} - {{ s.timestamp }})</span>
+                                <span style="font-size: 0.75rem; font-weight: normal; color: #14532d;">El cambio recalculará el stock y se registrará en auditoría.</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Chapas Cubiertas</label>
+                                    <input type="number" step="0.25" name="covered_sheets" value="{{ s.covered_sheets }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Alt. Adicional (m)</label>
+                                    <input type="number" step="0.01" name="partial_sheet_height_m" value="{{ s.partial_sheet_height_m or '0.00' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Cono Inferior</label>
+                                    <select name="cone_occupied_status" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <option value="lleno" {% if s.cone_occupied_status == 'lleno' %}selected{% endif %}>Lleno (100%)</option>
+                                        <option value="parcial" {% if s.cone_occupied_status == 'parcial' %}selected{% endif %}>Parcial (50%)</option>
+                                        <option value="vacio" {% if s.cone_occupied_status == 'vacio' %}selected{% endif %}>Vacío (0%)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Altura Copete (m)</label>
+                                    <input type="number" step="0.01" name="copete_height_m" value="{{ s.copete_height_m or '0.00' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">PH / Densidad</label>
+                                    <input type="number" step="0.1" name="ph_override" value="{{ s.ph_applied or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #b91c1c; display: block; margin-bottom: 0.2rem;">Motivo del Ajuste (Auditoría Obligatoria)</label>
+                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de lectura de chapas..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button type="button" onclick="document.getElementById('edit-silo-{{ s.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.35rem 0.8rem; border-radius: 0.3rem; font-size: 0.8rem; cursor: pointer;">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn" style="background: #16a34a; color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    💾 Guardar y Recalcular
+                                </button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" style="text-align: center; color: #94a3b8; padding: 1.5rem;">No hay cubicajes de silos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

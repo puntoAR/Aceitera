@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from core.security import roles_required
 # Importa metodos del servicio de laboratorio y despacho de camiones
 from modules.laboratory.service import (
-    record_analysis, update_analysis, get_recent_analyses, get_shift_lab_averages,
+    record_analysis, update_analysis, delete_analysis, get_recent_analyses, get_shift_lab_averages,
     record_oil_truck_dispatch, get_recent_oil_truck_dispatches
 )
 # Importa turno activo y lista de tanques de aceite
@@ -182,3 +182,23 @@ def edit_analysis(analysis_id):
         log_error('LAB_ROUTE', f'Error al editar análisis #{analysis_id}', e)
         flash(f'Error al modificar análisis: {str(e)}', 'danger')
     return redirect(url_for('laboratory.index'))
+
+# Endpoint para eliminar una determinacion analitica con registro de auditoria
+@laboratory_bp.route('/analysis/delete/<int:analysis_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def delete_analysis_route(analysis_id):
+    try:
+        delete_reason = request.form.get('delete_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Analista')
+
+        if not delete_reason:
+            flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
+            return redirect(url_for('laboratory.index'))
+
+        delete_analysis(analysis_id, delete_reason, op_name)
+        flash(f'Análisis #{analysis_id} eliminado exitosamente. Registro de auditoría guardado.', 'success')
+    except Exception as e:
+        log_error('LAB_ROUTE', f'Error al eliminar análisis #{analysis_id}', e)
+        flash(f'Error al eliminar análisis: {str(e)}', 'danger')
+    return redirect(url_for('laboratory.index'))
+
