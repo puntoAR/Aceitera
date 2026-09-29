@@ -437,6 +437,7 @@
             <thead>
                 <tr style="background: #f1f5f9; text-align: left;">
                     <th>Fecha / Hora</th>
+                    <th>Franja</th>
                     <th>Código</th>
                     <th>Producto</th>
                     <th>Punto</th>
@@ -445,12 +446,18 @@
                     <th>Acidez (%)</th>
                     <th>Observaciones</th>
                     <th>Analista</th>
+                    <th style="text-align: right;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for a in analyses %}
                 <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="white-space: nowrap;">{{ a.timestamp }}</td>
+                    <td>
+                        <span style="font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 9999px; white-space: nowrap;">
+                            {{ a.time_slot or '-' }}
+                        </span>
+                    </td>
                     <td><strong>{{ a.sample_code }}</strong></td>
                     <td>
                         {% if a.product == 'expeller' %}
@@ -487,10 +494,78 @@
                     <td>{{ a.acidity_pct ~ '%' if a.acidity_pct is not none else '-' }}</td>
                     <td style="color: #475569; max-width: 220px;">{{ a.notes or '-' }}</td>
                     <td>{{ a.operator_name }}</td>
+                    <td style="text-align: right;">
+                        <button type="button" onclick="const er = document.getElementById('edit-analysis-{{ a.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Editar parámetros analíticos">
+                            ✏️ Editar
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- FILA EXPANDIBLE: MODIFICACION Y AUDITORIA DE ANALISIS -->
+                <tr id="edit-analysis-{{ a.id }}" style="display: none; background: #f0fdf4; border-bottom: 2px solid #86efac;">
+                    <td colspan="11" style="padding: 1rem 1.25rem;">
+                        <form action="{{ url_for('laboratory.edit_analysis', analysis_id=a.id) }}" method="POST" style="margin: 0;">
+                            <div style="font-weight: 700; color: #166534; margin-bottom: 0.65rem; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>✏️ Modificar Ensayo #{{ a.id }} (Muestra {{ a.sample_code }} - {{ a.product }})</span>
+                                <span style="font-size: 0.75rem; font-weight: normal; color: #4b5563;">El cambio quedará registrado en el log de auditoría.</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Punto de Muestra</label>
+                                    <input type="text" name="sampling_point" value="{{ a.sampling_point }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Humedad (%)</label>
+                                    <input type="number" step="0.01" name="moisture_pct" value="{{ a.moisture_pct or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Materia Grasa (%)</label>
+                                    <input type="number" step="0.01" name="fat_pct" value="{{ a.fat_pct or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                {% if a.product == 'aceite' %}
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Acidez Libre (%)</label>
+                                    <input type="number" step="0.01" name="acidity_pct" value="{{ a.acidity_pct or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                {% endif %}
+                                {% if a.product == 'semilla' %}
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Impurezas / ME (%)</label>
+                                    <input type="number" step="0.01" name="foreign_matter_pct" value="{{ a.foreign_matter_pct or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                </div>
+                                {% endif %}
+                                {% if a.product == 'expeller' %}
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Prensa</label>
+                                    <select name="press_number" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <option value="2" {% if a.press_number != 1 %}selected{% endif %}>Prensa 2 (Final)</option>
+                                        <option value="1" {% if a.press_number == 1 %}selected{% endif %}>Prensa 1 (Indicativo)</option>
+                                    </select>
+                                </div>
+                                {% endif %}
+                                <div style="grid-column: span 2;">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #b91c1c; display: block; margin-bottom: 0.2rem;">Motivo del Ajuste (Obligatorio para Auditoría)</label>
+                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de lectura gravimétrica / error de ingreso..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 0.75rem;">
+                                <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Observaciones Analíticas</label>
+                                <input type="text" name="notes" value="{{ a.notes or '' }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button type="button" onclick="document.getElementById('edit-analysis-{{ a.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.35rem 0.8rem; border-radius: 0.3rem; font-size: 0.8rem; cursor: pointer;">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn" style="background: #16a34a; color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    💾 Guardar Ajuste Analítico
+                                </button>
+                            </div>
+                        </form>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay análisis de laboratorio registrados aún.</td>
+                    <td colspan="11" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay análisis de laboratorio registrados aún.</td>
                 </tr>
                 {% endfor %}
             </tbody>

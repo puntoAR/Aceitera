@@ -14,7 +14,7 @@ from core.error_logger import log_info, log_error
 # Importa auditoria de eventos
 from core.audit import record_audit_event
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
-from core.timezone import get_plant_now_str
+from core.timezone import get_plant_now_str, determine_time_slot
 # Importa utilidades de conversion numerica segura
 from core.utils import safe_float, safe_int
 
@@ -96,18 +96,20 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
 
     # Estampa de tiempo oficial de planta (Argentina UTC-3)
     now_str = get_plant_now_str()
+    slot_info = determine_time_slot(now_str)
+    time_slot = slot_info['time_slot']
 
-    # Guarda en la tabla lab_analyses
+    # Guarda en la tabla lab_analyses incluyendo la franja horaria
     with get_db_connection() as conn:
         cursor = conn.execute("""
             INSERT INTO lab_analyses (
                 timestamp, sample_code, product, sampling_point, press_number, shift_id,
                 operator_name, moisture_pct, fat_pct, foreign_matter_pct,
-                acidity_pct, raw_data_json, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                acidity_pct, raw_data_json, notes, time_slot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (now_str, sample_code, product, sampling_point, press_number, shift_id,
               operator_name, moisture_pct, fat_pct, foreign_matter_pct,
-              acidity_pct, json.dumps(raw_data), notes))
+              acidity_pct, json.dumps(raw_data), notes, time_slot))
         conn.commit()
         analysis_id = cursor.lastrowid
 
@@ -129,6 +131,51 @@ def record_analysis(sample_code, product, sampling_point, shift_id, operator_nam
         'foreign_matter_pct': foreign_matter_pct,
         'acidity_pct': acidity_pct
     }
+
+# Actualiza y ajusta un analisis historico con registro en bitacora de auditoria
+def update_analysis(analysis_id, sampling_point, moisture_pct, fat_pct,
+                    acidity_pct=None, foreign_matter_pct=None, notes='', press_number=None,
+                    edit_reason='', operator_name=None, sample_code=None, product=None):
+    """
+    Permite modificar determinaciones analíticas históricas y registrar antes/después
+    junto al motivo explícito en la bitácora de auditoría.
+    """
+    m_val = safe_float(moisture_pct, default=None)
+    f_val = safe_float(fat_pct, default=None)
+    a_val = safe_float(acidity_pct, default=None)
+    fm_val = safe_float(foreign_matter_pct, default=None)
+    p_num = safe_int(press_number, default=None)
+
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM lab_analyses WHERE id = ?;", (analysis_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Análisis con ID #{analysis_id} no encontrado.")
+        old_dict = dict(old)
+
+        new_sample_code = sample_code if sample_code is not None else old_dict.get('sample_code')
+        new_product = product if product is not None else old_dict.get('product')
+
+        conn.execute("""
+            UPDATE lab_analyses
+            SET sampling_point = ?, moisture_pct = ?, fat_pct = ?,
+                acidity_pct = ?, foreign_matter_pct = ?, notes = ?, press_number = ?,
+                sample_code = ?, product = ?
+            WHERE id = ?;
+        """, (sampling_point, m_val, f_val, a_val, fm_val, notes, p_num, new_sample_code, new_product, analysis_id))
+        conn.commit()
+
+    details = (
+        f"Edición de Análisis #{analysis_id} ({old_dict.get('sample_code', '-')}, {old_dict.get('product', '-')}). Motivo: '{edit_reason or 'Ajuste analítico'}'. "
+        f"Antes: [Punto={old_dict.get('sampling_point')}, H={old_dict.get('moisture_pct')}%, "
+        f"MG={old_dict.get('fat_pct')}%, Acidez={old_dict.get('acidity_pct')}%, "
+        f"ME={old_dict.get('foreign_matter_pct')}%, Prensa={old_dict.get('press_number')}]. "
+        f"Ahora: [Punto={sampling_point}, H={m_val}%, "
+        f"MG={f_val}%, Acidez={a_val}%, "
+        f"ME={fm_val}%, Prensa={p_num}]."
+    )
+    record_audit_event('LABORATORIO', 'EDICION_ANALISIS', details, user_override=operator_name)
+    log_info('LAB', f"Análisis #{analysis_id} modificado por {operator_name or 'usuario'}: {details}")
+    return True
 
 # Obtiene los analisis recientes de laboratorio
 def get_recent_analyses(product=None, limit=50):

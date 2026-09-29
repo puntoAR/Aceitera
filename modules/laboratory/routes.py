@@ -1,10 +1,10 @@
 # Importa componentes de Flask
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
 # Importa decorador de autorizacion por roles
 from core.security import roles_required
 # Importa metodos del servicio de laboratorio y despacho de camiones
 from modules.laboratory.service import (
-    record_analysis, get_recent_analyses, get_shift_lab_averages,
+    record_analysis, update_analysis, get_recent_analyses, get_shift_lab_averages,
     record_oil_truck_dispatch, get_recent_oil_truck_dispatches
 )
 # Importa turno activo y lista de tanques de aceite
@@ -144,4 +144,41 @@ def add_truck_dispatch():
         flash(f'Error al registrar carga de camión: {str(e)}', 'danger')
 
     # Redirige a la pantalla de laboratorio
+    return redirect(url_for('laboratory.index'))
+
+# Endpoint para editar y ajustar una determinacion analitica de laboratorio
+@laboratory_bp.route('/analysis/edit/<int:analysis_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def edit_analysis(analysis_id):
+    try:
+        sampling_point = request.form.get('sampling_point', '').strip()
+        moisture_pct = request.form.get('moisture_pct')
+        fat_pct = request.form.get('fat_pct')
+        acidity_pct = request.form.get('acidity_pct')
+        foreign_matter_pct = request.form.get('foreign_matter_pct')
+        notes = request.form.get('notes', '').strip()
+        press_number = request.form.get('press_number')
+        edit_reason = request.form.get('edit_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Analista')
+
+        if not edit_reason:
+            flash('Debe especificar el motivo del ajuste analítico para auditoría.', 'warning')
+            return redirect(url_for('laboratory.index'))
+
+        update_analysis(
+            analysis_id=analysis_id,
+            sampling_point=sampling_point,
+            moisture_pct=moisture_pct,
+            fat_pct=fat_pct,
+            acidity_pct=acidity_pct,
+            foreign_matter_pct=foreign_matter_pct,
+            notes=notes,
+            press_number=press_number,
+            edit_reason=edit_reason,
+            operator_name=op_name
+        )
+        flash(f'Análisis #{analysis_id} actualizado con éxito. Ajuste registrado en bitácora de auditoría.', 'success')
+    except Exception as e:
+        log_error('LAB_ROUTE', f'Error al editar análisis #{analysis_id}', e)
+        flash(f'Error al modificar análisis: {str(e)}', 'danger')
     return redirect(url_for('laboratory.index'))

@@ -64,8 +64,12 @@ def login():
                 # Rol usuario: va directamente a la pantalla de carga operativa de produccion
                 flash(f"Bienvenido/a {user['full_name']}. Acceso a Carga de Producción, Stock y Laboratorio.", 'success')
                 return redirect(url_for('production.index'))
+            elif user['role'] == 'mantenimiento':
+                # Rol mantenimiento: va directamente al panel de mantenimiento industrial y pañol
+                flash(f"Bienvenido/a {user['full_name']}. Acceso al Módulo de Mantenimiento Industrial y Pañol.", 'success')
+                return redirect(url_for('maintenance.index'))
             else:
-                # Roles administrador y admin_sistema: van al Dashboard Ejecutivo
+                # Roles administrador, gerencia y admin_sistema: van al Dashboard Ejecutivo
                 flash(f"Bienvenido/a {user['full_name']} ({user['role'].capitalize()}).", 'success')
                 return redirect(url_for('dashboard.index'))
         else:
@@ -340,10 +344,12 @@ def change_password():
 @dashboard_bp.route('/', methods=['GET'])
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def index():
-    # Obtiene el paquete completo de datos consolidados
-    data = get_executive_dashboard_data()
+    # Obtiene parametro de turnos seleccionados (ej: 'all', 'TM', 'TT', 'TN', o 'TM,TT')
+    shifts_param = request.args.get('shifts', 'all').strip()
+    # Obtiene el paquete completo de datos consolidados segun el filtro de turnos
+    data = get_executive_dashboard_data(selected_shifts=shifts_param)
     # Renderiza la plantilla del dashboard
-    return render_template('dashboard.html', data=data)
+    return render_template('dashboard.html', data=data, selected_shifts_param=shifts_param)
 
 # Vista de gestion y cambio de turno operativo
 @dashboard_bp.route('/shifts', methods=['GET', 'POST'])
@@ -378,5 +384,7 @@ def shifts():
 @dashboard_bp.route('/api/kpis', methods=['GET'])
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def api_kpis():
+    # Obtiene parametro de turnos seleccionados
+    shifts_param = request.args.get('shifts', 'all').strip()
     # Retorna los datos ejecutivos en formato JSON
-    return jsonify(get_executive_dashboard_data())
+    return jsonify(get_executive_dashboard_data(selected_shifts=shifts_param))

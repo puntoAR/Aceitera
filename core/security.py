@@ -232,6 +232,84 @@ def login_required(view):
     # Retorna la funcion decorada
     return wrapped_view
 
+# Obtiene la lista de modulos adicionales asignados al usuario en allowed_modules
+def get_user_allowed_modules(user):
+    """
+    Retorna la lista de modulos adicionales asignados al usuario en allowed_modules.
+    Para el rol 'mantenimiento', incluye siempre 'maintenance' por defecto.
+    """
+    if not user:
+        return []
+    try:
+        role = user['role'] if 'role' in user.keys() else (user.get('role', '') if hasattr(user, 'get') else '')
+    except Exception:
+        role = getattr(user, 'role', '')
+    role = str(role or '')
+
+    modules = set()
+    if role == 'mantenimiento':
+        modules.add('maintenance')
+
+    try:
+        raw = user['allowed_modules'] if 'allowed_modules' in user.keys() else (user.get('allowed_modules') if hasattr(user, 'get') else '')
+    except Exception:
+        raw = getattr(user, 'allowed_modules', '')
+    raw = raw or ''
+
+    if str(raw).strip():
+        import json
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                for m in parsed:
+                    if str(m).strip():
+                        modules.add(str(m).strip().lower())
+        except Exception:
+            for m in str(raw).split(','):
+                if m.strip():
+                    modules.add(m.strip().lower())
+
+    return list(modules)
+
+# Verifica si un usuario tiene acceso autorizado a un modulo especifico
+def has_module_access(user, module_name):
+    """
+    Verifica si un usuario tiene acceso a un módulo específico.
+    Módulos oficiales: 'maintenance', 'production', 'inventory', 'laboratory', 'weighbridge', 'yield', 'dashboard'.
+    """
+    if not user:
+        return False
+    try:
+        role = user['role'] if 'role' in user.keys() else (user.get('role', '') if hasattr(user, 'get') else '')
+    except Exception:
+        role = getattr(user, 'role', '')
+    role = str(role or '')
+    mod = str(module_name).strip().lower()
+    if mod == 'yield_balance':
+        mod = 'yield'
+
+    # Administrador del sistema tiene acceso total
+    if role == 'admin_sistema':
+        return True
+
+    # Gerencia / Administrador
+    if role in ('administrador', 'gerencia'):
+        return mod in ('dashboard', 'weighbridge', 'maintenance', 'yield')
+
+    # Operario regular
+    if role == 'usuario':
+        return mod in ('production', 'inventory', 'laboratory', 'maintenance', 'shifts')
+
+    # Rol Mantenimiento:
+    # Solo ve el modulo de mantenimiento a menos que el administrador indique que otros modulos puede ver
+    if role == 'mantenimiento':
+        if mod == 'maintenance':
+            return True
+        allowed = get_user_allowed_modules(user)
+        return mod in allowed
+
+    return False
+
 # Decorador para restringir el acceso segun una lista de roles permitidos
 def roles_required(*allowed_roles):
     # Define la funcion decoradora exterior
@@ -250,12 +328,26 @@ def roles_required(*allowed_roles):
                 flash('Debe actualizar su contraseña provisoria antes de acceder al sistema.', 'warning')
                 return redirect(url_for('dashboard.change_password'))
 
-            # Si el rol del usuario no esta en la lista de roles autorizados
-            # Soporte interoperable y transparente para rol gerencial ('gerencia' y 'administrador')
+            # Conjunto de roles efectivos con interoperabilidad gerencial
             effective_roles = set(allowed_roles)
             if 'administrador' in effective_roles or 'gerencia' in effective_roles:
                 effective_roles.add('administrador')
                 effective_roles.add('gerencia')
+
+            # Manejo especializado para rol Mantenimiento
+            if g.user['role'] == 'mantenimiento':
+                bp = request.blueprint or ''
+                mod_name = 'yield' if bp == 'yield_balance' else bp
+                # Mantenimiento siempre tiene acceso nativo a mantenimiento
+                if mod_name == 'maintenance':
+                    return view(**kwargs)
+                # Si el administrador le concedio acceso a este modulo adicional
+                if has_module_access(g.user, mod_name):
+                    # Solo requiere que la ruta no sea de administracion tecnica de sistema
+                    if any(r in effective_roles for r in ('usuario', 'gerencia', 'administrador', 'mantenimiento')):
+                        return view(**kwargs)
+                flash('Acceso restringido: Su usuario de Mantenimiento no tiene permisos habilitados para este módulo.', 'warning')
+                return redirect(url_for('maintenance.index'))
 
             if g.user['role'] not in effective_roles:
                 # Emite mensaje de permisos insuficientes
@@ -267,6 +359,8 @@ def roles_required(*allowed_roles):
                 elif g.user['role'] in ('administrador', 'gerencia'):
                     # Gerencia de direccion va al dashboard
                     return redirect(url_for('dashboard.index'))
+                elif g.user['role'] == 'mantenimiento':
+                    return redirect(url_for('maintenance.index'))
                 else:
                     # Otros casos van al login
                     return redirect(url_for('dashboard.login'))

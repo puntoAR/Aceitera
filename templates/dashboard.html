@@ -74,6 +74,34 @@
         border: 1px solid #cbd5e1;
     }
 
+    /* Estilos para selector de turnos y franjas horarias */
+    .btn-shift-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 9999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-decoration: none;
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        transition: all 0.15s ease;
+    }
+
+    .btn-shift-pill:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .btn-shift-pill-active {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
+        border-color: #1e3a8a !important;
+        box-shadow: 0 1px 3px rgba(30, 58, 138, 0.25) !important;
+    }
+
     /* Disposicion flex horizontal en computadoras de escritorio y laptops (>= 900px) */
     @media (min-width: 900px) {
         main.container, .container, .container-cockpit-wide {
@@ -394,7 +422,96 @@
     <!-- COLUMNA PRINCIPAL: PILARES Y MONITOREO DE PLANTA -->
     <div class="cockpit-dashboard">
 
+        <!-- ================================================================= -->
+        <!-- BARRA DE SELECCION INTERACTIVA DE TURNOS Y PROMEDIO DEL DIA       -->
+        <!-- ================================================================= -->
+        {% if data.shift_performance %}
+        <div class="shift-filter-toolbar" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.65rem; padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; margin-right: 0.25rem;">
+                    ⏱️ Franja & Turno:
+                </span>
+                <!-- Opcion Dia Completo (Por Defecto) -->
+                <a href="{{ url_for('dashboard.index', shifts='all') }}"
+                   class="btn-shift-pill {% if data.shift_performance.is_all_selected %}btn-shift-pill-active{% endif %}"
+                   title="Mostrar consolidado promedio de las 24 horas del día">
+                    📅 Día Completo (24h)
+                </a>
+                <!-- Opcion Turno Mañana -->
+                <a href="{{ url_for('dashboard.index', shifts='TM') }}"
+                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TM' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                   title="Ver solo Turno Mañana (06:00 - 14:00)">
+                    🌅 Mañana (06-14)
+                    {% if data.shift_performance.current_shift_id == 'TM' %}
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                    {% endif %}
+                </a>
+                <!-- Opcion Turno Tarde -->
+                <a href="{{ url_for('dashboard.index', shifts='TT') }}"
+                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TT' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                   title="Ver solo Turno Tarde (14:00 - 22:00)">
+                    ☀️ Tarde (14-22)
+                    {% if data.shift_performance.current_shift_id == 'TT' %}
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                    {% endif %}
+                </a>
+                <!-- Opcion Turno Noche -->
+                <a href="{{ url_for('dashboard.index', shifts='TN') }}"
+                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TN' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                   title="Ver solo Turno Noche (22:00 - 06:00)">
+                    🌙 Noche (22-06)
+                    {% if data.shift_performance.current_shift_id == 'TN' %}
+                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                    {% endif %}
+                </a>
+            </div>
 
+            <!-- Indicador del alcance visualizado -->
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="background: #f1f5f9; color: #1e293b; font-size: 0.76rem; padding: 0.25rem 0.6rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+                    🔍 Vista: <strong>{{ data.shift_performance.selected_scope_label }}</strong>
+                </span>
+                <span style="background: #f8fafc; color: #64748b; font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; border: 1px solid #e2e8f0;">
+                    Jornada: <strong>{{ data.shift_performance.operational_date }}</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- BANNER DEL TURNO EN CURSO CON PROMEDIOS PARCIALES EN TIEMPO REAL -->
+        {% if data.shift_performance.current_shift %}
+        {% set cur_s = data.shift_performance.current_shift %}
+        <div class="shift-live-banner" style="background: linear-gradient(90deg, #eff6ff, #f8fafc); border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 0.55rem; padding: 0.55rem 0.85rem; margin-bottom: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="background: #2563eb; color: #ffffff; font-size: 0.72rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">
+                    ⚡ Turno en Curso
+                </span>
+                <span style="font-weight: 700; color: #1e3a8a; font-size: 0.85rem;">
+                    {{ cur_s.shift_name }} ({{ cur_s.time_slot }})
+                </span>
+                <span style="color: #64748b; font-size: 0.78rem;">
+                    &bull; Muestras parciales: <strong style="color: #0f172a;">{{ cur_s.total_samples }}</strong>
+                    ({{ cur_s.seed_samples_count }} semilla, {{ cur_s.exp_samples_count }} expeller, {{ cur_s.lab_samples_count }} lab)
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.85rem; font-size: 0.78rem; flex-wrap: wrap;">
+                <span>
+                    Ritmo Semilla: <strong style="color: #1d4ed8;">{{ "{:,.0f}".format(cur_s.seed_avg_speed).replace(",", ".") }} kg/h</strong>
+                </span>
+                <span>
+                    Salida Expeller: <strong style="color: #854d0e;">{{ "{:,.0f}".format(cur_s.exp_avg_speed).replace(",", ".") }} kg/h</strong>
+                </span>
+                <span>
+                    Rend. Línea: <strong style="color: #15803d;">{{ cur_s.exp_yield_pct }}%</strong>
+                </span>
+                {% if cur_s.avg_fat_p2 is not none %}
+                <span>
+                    Grasa P2: <strong style="color: #b45309;">{{ cur_s.avg_fat_p2 }}%</strong>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
 
     <!-- ===================================================================== -->
     <!-- FILA 1: LOS TRES PILARES FUNDAMENTALES DEL PROCESO EN UN GOLPE DE VISTA -->
@@ -634,6 +751,121 @@
         </div>
 
     </div>
+
+    <!-- ===================================================================== -->
+    <!-- COMPARATIVO DE PERFORMANCE POR TURNO (TM, TT, TN)                     -->
+    <!-- ===================================================================== -->
+    {% if data.shift_performance and data.shift_performance.shifts_comparison %}
+    <div class="comparative-shifts-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.85rem; margin-top: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <!-- Encabezado de la seccion comparativa -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9;">
+            <div>
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>📊</span> Comparativo de Performance por Turno de Planta
+                </h3>
+                <p style="font-size: 0.74rem; color: #64748b; margin: 0.15rem 0 0 0;">
+                    Jornada Operativa: <strong>{{ data.shift_performance.operational_date }}</strong> &bull; Resumen de molienda, extracción de expeller, calidad analítica y eficiencia operativa por franja horaria.
+                </p>
+            </div>
+            <div>
+                <a href="{{ url_for('dashboard.index', shifts='all') }}" style="font-size: 0.74rem; font-weight: 700; color: #2563eb; text-decoration: none;">
+                    ↺ Restablecer a Día Completo
+                </a>
+            </div>
+        </div>
+
+        <!-- Grilla de los 3 turnos (TM, TT, TN) -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+            {% for s in data.shift_performance.shifts_comparison %}
+            <div style="background: #f8fafc; border: 1px solid {% if s.is_current %}#93c5fd{% elif s.is_selected and not data.shift_performance.is_all_selected %}#cbd5e1{% else %}#e2e8f0{% endif %}; border-top: 4px solid {{ s.color }}; border-radius: 0.55rem; padding: 0.75rem; display: flex; flex-direction: column; justify-content: space-between; {% if s.is_current %}box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);{% endif %}">
+                <div>
+                    <!-- Cabecera del turno -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                        <div>
+                            <div style="font-weight: 800; font-size: 0.9rem; color: #0f172a;">
+                                {{ s.icon }} {{ s.shift_name }}
+                            </div>
+                            <div style="font-size: 0.72rem; font-weight: 600; color: #64748b;">
+                                Franja: {{ s.time_slot }}
+                            </div>
+                        </div>
+                        <div>
+                            {% if s.is_current %}
+                            <span style="background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 0.15rem 0.45rem; border-radius: 9999px; font-size: 0.68rem; font-weight: 800;">
+                                ⚡ En curso (Parcial)
+                            </span>
+                            {% elif s.total_samples > 0 %}
+                            <span style="background: #dcfce7; color: #166534; border: 1px solid #86efac; padding: 0.15rem 0.45rem; border-radius: 9999px; font-size: 0.68rem; font-weight: 700;">
+                                ✅ Finalizado
+                            </span>
+                            {% else %}
+                            <span style="background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; padding: 0.15rem 0.45rem; border-radius: 9999px; font-size: 0.68rem; font-weight: 600;">
+                                Sin datos
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Métricas de Molienda y Extracción -->
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.45rem; padding: 0.5rem; margin-bottom: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.3rem;">
+                            <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">Molienda Semilla:</span>
+                            <span style="font-size: 0.92rem; font-weight: 800; color: #1d4ed8;">
+                                {{ "{:,.0f}".format(s.seed_avg_speed).replace(",", ".") }} <small style="font-size: 0.7rem; font-weight: 600; color: #64748b;">kg/h</small>
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748b; margin-bottom: 0.35rem;">
+                            <span>Muestras: <strong>{{ s.seed_samples_count }}</strong></span>
+                            <span>Proy. 8h: <strong>{{ s.seed_proj_8h_tn }} Tn</strong> (Est: {{ s.seed_estimated_tn }} Tn)</span>
+                        </div>
+                        <div style="border-top: 1px dashed #e2e8f0; padding-top: 0.3rem; display: flex; justify-content: space-between; align-items: baseline;">
+                            <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">Salida Expeller:</span>
+                            <span style="font-size: 0.92rem; font-weight: 800; color: #854d0e;">
+                                {{ "{:,.0f}".format(s.exp_avg_speed).replace(",", ".") }} <small style="font-size: 0.7rem; font-weight: 600; color: #64748b;">kg/h</small>
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748b;">
+                            <span>Muestras: <strong>{{ s.exp_samples_count }}</strong></span>
+                            <span>Rend. Extracción: <strong style="color: #b45309;">{{ s.exp_yield_pct }}%</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Parámetros Analíticos de Laboratorio -->
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.45rem; padding: 0.45rem 0.5rem; margin-bottom: 0.5rem; font-size: 0.7rem;">
+                        <div style="font-weight: 700; color: #334155; margin-bottom: 0.25rem; font-size: 0.68rem; text-transform: uppercase;">
+                            🔬 Calidad de Laboratorio ({{ s.lab_samples_count }} ensayos):
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.25rem;">
+                            <div>Grasa P2: <strong>{{ s.avg_fat_p2 if s.avg_fat_p2 is not none else '--' }}%</strong></div>
+                            <div>Grasa P1: <strong>{{ s.avg_fat_p1 if s.avg_fat_p1 is not none else '--' }}%</strong></div>
+                            <div>Humedad Exp: <strong>{{ s.avg_moist_exp if s.avg_moist_exp is not none else '--' }}%</strong></div>
+                            <div>Acidez Aceite: <strong>{{ s.avg_acidity if s.avg_acidity is not none else '--' }}%</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Eficiencia y Paradas -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #475569; padding: 0 0.2rem;">
+                        <span>Marcha efectiva: <strong>{{ s.effective_hours }} h</strong></span>
+                        <span>Paradas: <strong style="color: {{ '#ef4444' if s.stop_minutes > 0 else '#10b981' }}">{{ s.stop_minutes }} min</strong></span>
+                    </div>
+                </div>
+
+                <!-- Botón de acción para filtrar por este turno -->
+                <div style="margin-top: 0.6rem; border-top: 1px solid #e2e8f0; padding-top: 0.45rem;">
+                    <a href="{{ url_for('dashboard.index', shifts=s.shift_id) }}"
+                       style="display: block; text-align: center; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.5rem; border-radius: 0.375rem; text-decoration: none; {% if not data.shift_performance.is_all_selected and s.shift_id in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}background: #1e293b; color: #ffffff;{% else %}background: #ffffff; color: #334155; border: 1px solid #cbd5e1;{% endif %}">
+                        {% if not data.shift_performance.is_all_selected and s.shift_id in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}
+                        ✓ Turno Seleccionado en Cockpit
+                        {% else %}
+                        Ver Cockpit de este Turno &rarr;
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- ===================================================================== -->
     <!-- FILA 2: MONITOREO COMPACTO DE EQUIPOS (IZQ) Y CURVA HORARIA (DER)     -->

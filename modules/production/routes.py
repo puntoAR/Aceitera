@@ -1,10 +1,10 @@
 # Importa componentes de Flask para rutas, plantillas y JSON
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, g
 # Importa decoradores de seguridad por rol
 from core.security import roles_required
 # Importa los metodos del servicio de produccion
 from modules.production.service import (
-    record_weighing, get_recent_weighings,
+    record_weighing, update_weighing, get_recent_weighings,
     record_line_stop, get_shift_stops, get_shift_speed_summary
 )
 # Importa el servicio de configuracion para obtener el turno activo
@@ -104,3 +104,38 @@ def api_shift_summary():
     weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=20)
     # Retorna respuesta en formato JSON
     return jsonify({'summary': summary, 'weighings': weighings})
+
+# Endpoint para editar y ajustar una pesada existente con trazabilidad
+@production_bp.route('/weighing/edit/<int:weighing_id>', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def edit_weighing(weighing_id):
+    try:
+        sample_point = request.form.get('sample_point')
+        gross_weight_kg = safe_float(request.form.get('gross_weight_kg'), 0.0)
+        tare_weight_kg = safe_float(request.form.get('tare_weight_kg'), 0.0)
+        fill_time_seconds = safe_float(request.form.get('fill_time_seconds'), 0.0)
+        line_status = request.form.get('line_status', 'operando')
+        notes = request.form.get('notes', '').strip()
+        edit_reason = request.form.get('edit_reason', '').strip()
+        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+
+        if not edit_reason:
+            flash('Debe especificar el motivo de la modificación para el registro de auditoría.', 'warning')
+            return redirect(url_for('production.index'))
+
+        update_weighing(
+            weighing_id=weighing_id,
+            sample_point=sample_point,
+            gross_weight_kg=gross_weight_kg,
+            tare_weight_kg=tare_weight_kg,
+            fill_time_seconds=fill_time_seconds,
+            line_status=line_status,
+            notes=notes,
+            edit_reason=edit_reason,
+            operator_name=op_name
+        )
+        flash(f'Pesada #{weighing_id} actualizada correctamente. Modificación registrada en auditoría.', 'success')
+    except Exception as e:
+        log_error('PRODUCTION_ROUTE', f'Error al editar pesada #{weighing_id}', e)
+        flash(f'Error al modificar pesada: {str(e)}', 'danger')
+    return redirect(url_for('production.index'))

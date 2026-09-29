@@ -101,12 +101,37 @@
             <!-- Cierra condicion de admin_sistema -->
             {% endif %}
 
+            <!-- Navegacion para Rol Mantenimiento -->
+            {% if g.user.role == 'mantenimiento' %}
+            <!-- Enlace al modulo de Mantenimiento y Pañol (siempre habilitado) -->
+            <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
+            <!-- Modulos autorizados de forma adicional por el Administrador -->
+            {% if has_module_access(g.user, 'dashboard') %}
+            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'production') %}
+            <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'weighbridge') %}
+            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'inventory') %}
+            <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'laboratory') %}
+            <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'yield') %}
+            <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
+            {% endif %}
+            {% endif %}
+
             <!-- Indicador de usuario y rol activo -->
             <span class="user-pill" style="background: rgba(255,255,255,0.12); padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.35rem;">
                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
                 <strong>{{ g.user.full_name.split(' ')[0] }}</strong>
                 <span style="opacity: 0.8; font-size: 0.72rem;">
-                    ({% if g.user.role == 'usuario' %}Operario{% elif g.user.role in ['administrador', 'gerencia'] %}Gerencia{% else %}Admin Sistema{% endif %})
+                    ({% if g.user.role == 'usuario' %}Operario{% elif g.user.role in ['administrador', 'gerencia'] %}Gerencia{% elif g.user.role == 'mantenimiento' %}Mantenimiento{% else %}Admin Sistema{% endif %})
                 </span>
             </span>
 

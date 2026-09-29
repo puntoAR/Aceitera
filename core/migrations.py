@@ -398,8 +398,53 @@ REGISTERED_MIGRATIONS = [
                 'Uso autorizado para BioBalcarce provisto por puntoAR.', 'admin_sistema'
             );
         """
+    },
+    {
+        'version': 14,
+        'name': 'v14_time_slots_and_maintenance_role',
+        'description': 'Incorpora franja horaria oficial (TM, TT, TN) a pesadas y análisis, soporte de módulos permitidos y alta de rol Mantenimiento',
+        'sql': """
+            -- Agrega columna allowed_modules a usuarios
+            ALTER TABLE users ADD COLUMN allowed_modules TEXT DEFAULT NULL;
+
+            -- Agrega columna time_slot a pesadas de produccion
+            ALTER TABLE production_weighings ADD COLUMN time_slot TEXT DEFAULT NULL;
+
+            -- Agrega columna time_slot a determinaciones de laboratorio
+            ALTER TABLE lab_analyses ADD COLUMN time_slot TEXT DEFAULT NULL;
+
+            -- Inserta usuario tecnico de mantenimiento por defecto si no existe
+            INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active)
+            VALUES ('mantenimiento', 'Técnico de Mantenimiento', 'mantenimiento', '4444', '50000000', '5492266000005', 'aprobado', 0, 1);
+        """,
+        'callback': lambda conn: backfill_time_slots(conn)
     }
 ]
+
+# Funcion de retro-compatibilidad para calcular y rellenar time_slots en registros historicos
+def backfill_time_slots(conn):
+    from core.timezone import determine_time_slot
+    # Backfill pesadas de produccion
+    try:
+        rows = conn.execute("SELECT id, timestamp FROM production_weighings WHERE time_slot IS NULL OR time_slot = '';").fetchall()
+        for r in rows:
+            ts = r['timestamp'] if isinstance(r, dict) else r[1]
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            slot = determine_time_slot(ts)['time_slot']
+            conn.execute("UPDATE production_weighings SET time_slot = ? WHERE id = ?;", (slot, rid))
+    except Exception as e:
+        log_error('MIGRATIONS', 'Aviso al backfillear time_slot en production_weighings', e)
+
+    # Backfill analisis de laboratorio
+    try:
+        rows = conn.execute("SELECT id, timestamp FROM lab_analyses WHERE time_slot IS NULL OR time_slot = '';").fetchall()
+        for r in rows:
+            ts = r['timestamp'] if isinstance(r, dict) else r[1]
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            slot = determine_time_slot(ts)['time_slot']
+            conn.execute("UPDATE lab_analyses SET time_slot = ? WHERE id = ?;", (slot, rid))
+    except Exception as e:
+        log_error('MIGRATIONS', 'Aviso al backfillear time_slot en lab_analyses', e)
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):
@@ -409,6 +454,8 @@ def apply_single_migration(migration):
     name = migration['name']
     # SQL a ejecutar
     sql_script = migration['sql'].strip()
+    # Callback opcional en Python
+    callback = migration.get('callback')
     # Registra inicio en log
     log_info('MIGRATIONS', f'Aplicando migracion v{version}: {name}...')
     # Abre conexion para ejecutar los cambios
@@ -434,13 +481,17 @@ def apply_single_migration(migration):
                     try:
                         # Ejecuta la sentencia en SQLite
                         conn.execute(statement_clean)
-                    except sqlite3.OperationalError as op_err:
+                    except Exception as op_err:
                         # Si la columna ya fue agregada previamente, ignora el error de duplicado
-                        if "duplicate column name" in str(op_err).lower():
+                        if "duplicate column" in str(op_err).lower():
                             pass
                         else:
                             # Propaga cualquier otro error de base de datos
                             raise op_err
+        # Ejecuta callback Python si fue especificado
+        if callback and callable(callback):
+            callback(conn)
+
         # Registra la migracion como aplicada en la tabla schema_migrations
         conn.execute("""
             INSERT OR REPLACE INTO schema_migrations (version, name, description)

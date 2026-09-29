@@ -34,13 +34,24 @@ def get_all_users():
         # Retorna lista de diccionarios
         return [dict(r) for r in rows]
 
+# Serializa la lista o coleccion de modulos permitidos a formato JSON para almacenar en la base de datos
+def _serialize_allowed_modules(allowed_modules):
+    if allowed_modules is None:
+        return None
+    if isinstance(allowed_modules, (list, tuple, set)):
+        import json
+        return json.dumps(list(allowed_modules))
+    return str(allowed_modules)
+
 # Aprueba una solicitud de registro y le asigna el nivel de acceso seleccionado
-def approve_user(user_id, role):
+def approve_user(user_id, role, allowed_modules=None):
     # Valida que el rol asignado sea uno de los oficiales
-    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
+    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema', 'mantenimiento'):
         # Lanza excepcion si el rol no es valido
-        raise ValueError(f"El rol {role} no es válido. Debe ser: usuario, gerencia o admin_sistema.")
+        raise ValueError(f"El rol {role} no es válido. Debe ser: usuario, gerencia, mantenimiento o admin_sistema.")
     
+    serialized_mods = _serialize_allowed_modules(allowed_modules)
+
     # Abre conexion para actualizar el usuario
     with get_db_connection() as conn:
         # Obtiene datos del usuario para auditoria
@@ -48,12 +59,12 @@ def approve_user(user_id, role):
         # Si el usuario no existe
         if not u:
             raise ValueError(f"Usuario con ID {user_id} no encontrado.")
-        # Actualiza el estado a aprobado, activa la cuenta y fija el rol
+        # Actualiza el estado a aprobado, activa la cuenta y fija el rol y modulos autorizados
         conn.execute("""
             UPDATE users
-            SET approval_status = 'aprobado', is_active = 1, role = ?
+            SET approval_status = 'aprobado', is_active = 1, role = ?, allowed_modules = ?
             WHERE id = ?;
-        """, (role, user_id))
+        """, (role, serialized_mods, user_id))
         conn.commit()
 
     # Registra el evento en auditoria
@@ -116,7 +127,7 @@ def admin_blanquear_password(user_id, custom_password=None, must_change=True):
     return temp_password
 
 # Actualiza los datos de perfil de un usuario existente en el sistema
-def admin_update_user(user_id, username, full_name, dni, phone, role):
+def admin_update_user(user_id, username, full_name, dni, phone, role, allowed_modules=None):
     # Limpia y normaliza el nombre de usuario
     u_name = str(username).strip()
     # Limpia y normaliza el nombre completo
@@ -140,9 +151,9 @@ def admin_update_user(user_id, username, full_name, dni, phone, role):
         raise ValueError("El número de DNI es obligatorio.")
 
     # Valida que el rol seleccionado sea valido
-    if r_val not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
+    if r_val not in ('usuario', 'administrador', 'gerencia', 'admin_sistema', 'mantenimiento'):
         # Lanza error si el rol no es valido
-        raise ValueError(f"Rol '{r_val}' no permitido. Debe ser: usuario, gerencia o admin_sistema.")
+        raise ValueError(f"Rol '{r_val}' no permitido. Debe ser: usuario, gerencia, mantenimiento o admin_sistema.")
 
     # Abre conexion para verificar unicidad y actualizar datos
     with get_db_connection() as conn:
@@ -168,11 +179,19 @@ def admin_update_user(user_id, username, full_name, dni, phone, role):
             raise ValueError(f"El DNI '{d_num}' ya se encuentra registrado en otra cuenta.")
 
         # Actualiza los datos del usuario en la base de datos
-        conn.execute("""
-            UPDATE users
-            SET username = ?, full_name = ?, dni = ?, phone = ?, role = ?
-            WHERE id = ?;
-        """, (u_name, f_name, d_num, p_num, r_val, user_id))
+        if allowed_modules is not None:
+            serialized_mods = _serialize_allowed_modules(allowed_modules)
+            conn.execute("""
+                UPDATE users
+                SET username = ?, full_name = ?, dni = ?, phone = ?, role = ?, allowed_modules = ?
+                WHERE id = ?;
+            """, (u_name, f_name, d_num, p_num, r_val, serialized_mods, user_id))
+        else:
+            conn.execute("""
+                UPDATE users
+                SET username = ?, full_name = ?, dni = ?, phone = ?, role = ?
+                WHERE id = ?;
+            """, (u_name, f_name, d_num, p_num, r_val, user_id))
         # Confirma la transaccion
         conn.commit()
 
@@ -188,8 +207,8 @@ def admin_update_user(user_id, username, full_name, dni, phone, role):
 # Actualiza el rol de un usuario existente
 def change_user_role(user_id, new_role):
     # Valida el rol
-    if new_role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
-        raise ValueError(f"Rol {new_role} no permitido. Debe ser: usuario, gerencia o admin_sistema.")
+    if new_role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema', 'mantenimiento'):
+        raise ValueError(f"Rol {new_role} no permitido. Debe ser: usuario, gerencia, mantenimiento o admin_sistema.")
     # Actualiza en base de datos
     with get_db_connection() as conn:
         u = conn.execute("SELECT full_name, role FROM users WHERE id = ?;", (user_id,)).fetchone()
@@ -308,7 +327,7 @@ def resolve_system_error(error_id):
     return True
 
 # Crea un nuevo perfil de usuario directamente por el Administrador del Sistema
-def admin_create_user(username, full_name, dni, phone, password, role, must_change=False):
+def admin_create_user(username, full_name, dni, phone, password, role, must_change=False, allowed_modules=None):
     # Limpia y valida el nombre de usuario
     user_clean = str(username).strip()
     # Limpia el nombre completo
@@ -330,8 +349,8 @@ def admin_create_user(username, full_name, dni, phone, password, role, must_chan
     if len(pwd_clean) < 4:
         raise ValueError("La contraseña debe contener al menos 4 caracteres.")
     # Valida que el rol seleccionado sea uno de los oficiales
-    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema'):
-        raise ValueError(f"El rol '{role}' no es válido. Debe ser: usuario, gerencia o admin_sistema.")
+    if role not in ('usuario', 'administrador', 'gerencia', 'admin_sistema', 'mantenimiento'):
+        raise ValueError(f"El rol '{role}' no es válido. Debe ser: usuario, gerencia, mantenimiento o admin_sistema.")
 
     # Abre conexion para validar duplicados e insertar el nuevo usuario
     with get_db_connection() as conn:
@@ -349,12 +368,13 @@ def admin_create_user(username, full_name, dni, phone, password, role, must_chan
 
         # Determina la bandera de cambio obligatorio de clave
         change_flag = 1 if must_change else 0
+        serialized_mods = _serialize_allowed_modules(allowed_modules)
 
         # Inserta el nuevo registro directamente como aprobado y activo
         cursor = conn.execute("""
-            INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, 'aprobado', ?, 1);
-        """, (user_clean, name_clean, role, pwd_clean, dni_clean, phone_clean, change_flag))
+            INSERT INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active, allowed_modules)
+            VALUES (?, ?, ?, ?, ?, ?, 'aprobado', ?, 1, ?);
+        """, (user_clean, name_clean, role, pwd_clean, dni_clean, phone_clean, change_flag, serialized_mods))
         # Confirma la transaccion
         conn.commit()
         # Obtiene el ID asignado

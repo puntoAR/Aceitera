@@ -169,6 +169,7 @@
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.65rem;">
                     <select name="role" class="form-select" style="flex: 1; font-size: 0.85rem; padding: 0.4rem;" required>
                         <option value="usuario" selected>Usuario (Carga, Stock, Lab)</option>
+                        <option value="mantenimiento">Mantenimiento (Módulo Mantenimiento y Pañol)</option>
                         <option value="gerencia">Gerencia (Solo Dashboard Ejecutivo y Rendimiento)</option>
                         <option value="admin_sistema">Admin del Sistema (Acceso Total)</option>
                     </select>
@@ -278,6 +279,8 @@
                 <!-- Menu desplegable con los tres perfiles del sistema -->
                     <option value="usuario" selected>Operario / Usuario Común — Carga de Producción, Stock, Lab y Despacho</option>
                     <!-- Opcion de rol operativo de planta -->
+                    <option value="mantenimiento">Mantenimiento — Módulo Mantenimiento y Pañol (Personalizable)</option>
+                    <!-- Opcion de rol mantenimiento industrial -->
                     <option value="gerencia">Gerencia — Solo Lectura del Dashboard Ejecutivo y Rendimiento</option>
                     <!-- Opcion de rol gerencial de monitoreo -->
                     <option value="admin_sistema">Administrador del Sistema — Control Total, Calibración, Usuarios y Turno Central</option>
@@ -310,6 +313,37 @@
             <!-- Cierre del grupo de contrasena -->
         </div>
         <!-- Cierre de la cuadricula de rol y clave -->
+
+        <!-- SECCION DE MODULOS PERMITIDOS (ESPECIAL PARA ROL MANTENIMIENTO) -->
+        <div style="background: #f1f5f9; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px dashed #cbd5e1;">
+            <div style="font-size: 0.825rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem;">
+                🔐 Módulos Autorizados Adicionales (Configuración para Rol Mantenimiento)
+            </div>
+            <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">
+                El rol Mantenimiento accede por defecto únicamente a <strong>Mantenimiento y Pañol</strong>. Marque si desea autorizarlo a ver otros módulos:
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.85rem; font-size: 0.825rem; color: #334155;">
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="dashboard"> 📊 Dashboard
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="production"> ⚖️ Producción
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="weighbridge"> 🚛 Balanza
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="inventory"> 🌾 Cubicaje y Stock
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="laboratory"> 🧪 Laboratorio
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                    <input type="checkbox" name="allowed_modules" value="yield"> 📈 Rendimiento
+                </label>
+            </div>
+        </div>
+
         <div style="margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
         <!-- Contenedor de la casilla de verificacion de cambio obligatorio -->
             <input type="checkbox" id="new_must_change" name="must_change" value="1" checked style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
@@ -379,6 +413,7 @@
                         <form action="{{ url_for('admin.change_role_route', user_id=u.id) }}" method="POST" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                             <select name="role" class="form-select" style="font-size: 0.78rem; padding: 0.25rem 0.4rem; border-radius: 0.25rem;" onchange="this.form.submit()">
                                 <option value="usuario" {% if u.role == 'usuario' %}selected{% endif %}>Usuario (Operario)</option>
+                                <option value="mantenimiento" {% if u.role == 'mantenimiento' %}selected{% endif %}>Mantenimiento</option>
                                 <option value="gerencia" {% if u.role in ['administrador', 'gerencia'] %}selected{% endif %}>Gerencia</option>
                                 <option value="admin_sistema" {% if u.role == 'admin_sistema' %}selected{% endif %}>Admin Sistema</option>
                             </select>
@@ -496,6 +531,8 @@
                                     <select name="role" class="form-select" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;">
                                         <!-- Opcion operario -->
                                         <option value="usuario" {% if u.role == 'usuario' %}selected{% endif %}>Usuario (Operario)</option>
+                                        <!-- Opcion mantenimiento -->
+                                        <option value="mantenimiento" {% if u.role == 'mantenimiento' %}selected{% endif %}>Mantenimiento</option>
                                         <!-- Opcion gerencia -->
                                         <option value="gerencia" {% if u.role in ['administrador', 'gerencia'] %}selected{% endif %}>Gerencia</option>
                                         <!-- Opcion administrador de sistema -->
@@ -507,6 +544,36 @@
                                 <!-- Cierre del bloque de rol -->
                                 </div>
                             <!-- Cierre de cuadricula -->
+                            </div>
+
+                            <!-- SECCION DE MODULOS PERMITIDOS EN EDICION -->
+                            <div style="background: #e0f2fe; padding: 0.65rem 0.85rem; border-radius: 0.375rem; margin-bottom: 0.75rem; border: 1px dashed #7dd3fc;">
+                                <div style="font-size: 0.78rem; font-weight: 700; color: #0369a1; margin-bottom: 0.2rem;">
+                                    🔐 Módulos Autorizados Adicionales (Especial para Mantenimiento)
+                                </div>
+                                <div style="font-size: 0.72rem; color: #0284c7; margin-bottom: 0.35rem;">
+                                    Mantenimiento siempre accede a <strong>Mantenimiento y Pañol</strong>. Marque módulos adicionales autorizados:
+                                </div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.78rem; color: #1e293b;">
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="dashboard" {% if u.allowed_modules and 'dashboard' in u.allowed_modules %}checked{% endif %}> 📊 Dashboard
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="production" {% if u.allowed_modules and 'production' in u.allowed_modules %}checked{% endif %}> ⚖️ Producción
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="weighbridge" {% if u.allowed_modules and 'weighbridge' in u.allowed_modules %}checked{% endif %}> 🚛 Balanza
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="inventory" {% if u.allowed_modules and 'inventory' in u.allowed_modules %}checked{% endif %}> 🌾 Cubicaje y Stock
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="laboratory" {% if u.allowed_modules and 'laboratory' in u.allowed_modules %}checked{% endif %}> 🧪 Laboratorio
+                                    </label>
+                                    <label style="display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                        <input type="checkbox" name="allowed_modules" value="yield" {% if u.allowed_modules and 'yield' in u.allowed_modules %}checked{% endif %}> 📈 Rendimiento
+                                    </label>
+                                </div>
                             </div>
                             <!-- Fila de botones de accion -->
                             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">

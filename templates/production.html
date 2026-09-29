@@ -196,6 +196,7 @@
             <thead>
                 <tr>
                     <th>Fecha / Hora</th>
+                    <th>Franja</th>
                     <th>Punto de Muestra</th>
                     <th>Peso Neto</th>
                     <th>Tiempo (seg)</th>
@@ -204,12 +205,18 @@
                     <th>Proy. 24h</th>
                     <th>Estado</th>
                     <th>Operario</th>
+                    <th style="text-align: right;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for w in weighings %}
                 <tr>
                     <td>{{ w.timestamp }}</td>
+                    <td>
+                        <span style="font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 9999px; white-space: nowrap;">
+                            {{ w.time_slot or '-' }}
+                        </span>
+                    </td>
                     <td>
                         {% if w.sample_point == 'ingreso_semilla' %}
                         <span style="color: #15803d; font-weight: 600;">Ingreso Semilla</span>
@@ -228,10 +235,67 @@
                         </span>
                     </td>
                     <td>{{ w.operator_name }}</td>
+                    <td style="text-align: right;">
+                        <button type="button" onclick="const er = document.getElementById('edit-weighing-{{ w.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Editar pesada y ajustar cálculo">
+                            ✏️ Editar
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- FILA EXPANDIBLE: MODIFICACION Y AUDITORIA DE PESADA -->
+                <tr id="edit-weighing-{{ w.id }}" style="display: none; background: #f0fdf4; border-bottom: 2px solid #86efac;">
+                    <td colspan="11" style="padding: 1rem 1.25rem;">
+                        <form action="{{ url_for('production.edit_weighing', weighing_id=w.id) }}" method="POST" style="margin: 0;">
+                            <div style="font-weight: 700; color: #166534; margin-bottom: 0.65rem; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span>✏️ Modificar Pesada #{{ w.id }} (Registrada a las {{ w.timestamp }})</span>
+                                <span style="font-size: 0.75rem; font-weight: normal; color: #4b5563;">El cambio quedará registrado en el log de auditoría.</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Punto de Muestra</label>
+                                    <select name="sample_point" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                        <option value="ingreso_semilla" {% if w.sample_point == 'ingreso_semilla' %}selected{% endif %}>Ingreso Semilla</option>
+                                        <option value="salida_expeller" {% if w.sample_point == 'salida_expeller' %}selected{% endif %}>Salida Expeller</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Peso Bruto (kg)</label>
+                                    <input type="number" step="0.01" name="gross_weight_kg" value="{{ w.gross_weight_kg }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Tara (kg)</label>
+                                    <input type="number" step="0.01" name="tare_weight_kg" value="{{ w.tare_weight_kg }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Tiempo Llenado (s)</label>
+                                    <input type="number" step="0.1" name="fill_time_seconds" value="{{ w.fill_time_seconds }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Estado Línea</label>
+                                    <select name="line_status" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <option value="operando" {% if w.line_status == 'operando' %}selected{% endif %}>Operando</option>
+                                        <option value="detenida" {% if w.line_status == 'detenida' %}selected{% endif %}>Detenida</option>
+                                    </select>
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #b91c1c; display: block; margin-bottom: 0.2rem;">Motivo del Ajuste (Obligatorio para Auditoría)</label>
+                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de tara del balde / error de cronómetro..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button type="button" onclick="document.getElementById('edit-weighing-{{ w.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.35rem 0.8rem; border-radius: 0.3rem; font-size: 0.8rem; cursor: pointer;">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn" style="background: #16a34a; color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    💾 Guardar y Recalcular
+                                </button>
+                            </div>
+                        </form>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay pesadas registradas en el turno actual.</td>
+                    <td colspan="11" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay pesadas registradas en el turno actual.</td>
                 </tr>
                 {% endfor %}
             </tbody>

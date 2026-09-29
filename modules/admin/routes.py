@@ -57,10 +57,14 @@ def create_user_route():
     # Comprueba si se exige cambio forzoso de clave
     must_change = request.form.get('must_change') == '1'
 
+    # Obtiene los modulos permitidos adicionales (checkboxes)
+    allowed_list = request.form.getlist('allowed_modules')
+    allowed_modules = ','.join(allowed_list) if allowed_list else None
+
     # Intenta realizar la creacion del perfil en la base de datos
     try:
         # Llama a la logica de servicio para insertar el usuario
-        admin_create_user(username, full_name, dni, phone, password, role, must_change)
+        admin_create_user(username, full_name, dni, phone, password, role, must_change, allowed_modules)
         # Emite mensaje flash de confirmacion exitosa
         flash(f"Usuario '{username}' ({full_name}) creado exitosamente con rol '{role}'.", 'success')
     # Captura errores de validacion como nombre repetido o longitud
@@ -81,9 +85,11 @@ def create_user_route():
 def approve_user_route(user_id):
     # Obtiene el rol seleccionado desde el formulario
     role = request.form.get('role', 'usuario')
+    allowed_list = request.form.getlist('allowed_modules')
+    allowed_modules = ','.join(allowed_list) if allowed_list else None
     try:
         # Ejecuta la aprobacion
-        approve_user(user_id, role)
+        approve_user(user_id, role, allowed_modules)
         flash(f'Usuario aprobado con éxito. Nivel de acceso asignado: {role}.', 'success')
     except Exception as e:
         flash(f'Error al aprobar usuario: {e}', 'danger')
@@ -161,10 +167,13 @@ def edit_user_route(user_id):
     phone = request.form.get('phone', '').strip()
     # Obtiene el rol operativo o jerarquico asignado
     role = request.form.get('role', 'usuario').strip()
+    # Obtiene modulos adicionales permitidos
+    allowed_list = request.form.getlist('allowed_modules')
+    allowed_modules = ','.join(allowed_list) if allowed_list else ''
     # Bloque de captura de errores durante la actualizacion
     try:
         # Ejecuta el servicio de modificacion de perfil
-        admin_update_user(user_id, username, full_name, dni, phone, role)
+        admin_update_user(user_id, username, full_name, dni, phone, role, allowed_modules=allowed_modules)
         # Emite confirmacion flash exitosa
         flash(f"Perfil de '{full_name}' (@{username}) actualizado con éxito.", 'success')
     # Captura violaciones de unicidad o campos vacios

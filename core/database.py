@@ -324,6 +324,7 @@ def init_db():
             approval_status TEXT DEFAULT 'aprobado', -- Estado: pendiente, aprobado, rechazado
             must_change_password INTEGER DEFAULT 0,  -- Obligacion de cambio de clave al ingresar
             is_active INTEGER DEFAULT 1,          -- Estado de habilitacion en planta
+            allowed_modules TEXT DEFAULT NULL,    -- Modulos autorizados adicionales para mantenimiento
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- Fecha de alta
         );
         """)
@@ -444,7 +445,8 @@ def init_db():
             proj_8h_kg REAL NOT NULL,                   -- Proyeccion a turno de 8 horas en kg
             proj_24h_kg REAL NOT NULL,                  -- Proyeccion a 24 horas en kg
             notes TEXT,                                 -- Observaciones operativas
-            params_snapshot TEXT                        -- JSON con snapshot de constantes
+            params_snapshot TEXT,                       -- JSON con snapshot de constantes
+            time_slot TEXT                              -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
         );
         """)
 
@@ -546,7 +548,8 @@ def init_db():
             foreign_matter_pct REAL,                -- Materia extrana en porcentaje
             acidity_pct REAL,                       -- Acidez libre en porcentaje (para aceite)
             raw_data_json TEXT,                     -- JSON con masas iniciales, secas, crisoles
-            notes TEXT                              -- Notas u observaciones analiticas
+            notes TEXT,                             -- Notas u observaciones analiticas
+            time_slot TEXT                          -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
         );
         """)
 
@@ -787,8 +790,10 @@ def seed_initial_data():
         conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
         # Inserta usuario Analista de Laboratorio si no existe
         conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('laboratorio', 'Analista de Calidad', 'usuario', '2222', '40000000', '5492266000004', 'aprobado');")
+        # Inserta usuario Mantenimiento si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('mantenimiento', 'Técnico de Mantenimiento', 'mantenimiento', '4444', '50000000', '5492266000005', 'aprobado');")
         # Confirma los usuarios creados
-        conn.commit()
+        conn.commit();
 
         # Inicializa el turno activo si no hay ninguno seleccionado
         active_shift_count = conn.execute("SELECT COUNT(*) FROM active_shift;").fetchone()[0]

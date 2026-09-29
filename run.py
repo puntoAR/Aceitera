@@ -22,8 +22,8 @@ except ModuleNotFoundError:
     sys.exit(1)
 # Importa inicializador de base de datos
 from core.database import init_db
-# Importa funcion para cargar el usuario logueado en g.user
-from core.security import load_logged_in_user
+# Importa funcion para cargar el usuario logueado en g.user y validador de permisos de modulos
+from core.security import load_logged_in_user, has_module_access
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
 # Importa gestor de politicas de licenciamiento y verificacion de actualizaciones
@@ -114,7 +114,8 @@ def inject_system_context():
         update_status = {'available': False}
     return {
         'licensing_info': licensing,
-        'system_update': update_status
+        'system_update': update_status,
+        'has_module_access': has_module_access
     }
 
 

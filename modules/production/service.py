@@ -14,7 +14,9 @@ from modules.calculations.speed_calc import (
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
-from core.timezone import get_plant_now_str
+from core.timezone import get_plant_now_str, determine_time_slot
+# Importa el servicio de auditoria de eventos
+from core.audit import record_audit_event
 
 # Registra un muestreo de pesada de bolsa con calculo automatico de velocidad y proyeccion
 def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
@@ -45,35 +47,92 @@ def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
     })
     # Obtiene la fecha y hora oficial de planta (Argentina UTC-3)
     now_str = get_plant_now_str()
+    # Determina la franja horaria oficial de la muestra
+    slot_info = determine_time_slot(now_str)
+    time_slot = slot_info['time_slot']
+
     # Abre conexion para insertar el registro en base de datos
     with get_db_connection() as conn:
-        # Inserta la pesada en la tabla de produccion
+        # Inserta la pesada en la tabla de produccion incluyendo la franja horaria
         cursor = conn.execute("""
             INSERT INTO production_weighings (
                 timestamp, shift_id, operator_name, sample_point,
                 gross_weight_kg, tare_weight_kg, net_weight_kg, fill_time_seconds,
-                line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (now_str, shift_id, operator_name, sample_point,
               gross_weight_kg, tare_weight_kg, net_weight_kg, fill_time_seconds,
-              line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot))
+              line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot))
         # Confirma la transaccion
         conn.commit()
         # Obtiene el ID asignado a la nueva pesada
         weighing_id = cursor.lastrowid
     # Registra en log el muestreo de produccion
-    log_info('PRODUCTION', f'Pesada ID {weighing_id} registrada: {sample_point} a {speed_kg_h} kg/h en turno {shift_id}.')
+    log_info('PRODUCTION', f'Pesada ID {weighing_id} registrada: {sample_point} a {speed_kg_h} kg/h en turno {shift_id} (Franja: {time_slot}).')
     # Retorna el diccionario con la pesada registrada
     return {
         'id': weighing_id,
         'timestamp': now_str,
         'shift_id': shift_id,
+        'time_slot': time_slot,
         'sample_point': sample_point,
         'net_weight_kg': net_weight_kg,
         'speed_kg_h': speed_kg_h,
         'proj_8h_kg': proj_8h_kg,
         'proj_24h_kg': proj_24h_kg
     }
+
+# Actualiza y ajusta una pesada historica con registro detallado en bitacora de auditoria
+def update_weighing(weighing_id, sample_point, gross_weight_kg, tare_weight_kg,
+                    fill_time_seconds, line_status='operando', notes='',
+                    edit_reason='', operator_name=None):
+    """
+    Permite editar los datos de una pesada histórica recalculando velocidades y proyecciones,
+    registrando antes/después y el motivo en el log de auditoría.
+    """
+    gross_weight_kg = float(gross_weight_kg)
+    tare_weight_kg = float(tare_weight_kg)
+    fill_time_seconds = float(fill_time_seconds)
+    net_weight_kg = calculate_net_weight(gross_weight_kg, tare_weight_kg)
+
+    speed_kg_h = 0.0
+    proj_8h_kg = 0.0
+    proj_24h_kg = 0.0
+    if line_status == 'operando' and fill_time_seconds > 0:
+        speed_kg_h = calculate_instant_speed(net_weight_kg, fill_time_seconds)
+        proj_8h_kg = project_shift_production(speed_kg_h)
+        proj_24h_kg = project_daily_production(speed_kg_h)
+
+    with get_db_connection() as conn:
+        old = conn.execute("SELECT * FROM production_weighings WHERE id = ?;", (weighing_id,)).fetchone()
+        if not old:
+            raise ValueError(f"Pesada con ID #{weighing_id} no encontrada.")
+        old_dict = dict(old)
+
+        conn.execute("""
+            UPDATE production_weighings
+            SET sample_point = ?, gross_weight_kg = ?, tare_weight_kg = ?,
+                net_weight_kg = ?, fill_time_seconds = ?, line_status = ?,
+                speed_kg_h = ?, proj_8h_kg = ?, proj_24h_kg = ?, notes = ?
+            WHERE id = ?;
+        """, (sample_point, gross_weight_kg, tare_weight_kg, net_weight_kg,
+              fill_time_seconds, line_status, speed_kg_h, proj_8h_kg, proj_24h_kg,
+              notes, weighing_id))
+        conn.commit()
+
+    # Registra en auditoria de planta
+    details = (
+        f"Edición de Pesada #{weighing_id} ({old_dict.get('shift_id', '-')}). Motivo: '{edit_reason or 'Ajuste operativo'}'. "
+        f"Antes: [Punto={old_dict.get('sample_point')}, Bruto={old_dict.get('gross_weight_kg')}kg, "
+        f"Tara={old_dict.get('tare_weight_kg')}kg, Neto={old_dict.get('net_weight_kg')}kg, "
+        f"Tiempo={old_dict.get('fill_time_seconds')}s, Vel={old_dict.get('speed_kg_h')}kg/h, Estado={old_dict.get('line_status')}]. "
+        f"Ahora: [Punto={sample_point}, Bruto={gross_weight_kg}kg, "
+        f"Tara={tare_weight_kg}kg, Neto={net_weight_kg}kg, "
+        f"Tiempo={fill_time_seconds}s, Vel={speed_kg_h}kg/h, Estado={line_status}]."
+    )
+    record_audit_event('PRODUCCION', 'EDICION_PESADA', details, user_override=operator_name)
+    log_info('PRODUCTION', f"Pesada #{weighing_id} modificada por {operator_name or 'usuario'}: {details}")
+    return True
 
 # Obtiene las ultimas pesadas registradas para un turno o fecha
 def get_recent_weighings(shift_id=None, limit=50):
