@@ -624,15 +624,15 @@ body {
 }
 
 .silos-capacity-pill.seed-pill {
-    background-color: #dcfce7;
-    color: #166534;
-    border: 1px solid #bbf7d0;
+    background-color: #f5ebe0;
+    color: #6e4220;
+    border: 1px solid #e6ccb2;
 }
 
 .silos-capacity-pill.expeller-pill {
-    background-color: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
 }
 
 .silos-grid {
@@ -1355,17 +1355,17 @@ body {
 /* Hover en silo de semilla */
 .silo-mini-card.seed:hover {
     background: #ffffff; /* Fondo blanco */
-    border-color: #16a34a; /* Borde verde */
+    border-color: #8a5327; /* Borde marron semilla */
     transform: translateY(-2px); /* Elevacion */
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15); /* Sombra verde */
+    box-shadow: 0 4px 12px rgba(138, 83, 39, 0.18); /* Sombra marron */
 }
 
 /* Hover en silo de expeller */
 .silo-mini-card.expeller:hover {
     background: #ffffff; /* Fondo blanco */
-    border-color: #d97706; /* Borde tostado */
+    border-color: #64748b; /* Borde gris */
     transform: translateY(-2px); /* Elevacion */
-    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15); /* Sombra naranja */
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.2); /* Sombra gris */
 }
 
 /* Top del silo mini */
@@ -1383,16 +1383,16 @@ body {
     border-radius: 0.25rem; /* Redondeado */
 }
 
-/* Badge de silo de semilla */
+/* Badge de silo de semilla: amarronado */
 .silo-mini-code.seed {
-    background: #dcfce7; /* Fondo verde claro */
-    color: #166534; /* Letra verde oscuro */
+    background: #f5ebe0; /* Fondo beige/semilla suave */
+    color: #6e4220; /* Letra marron semilla */
 }
 
-/* Badge de silo de expeller */
+/* Badge de silo de expeller: gris */
 .silo-mini-code.expeller {
-    background: #fef3c7; /* Fondo ambar claro */
-    color: #92400e; /* Letra marron tostado */
+    background: #f1f5f9; /* Fondo gris claro */
+    color: #334155; /* Letra gris pizarra */
 }
 
 /* Porcentaje de ocupacion del silo */
@@ -1414,14 +1414,14 @@ body {
     min-width: 0;
 }
 
-/* Color verde para semilla */
+/* Color amarronado para semilla */
 .silo-mini-tons.seed {
-    color: #15803d; /* Verde girasol */
+    color: #6e4220; /* Marron semilla */
 }
 
-/* Color ambar para expeller */
+/* Color gris para expeller */
 .silo-mini-tons.expeller {
-    color: #854d0e; /* Tostado expeller */
+    color: #475569; /* Gris expeller */
 }
 
 /* Detalle de chapas cubiertas */

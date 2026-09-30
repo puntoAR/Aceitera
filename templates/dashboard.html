@@ -986,8 +986,8 @@
                         </div>
                         <!-- Barra de progreso de llenado del silo -->
                         <div class="mini-progress-bar" style="margin: 0.15rem 0;">
-                            <!-- Barra coloreada segun producto -->
-                            <div class="mini-progress-fill" style="width: {{ s.pct_fill }}%; background-color: {{ '#d97706' if is_exp else '#16a34a' }};"></div>
+                            <!-- Barra coloreada segun producto: gris para expeller, amarronado para semilla -->
+                            <div class="mini-progress-fill" style="width: {{ s.pct_fill }}%; background-color: {{ '#64748b' if is_exp else '#8a5327' }};"></div>
                         </div>
                         <!-- Detalle de chapas cubiertas -->
                         <div class="silo-mini-sheets">
@@ -1473,20 +1473,22 @@
                             <stop offset="100%" stop-color="#1e293b"/>
                         </linearGradient>
 
-                        <!-- Grano (Semilla dorado vs Expeller tostado) -->
+                        <!-- Grano (Semilla amarronado vs Expeller gris) -->
                         {% if is_exp %}
+                        <!-- Grano Expeller: gris -->
                         <linearGradient id="m_grainGrad_{{ s.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#fed7aa"/>
-                            <stop offset="25%" stop-color="#fb923c"/>
-                            <stop offset="65%" stop-color="#c2410c"/>
-                            <stop offset="100%" stop-color="#7c2d12"/>
+                            <stop offset="0%" stop-color="#cbd5e1"/>
+                            <stop offset="25%" stop-color="#94a3b8"/>
+                            <stop offset="65%" stop-color="#64748b"/>
+                            <stop offset="100%" stop-color="#334155"/>
                         </linearGradient>
                         {% else %}
+                        <!-- Grano Semilla: tono amarronado (diferenciado del aceite dorado) -->
                         <linearGradient id="m_grainGrad_{{ s.code }}" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#fef08a"/>
-                            <stop offset="25%" stop-color="#facc15"/>
-                            <stop offset="65%" stop-color="#ca8a04"/>
-                            <stop offset="100%" stop-color="#854d0e"/>
+                            <stop offset="0%" stop-color="#cbb29b"/>
+                            <stop offset="25%" stop-color="#9a6c47"/>
+                            <stop offset="65%" stop-color="#6e4220"/>
+                            <stop offset="100%" stop-color="#462509"/>
                         </linearGradient>
                         {% endif %}
                     </defs>
@@ -1516,7 +1518,7 @@
                     {% if covered > 0 %}
                     <rect x="50" y="{{ y_grain }}" width="120" height="{{ grain_h }}" fill="url(#m_grainGrad_{{ s.code }})"/>
                     <!-- Menisco conico superior -->
-                    <path d="M 50,{{ y_grain }} Q 110,{{ [y_grain - 18, 48]|max }} 170,{{ y_grain }} Z" fill="url(#m_grainGrad_{{ s.code }})" stroke="{{ '#c2410c' if is_exp else '#ca8a04' }}" stroke-width="1"/>
+                    <path d="M 50,{{ y_grain }} Q 110,{{ [y_grain - 18, 48]|max }} 170,{{ y_grain }} Z" fill="url(#m_grainGrad_{{ s.code }})" stroke="{{ '#475569' if is_exp else '#6e4220' }}" stroke-width="1.2"/>
                     {% endif %}
 
                     <!-- Lineas divisorias de chapas de 0.99 m -->
@@ -1551,11 +1553,11 @@
             <div class="modal-details-col">
                 
                 <!-- Masa de cereal/expeller acopiado -->
-                <div class="modal-metric-card" style="border-left: 4px solid {{ '#d97706' if is_exp else '#16a34a' }};">
+                <div class="modal-metric-card" style="border-left: 4px solid {{ '#64748b' if is_exp else '#8a5327' }};">
                     <!-- Etiqueta -->
                     <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Masa de Acopio Efectiva</div>
                     <!-- Valor principal en toneladas -->
-                    <div style="font-size: 1.65rem; font-weight: 900; color: {{ '#854d0e' if is_exp else '#15803d' }}; line-height: 1.1;">
+                    <div style="font-size: 1.65rem; font-weight: 900; color: {{ '#334155' if is_exp else '#6e4220' }}; line-height: 1.1;">
                         {{ "{:,.1f}".format(s.stock_tons).replace(",", ".") }} <span style="font-size: 0.9rem; font-weight: 600; color: #64748b;">Tn</span>
                     </div>
                     <!-- Masa equivalente en kg y volumen m3 -->
