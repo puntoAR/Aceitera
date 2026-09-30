@@ -355,6 +355,10 @@ def get_total_plant_stocks():
     with get_db_connection() as conn:
         # Consulta el ultimo registro de cada tanque de aceite activo
         tanks = conn.execute("SELECT * FROM equipment_tanks WHERE is_active = 1 ORDER BY code ASC;").fetchall()
+        if not tanks:
+            conn.execute("UPDATE equipment_tanks SET is_active = 1 WHERE code IN ('TK-01', 'TK-02', 'TK-03');")
+            conn.commit()
+            tanks = conn.execute("SELECT * FROM equipment_tanks WHERE is_active = 1 ORDER BY code ASC;").fetchall()
         for t in tanks:
             geom_type = t['geometry_type']
             diameter_m = float(t['diameter_m'])
@@ -444,6 +448,14 @@ def get_total_plant_stocks():
 
         # Consulta las ultimas mediciones de cada silo activo con todas sus dimensiones
         silos = conn.execute("SELECT * FROM equipment_silos WHERE is_active = 1 ORDER BY code ASC;").fetchall()
+        if not silos:
+            conn.execute("""
+                UPDATE equipment_silos
+                SET is_active = 1
+                WHERE code IN ('SILO-01', 'SILO-02', 'SILO-03', 'SILO-04', 'SILO-05', 'SILO-EXP-V', 'SILO-EXP-R');
+            """)
+            conn.commit()
+            silos = conn.execute("SELECT * FROM equipment_silos WHERE is_active = 1 ORDER BY code ASC;").fetchall()
         for s in silos:
             d_m = float(s['diameter_m'])
             sh_h_m = float(s['sheet_height_m'] or 0.99)

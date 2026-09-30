@@ -15,8 +15,13 @@ def get_all_tanks(only_active=True):
         where_clause = "WHERE is_active = 1" if only_active else ""
         # Ejecuta la consulta ordenada por codigo de tanque
         cursor = conn.execute(f"SELECT * FROM equipment_tanks {where_clause} ORDER BY code ASC;")
-        # Retorna la lista de registros como diccionarios
-        return [dict(row) for row in cursor.fetchall()]
+        rows = [dict(row) for row in cursor.fetchall()]
+        if only_active and not rows:
+            conn.execute("UPDATE equipment_tanks SET is_active = 1 WHERE code IN ('TK-01', 'TK-02', 'TK-03');")
+            conn.commit()
+            cursor = conn.execute("SELECT * FROM equipment_tanks WHERE is_active = 1 ORDER BY code ASC;")
+            rows = [dict(row) for row in cursor.fetchall()]
+        return rows
 
 # Obtiene un tanque especifico por su identificador unico
 def get_tank_by_id(tank_id):
@@ -52,8 +57,17 @@ def get_all_silos(only_active=True):
         where_clause = "WHERE is_active = 1" if only_active else ""
         # Ejecuta la consulta de silos ordenada por codigo
         cursor = conn.execute(f"SELECT * FROM equipment_silos {where_clause} ORDER BY code ASC;")
-        # Retorna lista de diccionarios
-        return [dict(row) for row in cursor.fetchall()]
+        rows = [dict(row) for row in cursor.fetchall()]
+        if only_active and not rows:
+            conn.execute("""
+                UPDATE equipment_silos
+                SET is_active = 1
+                WHERE code IN ('SILO-01', 'SILO-02', 'SILO-03', 'SILO-04', 'SILO-05', 'SILO-EXP-V', 'SILO-EXP-R');
+            """)
+            conn.commit()
+            cursor = conn.execute("SELECT * FROM equipment_silos WHERE is_active = 1 ORDER BY code ASC;")
+            rows = [dict(row) for row in cursor.fetchall()]
+        return rows
 
 # Obtiene un silo especifico por su identificador
 def get_silo_by_id(silo_id):

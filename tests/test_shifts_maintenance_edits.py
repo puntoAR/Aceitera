@@ -545,6 +545,107 @@ class TestShiftsMaintenanceEdits(unittest.TestCase):
         }, follow_redirects=False)
         self.assertEqual(res_del_la.status_code, 302)
 
+    def test_update_silo_and_tank_preserves_is_active(self):
+        """Valida que actualizar la calibración de un silo o tanque preserve su estado activo."""
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Sistema'
+            sess['role'] = 'admin_sistema'
+
+        with get_db_connection() as conn:
+            silo = dict(conn.execute("SELECT * FROM equipment_silos WHERE id = 1;").fetchone())
+            tank = dict(conn.execute("SELECT * FROM equipment_tanks WHERE id = 1;").fetchone())
+
+        # Actualiza silo sin enviar is_active (como ocurría en el formulario anterior)
+        res_silo_save = self.app.post('/config/silo/1', data={
+            'name': silo['name'],
+            'product_assigned': silo['product_assigned'],
+            'diameter_m': silo['diameter_m'],
+            'sheet_height_m': silo['sheet_height_m'],
+            'total_sheets': silo['total_sheets'],
+            'bottom_cone_height_m': silo['bottom_cone_height_m'],
+            'copete_max_height_m': silo['copete_max_height_m'],
+            'default_ph': silo['default_ph']
+        }, follow_redirects=False)
+        self.assertEqual(res_silo_save.status_code, 302)
+
+        with get_db_connection() as conn:
+            updated_silo = dict(conn.execute("SELECT is_active FROM equipment_silos WHERE id = 1;").fetchone())
+        self.assertEqual(updated_silo['is_active'], 1, "El silo no debe desactivarse si is_active no fue enviado")
+
+        # Actualiza tanque sin enviar is_active
+        res_tank_save = self.app.post('/config/tank/1', data={
+            'name': tank['name'],
+            'geometry_type': tank['geometry_type'],
+            'diameter_m': tank['diameter_m'],
+            'length_m': tank['length_m'],
+            'height_m': tank['height_m'],
+            'heel_volume_l': tank['heel_volume_l'],
+            'default_density': tank['default_density']
+        }, follow_redirects=False)
+        self.assertEqual(res_tank_save.status_code, 302)
+
+        with get_db_connection() as conn:
+            updated_tank = dict(conn.execute("SELECT is_active FROM equipment_tanks WHERE id = 1;").fetchone())
+        self.assertEqual(updated_tank['is_active'], 1, "El tanque no debe desactivarse si is_active no fue enviado")
+
+        # Desactivación explícita con is_active = '0'
+        self.app.post('/config/silo/1', data={
+            'name': silo['name'],
+            'product_assigned': silo['product_assigned'],
+            'diameter_m': silo['diameter_m'],
+            'sheet_height_m': silo['sheet_height_m'],
+            'total_sheets': silo['total_sheets'],
+            'bottom_cone_height_m': silo['bottom_cone_height_m'],
+            'default_ph': silo['default_ph'],
+            'is_active': '0'
+        })
+        with get_db_connection() as conn:
+            s1_inactive = dict(conn.execute("SELECT is_active FROM equipment_silos WHERE id = 1;").fetchone())
+        self.assertEqual(s1_inactive['is_active'], 0)
+
+        # Reactivación explícita con is_active = '1'
+        self.app.post('/config/silo/1', data={
+            'name': silo['name'],
+            'product_assigned': silo['product_assigned'],
+            'diameter_m': silo['diameter_m'],
+            'sheet_height_m': silo['sheet_height_m'],
+            'total_sheets': silo['total_sheets'],
+            'bottom_cone_height_m': silo['bottom_cone_height_m'],
+            'default_ph': silo['default_ph'],
+            'is_active': '1'
+        })
+        with get_db_connection() as conn:
+            s1_active = dict(conn.execute("SELECT is_active FROM equipment_silos WHERE id = 1;").fetchone())
+        self.assertEqual(s1_active['is_active'], 1)
+
+    def test_auto_recovery_when_all_silos_or_tanks_inactive(self):
+        """Valida que get_total_plant_stocks auto-recupere los silos y tanques si todos fueron desactivados."""
+        with get_db_connection() as conn:
+            conn.execute("UPDATE equipment_silos SET is_active = 0;")
+            conn.execute("UPDATE equipment_tanks SET is_active = 0;")
+            conn.commit()
+
+        stocks = get_total_plant_stocks()
+        self.assertEqual(len(stocks['silos']), 7, "Debe auto-recuperar los 7 silos de acopio de planta")
+        self.assertEqual(len(stocks['tanks']), 3, "Debe auto-recuperar los 3 tanques de aceite de planta")
+
+    def test_config_view_renders_estado_options(self):
+        """Verifica que la pantalla /config/ renderice los selectores de Estado para silos y tanques."""
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Sistema'
+            sess['role'] = 'admin_sistema'
+
+        res = self.app.get('/config/')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+        self.assertIn('name="is_active"', html)
+        self.assertIn('Activo', html)
+        self.assertIn('Inactivo', html)
+
 if __name__ == '__main__':
     unittest.main()
 

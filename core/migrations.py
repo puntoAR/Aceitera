@@ -571,7 +571,28 @@ REGISTERED_MIGRATIONS = [
         """, # Sentencias SQL
         # Callback opcional en Python para restaurar metadatos especificos de las filas historicas
         'callback': lambda conn: backfill_repair_weighbridge_tickets(conn) # Callback reparador
-    } # Fin migracion 19
+    }, # Fin migracion 19
+    { # Definicion de migracion 20
+        # Version 20: Asegurar silos y tanques activos en planta
+        'version': 20, # Version 20
+        # Identificador de la migracion
+        'name': 'v20_ensure_active_equipment', # Nombre
+        # Descripcion del ajuste
+        'description': 'Asegura que los 7 silos y 3 tanques oficiales de planta BioBalcarce se encuentren activos',
+        # Script SQL para reactivar equipos
+        'sql': """
+            -- Reactiva los 7 silos oficiales de planta en caso de haber sido desactivados inadvertidamente
+            UPDATE equipment_silos
+            SET is_active = 1
+            WHERE code IN ('SILO-01', 'SILO-02', 'SILO-03', 'SILO-04', 'SILO-05', 'SILO-EXP-V', 'SILO-EXP-R');
+
+            -- Reactiva los 3 tanques oficiales de planta
+            UPDATE equipment_tanks
+            SET is_active = 1
+            WHERE code IN ('TK-01', 'TK-02', 'TK-03');
+        """,
+        'callback': None
+    } # Fin migracion 20
 ] # Fin REGISTERED_MIGRATIONS
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes

@@ -49,11 +49,16 @@ def update_tank(tank_id):
         height_m = safe_float(request.form.get('height_m'), 0.0)
         heel_volume_l = safe_float(request.form.get('heel_volume_l'), 0.0)
         default_density = safe_float(request.form.get('default_density'), 0.92)
-        is_active = 1 if request.form.get('is_active') == 'on' else 0
+        is_active_val = request.form.get('is_active')
+        if is_active_val is not None:
+            is_active = 1 if is_active_val in ('1', 'on', 'true', True, 1) else 0
+        else:
+            existing = get_tank_by_id(tank_id)
+            is_active = existing.get('is_active', 1) if existing else 1
         # Actualiza la configuracion del tanque en base de datos
         update_tank_config(tank_id, name, geometry_type, diameter_m, length_m, height_m, heel_volume_l, default_density, is_active)
         # Registra la modificacion en auditoria
-        record_audit_event('CONFIGURACION', 'MODIFICACION_TANQUE', f"Parámetros actualizados para tanque {name} (ID: {tank_id}).")
+        record_audit_event('CONFIGURACION', 'MODIFICACION_TANQUE', f"Parámetros actualizados para tanque {name} (ID: {tank_id}, Activo: {is_active}).")
         # Notifica al usuario con mensaje de exito
         flash(f'Configuración de tanque {name} actualizada exitosamente.', 'success')
     except Exception as e:
@@ -81,12 +86,17 @@ def update_silo(silo_id):
         min_diam_m = safe_float(request.form.get('bottom_cone_min_diam_m'), 0.0)
         copete_max_height_m = safe_float(request.form.get('copete_max_height_m'), 0.0)
         default_ph = safe_float(request.form.get('default_ph'), 40.0)
-        is_active = 1 if request.form.get('is_active') == 'on' else 0
+        is_active_val = request.form.get('is_active')
+        if is_active_val is not None:
+            is_active = 1 if is_active_val in ('1', 'on', 'true', True, 1) else 0
+        else:
+            existing = get_silo_by_id(silo_id)
+            is_active = existing.get('is_active', 1) if existing else 1
         # Actualiza la configuracion del silo
         update_silo_config(silo_id, name, product_assigned, diameter_m, sheet_height_m, total_sheets,
                            bottom_cone_height_m, bottom_cone_type, min_diam_m, copete_max_height_m, default_ph, is_active)
         # Registra la modificacion en auditoria
-        record_audit_event('CONFIGURACION', 'MODIFICACION_SILO', f"Parámetros actualizados para silo {name} (ID: {silo_id}).")
+        record_audit_event('CONFIGURACION', 'MODIFICACION_SILO', f"Parámetros actualizados para silo {name} (ID: {silo_id}, Activo: {is_active}).")
         # Notifica exito
         flash(f'Configuración de silo {name} actualizada correctamente.', 'success')
     except Exception as e:
