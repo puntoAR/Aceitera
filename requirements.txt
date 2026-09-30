@@ -13,3 +13,5 @@ Werkzeug==3.1.8
 Pillow>=10.0.0
 et-xmlfile>=2.0.0
 openpyxl>=3.1.0
+xlrd>=2.0.1
+

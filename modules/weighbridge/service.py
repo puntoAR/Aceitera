@@ -2,6 +2,8 @@
 import io
 import csv
 import datetime
+# Importa expresiones regulares para limpieza de etiquetas y prefijos de namespace XML
+import re
 # Intento protegido de importacion de la libreria openpyxl para manipular planillas Excel
 try:
     # Importa el modulo openpyxl
@@ -12,10 +14,78 @@ try:
 except ImportError:
     # Asigna None para permitir la carga del servicio sin dependencias obligatorias
     openpyxl = None
+# Intento protegido de importacion de la libreria xlrd para planillas Excel clasicas (.xls)
+try:
+    # Importa el modulo xlrd
+    import xlrd
+# Captura la ausencia de xlrd en entornos restringidos
+except ImportError:
+    # Asigna None si la libreria no esta disponible
+    xlrd = None
+# Importa el analizador HTML de la biblioteca estandar para procesar planillas .xls formateadas como HTML
+from html.parser import HTMLParser
+# Importa ElementTree de la biblioteca estandar para procesar planillas .xls en formato XML Spreadsheet
+import xml.etree.ElementTree as ET
 from core.database import get_db_connection
 from core.timezone import get_plant_now_str
 from core.audit import record_audit_event
 from core.error_logger import log_error, log_info
+
+# Analizador robusto de tablas HTML para archivos generados por balanzas industriales exportados con extension .xls
+class HTMLTableParser(HTMLParser):
+    # Inicializa el analizador de filas y celdas
+    def __init__(self):
+        # Llama al constructor de la clase base
+        super().__init__()
+        # Lista de filas acumuladas
+        self.rows = []
+        # Fila actual en proceso
+        self.current_row = []
+        # Contenido de la celda actual
+        self.current_cell = []
+        # Bandera de celda abierta
+        self.in_cell = False
+
+    # Procesa apertura de etiquetas html
+    def handle_starttag(self, tag, attrs):
+        # Normaliza la etiqueta a minusculas
+        tag_l = tag.lower()
+        # Si es celda de datos o encabezado
+        if tag_l in ('td', 'th'):
+            # Activa bandera de celda
+            self.in_cell = True
+            # Reinicia el acumulador de texto de celda
+            self.current_cell = []
+        # Si es inicio de fila
+        elif tag_l == 'tr':
+            # Reinicia la fila actual
+            self.current_row = []
+
+    # Procesa texto dentro de las etiquetas
+    def handle_data(self, data):
+        # Si se encuentra dentro de una celda
+        if self.in_cell:
+            # Acumula el fragmento de texto
+            self.current_cell.append(data)
+
+    # Procesa cierre de etiquetas html
+    def handle_endtag(self, tag):
+        # Normaliza etiqueta a minusculas
+        tag_l = tag.lower()
+        # Si se cierra una celda
+        if tag_l in ('td', 'th'):
+            # Desactiva bandera de celda
+            self.in_cell = False
+            # Concatena y limpia el texto de la celda
+            cell_text = ''.join(self.current_cell).strip()
+            # Agrega el texto a la fila actual
+            self.current_row.append(cell_text)
+        # Si se cierra una fila
+        elif tag_l == 'tr':
+            # Si la fila tiene al menos una celda con contenido
+            if self.current_row:
+                # Agrega la fila al conjunto de filas extraidas
+                self.rows.append(self.current_row)
 
 # Normaliza texto para comparacion insensible a acentos, espacios y mayusculas
 def _clean_header(h):
@@ -222,45 +292,278 @@ def get_weighing_summary_stats(start_date=None, end_date=None):
 
     return stats
 
-# Importador inteligente de archivos Excel (.xlsx) y CSV de balanza
+# Extrae renglones crudos soportando XLSX moderno, XLS binario, XLS HTML, XLS XML y CSV/TSV
+def _extract_rows_from_file(raw_bytes, filename=''):
+    # Inicializa lista de filas extraidas
+    raw_rows = []
+    # Normaliza el nombre de archivo a minusculas
+    fn = str(filename).lower()
+
+    # 1. Intento A: Si empieza con firma ZIP (PK\x03\x04) o tiene extension .xlsx, intenta con openpyxl
+    if raw_bytes.startswith(b'PK\x03\x04') or fn.endswith('.xlsx'):
+        # Si openpyxl esta disponible en el entorno
+        if openpyxl is not None:
+            # Captura posibles excepciones de openpyxl
+            try:
+                # Carga el libro Excel con solo valores de datos
+                wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
+                # Selecciona la hoja activa
+                sheet = wb.active
+                # Itera sobre las filas de la hoja
+                for row in sheet.iter_rows(values_only=True):
+                    # Agrega la fila como lista
+                    raw_rows.append(list(row))
+                # Si obtuvo datos validos, los retorna de inmediato
+                if raw_rows and len(raw_rows) >= 2:
+                    # Retorna las filas extraidas
+                    return raw_rows
+            # Si falla openpyxl (por ejemplo si el archivo no es un zip real)
+            except Exception:
+                # Continua con los siguientes analizadores alternativos
+                pass
+
+    # 2. Intento B: Si empieza con firma OLE2 (Compound File \xd0\xcf\x11\xe0) o tiene extension .xls binaria
+    if raw_bytes.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1') or fn.endswith('.xls'):
+        # Si xlrd esta disponible
+        if xlrd is not None:
+            # Bloque de captura de errores de formato binario
+            try:
+                # Abre el libro binario con xlrd
+                wb = xlrd.open_workbook(file_contents=raw_bytes)
+                # Selecciona la primera hoja de calculo
+                sheet = wb.sheet_by_index(0)
+                # Itera por el numero de filas de la hoja
+                for r in range(sheet.nrows):
+                    # Lista de valores de la fila
+                    row_vals = []
+                    # Itera sobre cada columna
+                    for c in range(sheet.ncols):
+                        # Obtiene el tipo de celda
+                        c_type = sheet.cell_type(r, c)
+                        # Obtiene el valor crudo de la celda
+                        c_val = sheet.cell_value(r, c)
+                        # Si la celda es de tipo fecha
+                        if c_type == xlrd.XL_CELL_DATE:
+                            # Intenta convertir la fecha Excel a formato estandar
+                            try:
+                                # Convierte a tupla de fecha
+                                dt_tuple = xlrd.xldate_as_tuple(c_val, wb.datemode)
+                                # Crea el objeto datetime
+                                dt = datetime.datetime(*dt_tuple)
+                                # Agrega fecha formateada
+                                row_vals.append(dt.strftime('%Y-%m-%d %H:%M:%S'))
+                            # En caso de error en la fecha
+                            except Exception:
+                                # Guarda representacion textual
+                                row_vals.append(str(c_val))
+                        # Si la celda es de tipo numerico
+                        elif c_type == xlrd.XL_CELL_NUMBER:
+                            # Si es un numero entero
+                            if isinstance(c_val, float) and c_val.is_integer():
+                                # Agrega como entero
+                                row_vals.append(int(c_val))
+                            # Si tiene decimales
+                            else:
+                                # Agrega el numero flotante
+                                row_vals.append(c_val)
+                        # Para otros tipos de celdas (texto, booleano, etc.)
+                        else:
+                            # Agrega el valor directamente
+                            row_vals.append(c_val)
+                    # Agrega la fila a la coleccion
+                    raw_rows.append(row_vals)
+                # Si obtuvo datos validos, los retorna
+                if raw_rows and len(raw_rows) >= 2:
+                    # Retorna las filas
+                    return raw_rows
+            # Si no es un archivo BIFF8 soportado
+            except Exception:
+                # Continua con otros analizadores
+                pass
+
+    # 3. Intento C: Decodificacion textual (HTML Table, SpreadsheetML XML, CSV o TSV)
+    # Intenta decodificar con distintos encodings comunes en software de balanzas
+    text_content = None
+    # Lista de codificaciones a probar
+    for enc in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+        # Intenta decodificar
+        try:
+            # Decodifica los bytes
+            text_content = raw_bytes.decode(enc)
+            # Corta el bucle si tuvo exito
+            break
+        # Captura error de decodificacion
+        except (UnicodeDecodeError, Exception):
+            # Prueba con el siguiente encoding
+            continue
+
+    # Si se logro decodificar a texto
+    if text_content:
+        # Muestra en minusculas para deteccion de etiquetas
+        sample = text_content[:4096].lower()
+
+        # C1. Analisis si es una tabla HTML exportada con extension .xls
+        if '<table' in sample or '<tr' in sample or '<html' in sample:
+            # Intento de parseo con HTMLTableParser
+            try:
+                # Instancia el analizador HTML
+                html_p = HTMLTableParser()
+                # Procesa el contenido completo
+                html_p.feed(text_content)
+                # Si encontro filas validas
+                if html_p.rows and len(html_p.rows) >= 2:
+                    # Retorna las filas de la tabla HTML
+                    return html_p.rows
+            # Si ocurre error al parsear HTML
+            except Exception:
+                # Continua con las demas opciones
+                pass
+
+        # C2. Analisis si es un SpreadsheetML XML exportado como .xls
+        if '<workbook' in sample or '<?xml' in sample:
+            # Intento de parseo de XML Spreadsheet
+            try:
+                # Limpia prefijos de namespace de etiquetas como ss: para evitar errores de unbound prefix
+                cleaned_xml = re.sub(r'<(/?)(\w+):', r'<\1', text_content)
+                # Limpia prefijos de atributos con namespace como ss:Name o ss:Type
+                cleaned_xml = re.sub(r'\s+(\w+):(\w+)=', r' \2=', cleaned_xml)
+                # Parsea el arbol XML saneado
+                root = ET.fromstring(cleaned_xml)
+                # Lista contenedora de filas XML extraidas
+                xml_rows = []
+                # Itera buscando elementos de fila en el documento
+                for elem in root.iter():
+                    # Si el tag termina en Row (insensible al namespace)
+                    if elem.tag.endswith('Row'):
+                        # Celdas de la fila actual
+                        row_cells = []
+                        # Itera sobre los elementos hijos directos de la fila
+                        for cell_elem in elem:
+                            # Valor por defecto de la celda
+                            cell_val = ''
+                            # Itera sobre los elementos contenidos en la celda
+                            for child in cell_elem:
+                                # Si el elemento es un contenedor de datos Data
+                                if child.tag.endswith('Data'):
+                                    # Extrae el texto del dato
+                                    cell_val = child.text or ''
+                                    # Finaliza la busqueda de dato para esta celda
+                                    break
+                            # Si no tenia hijo Data pero tenia texto directo en la celda
+                            if not cell_val and cell_elem.text and cell_elem.text.strip():
+                                # Asigna el texto directo encontrado
+                                cell_val = cell_elem.text.strip()
+                            # Agrega el valor de texto a la fila
+                            row_cells.append(cell_val)
+                        # Si la fila contiene al menos una celda
+                        if row_cells:
+                            # Agrega la fila a la coleccion de filas
+                            xml_rows.append(row_cells)
+                # Si extrajo al menos fila de cabecera y una fila de datos
+                if xml_rows and len(xml_rows) >= 2:
+                    # Retorna las filas de la planilla XML
+                    return xml_rows
+            # Si falla el parseo XML
+            except Exception:
+                # Continua con la siguiente estrategia
+                pass
+
+        # C3. Analisis si es texto delimitado (CSV / TSV / punto y coma)
+        # Cuenta ocurrencias de delimitadores en la muestra
+        cnt_tab = sample.count('\t')
+        # Cuenta punto y coma
+        cnt_semi = sample.count(';')
+        # Cuenta comas
+        cnt_comma = sample.count(',')
+        # Determina el delimitador mas probable
+        if cnt_tab > cnt_semi and cnt_tab > cnt_comma and cnt_tab > 2:
+            # Tabulador
+            delim = '\t'
+        elif cnt_semi > cnt_comma:
+            # Punto y coma
+            delim = ';'
+        else:
+            # Coma por defecto
+            delim = ','
+
+        # Intento de lectura CSV
+        try:
+            # Crea lector CSV
+            csv_reader = csv.reader(io.StringIO(text_content), delimiter=delim)
+            # Extrae todas las filas
+            csv_rows = [list(r) for r in csv_reader if r]
+            # Si obtuvo datos coherentes
+            if csv_rows and len(csv_rows) >= 2:
+                # Retorna las filas CSV
+                return csv_rows
+        # Si falla el lector CSV
+        except Exception:
+            # Continua
+            pass
+
+    # 4. Fallback final: Si openpyxl todavia no se intento y esta disponible
+    if openpyxl is not None and not raw_bytes.startswith(b'PK\x03\x04'):
+        # Intenta una ultima vez con openpyxl
+        try:
+            # Carga el archivo
+            wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
+            # Lee filas
+            raw_rows = [list(r) for r in wb.active.iter_rows(values_only=True)]
+            # Si tiene datos
+            if raw_rows and len(raw_rows) >= 2:
+                # Retorna filas
+                return raw_rows
+        # Si falla
+        except Exception:
+            # Pasa
+            pass
+
+    # Si ninguno de los analizadores logro extraer los datos
+    if not raw_rows or len(raw_rows) < 2:
+        # Lanza error descriptivo indicando las alternativas compatibles
+        raise ValueError(
+            "No fue posible interpretar el archivo de balanza. El sistema admite Excel moderno (.xlsx), "
+            "Excel clásico (.xls en formato binario, HTML o XML) y texto delimitado (.csv). "
+            "Verifique que el archivo contenga datos o guarde la planilla en formato .xlsx o .csv antes de subirla."
+        )
+
+    # Retorna las filas
+    return raw_rows
+
+# Importador inteligente de archivos Excel (.xlsx, .xls) y CSV de balanza
 def import_weighings_from_file(file_storage, filename=None, operator_name='Balanza', shift_id='TC', sync_inventory=False):
+    # Si no se envio el nombre del archivo, intenta obtenerlo del objeto file_storage
     if filename is None:
+        # Obtiene el nombre del archivo adjunto
         filename = getattr(file_storage, 'filename', '') or ''
+    # Normaliza el nombre del archivo a minusculas
     filename = str(filename).lower()
+    # Inicializa la lista de registros procesados
     records = []
 
-    if filename.endswith('.csv'):
-        # Procesa archivo CSV
-        if isinstance(file_storage, bytes):
-            content = file_storage.decode('utf-8', errors='replace')
-        elif hasattr(file_storage, 'read'):
-            raw = file_storage.read()
-            content = raw.decode('utf-8', errors='replace') if isinstance(raw, bytes) else str(raw)
-        else:
-            content = str(file_storage)
-        # Detecta delimitador (coma o punto y coma)
-        sample = content[:2048]
-        delimiter = ';' if sample.count(';') > sample.count(',') else ','
-        reader = csv.reader(io.StringIO(content), delimiter=delimiter)
-        raw_rows = list(reader)
-    elif filename.endswith(('.xlsx', '.xls')):
-        # Verifica que openpyxl este instalado antes de abrir el libro
-        if openpyxl is None:
-            # Lanza error si no se encuentra la biblioteca necesaria
-            raise ValueError("El soporte para archivos Excel (.xlsx) requiere la librería openpyxl instalada.")
-        # Procesa archivo Excel con openpyxl
-        if isinstance(file_storage, bytes):
-            wb = openpyxl.load_workbook(io.BytesIO(file_storage), data_only=True)
-        else:
-            wb = openpyxl.load_workbook(file_storage, data_only=True)
-        sheet = wb.active
-        raw_rows = []
-        for row in sheet.iter_rows(values_only=True):
-            raw_rows.append(list(row))
+    # Extrae el contenido en bytes del archivo recibido
+    if isinstance(file_storage, bytes):
+        # Asigna directamente si ya son bytes
+        raw_bytes = file_storage
+    # Si es un objeto tipo stream o archivo de Flask
+    elif hasattr(file_storage, 'read'):
+        # Lee los bytes del flujo
+        raw_bytes = file_storage.read()
+        # Si tiene soporte para rebobinar el cursor, lo reinicia
+        if hasattr(file_storage, 'seek'):
+            # Vuelve el puntero al inicio
+            file_storage.seek(0)
+    # En caso de cadenas de texto u otros tipos
     else:
-        raise ValueError("Formato no soportado. El archivo debe ser Excel (.xlsx, .xls) o CSV (.csv).")
+        # Convierte a representacion en bytes
+        raw_bytes = str(file_storage).encode('utf-8')
 
+    # Extrae las filas del archivo utilizando el extractor multitipo universal
+    raw_rows = _extract_rows_from_file(raw_bytes, filename=filename)
+
+    # Verifica que el archivo no este vacio o contenga un solo renglon
     if not raw_rows or len(raw_rows) < 2:
+        # Lanza error si no hay datos suficientes
         raise ValueError("El archivo se encuentra vacío o no posee renglones de datos.")
 
     # Busca la fila de encabezados analizando las primeras 10 lineas

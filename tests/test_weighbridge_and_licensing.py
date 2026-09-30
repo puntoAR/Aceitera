@@ -175,6 +175,98 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         self.assertEqual(w['net_weight_kg'], 25000.0)
         self.assertEqual(w['net_weight_tons'], 25.0)
 
+    # Prueba de importacion desde archivo .xls que contiene una tabla HTML tipica de balanzas industriales
+    def test_import_weighings_from_xls_html_table(self):
+        # Contenido HTML de la tabla con etiquetas tr y td
+        html_content = (
+            "<html><body><table>"
+            "<tr><th>Nro Ticket</th><th>Fecha</th><th>Camion</th><th>Chofer</th><th>Movimiento</th><th>Material</th><th>Peso Bruto</th><th>Tara</th><th>Neto Tn</th></tr>"
+            "<tr><td>TK-XLS-01</td><td>2026-09-30 10:00</td><td>AA111BB</td><td>Juan Perez</td><td>Ingreso</td><td>Semilla</td><td>40.0</td><td>10.0</td><td>30.0</td></tr>"
+            "</table></body></html>"
+        ).encode('utf-8')
+        # Importa el archivo con extension .xls
+        result = import_weighings_from_file(html_content, "ticket_balanza.xls", sync_inventory=False)
+        # Verifica que la operacion se haya completado con exito
+        self.assertTrue(result['success'])
+        # Verifica que se haya importado exactamente 1 pesada
+        self.assertEqual(result['imported_count'], 1)
+        # Consulta las pesadas en la base de datos
+        weighings = get_recent_weighings()
+        # Obtiene el primer registro
+        w = weighings[0]
+        # Verifica el numero de ticket
+        self.assertEqual(w['ticket_number'], "TK-XLS-01")
+        # Verifica la conversion de 30 toneladas a 30000 kg
+        self.assertEqual(w['net_weight_kg'], 30000.0)
+
+    # Prueba de importacion desde archivo .xls en formato SpreadsheetML XML
+    def test_import_weighings_from_xls_xml_spreadsheet(self):
+        # Contenido XML con estructura Workbook y Table
+        xml_content = (
+            "<?xml version=\"1.0\"?>\n"
+            "<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\">\n"
+            "  <Worksheet ss:Name=\"Balanza\">\n"
+            "    <Table>\n"
+            "      <Row>\n"
+            "        <Cell><Data ss:Type=\"String\">Ticket</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Fecha</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Patente</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Operacion</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Producto</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Neto</Data></Cell>\n"
+            "      </Row>\n"
+            "      <Row>\n"
+            "        <Cell><Data ss:Type=\"String\">TK-XML-88</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">2026-09-30 11:30</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">BB222CC</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Egreso</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"String\">Aceite</Data></Cell>\n"
+            "        <Cell><Data ss:Type=\"Number\">28000</Data></Cell>\n"
+            "      </Row>\n"
+            "    </Table>\n"
+            "  </Worksheet>\n"
+            "</Workbook>"
+        ).encode('utf-8')
+        # Importa el archivo con extension .xls
+        result = import_weighings_from_file(xml_content, "export_balanza.xls", sync_inventory=False)
+        # Verifica exito en la importacion
+        self.assertTrue(result['success'])
+        # Verifica que se registro 1 pesada
+        self.assertEqual(result['imported_count'], 1)
+        # Consulta pesadas registradas
+        weighings = get_recent_weighings()
+        # Obtiene la pesada
+        w = weighings[0]
+        # Verifica ticket
+        self.assertEqual(w['ticket_number'], "TK-XML-88")
+        # Verifica peso neto en kg
+        self.assertEqual(w['net_weight_kg'], 28000.0)
+
+    # Prueba de importacion de un archivo delimitado por punto y coma guardado con extension .xls
+    def test_import_weighings_from_xls_csv_renamed(self):
+        # Contenido CSV con punto y coma
+        csv_xls_content = (
+            "Ticket;Fecha;Camion;Operacion;Producto;Bruto;Tara;Neto\n"
+            "TK-CSV-55;2026-09-30;CC333DD;Ingreso;Semilla;45000;15000;30000\n"
+        ).encode('utf-8')
+        # Importa con extension .xls
+        result = import_weighings_from_file(csv_xls_content, "datos_balanza.xls", sync_inventory=False)
+        # Verifica exito
+        self.assertTrue(result['success'])
+        # Verifica cantidad de pesadas importadas
+        self.assertEqual(result['imported_count'], 1)
+
+    # Prueba de resiliencia ante archivos no validos garantizando que no se lance BadZipFile
+    def test_import_weighings_badzipfile_resilience(self):
+        # Bytes de prueba no validos
+        dummy_content = b"XYZ123456789NOTVALID"
+        # Verifica que se lance ValueError descriptivo en lugar de BadZipFile
+        with self.assertRaises(ValueError) as ctx:
+            # Invoca importacion con archivo no valido
+            import_weighings_from_file(dummy_content, "corrupt.xls")
+        # Comprueba que el mensaje informe sobre los formatos admitidos
+        self.assertIn("No fue posible interpretar el archivo", str(ctx.exception))
+
     def test_weighbridge_web_views_and_roles(self):
         """Verifica acceso web y permisos de balanza: exclusivo gerencia y admin_sistema (bloqueado para operarios)"""
         # 1. Operario (usuario comun): NO tiene acceso ni visualizacion de Balanza
