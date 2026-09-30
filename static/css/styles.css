@@ -846,7 +846,7 @@ body {
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6);
+    background: linear-gradient(90deg, #f59e0b, #ef4444, #f97316, #8b5cf6, #0ea5e9);
 }
 
 /* Encabezado del panel lateral */
@@ -913,12 +913,20 @@ body {
     border-top: 4px solid #f59e0b;
 }
 
-.maint-card-operative {
+.maint-card-unplanned-stop {
     border-top: 4px solid #ef4444;
+}
+
+.maint-card-operative, .maint-card-unplanned-no-stop {
+    border-top: 4px solid #f97316;
 }
 
 .maint-card-planned {
     border-top: 4px solid #8b5cf6;
+}
+
+.maint-card-planned-no-stop {
+    border-top: 4px solid #0ea5e9;
 }
 
 /* Titulo de la tarjeta */
@@ -942,12 +950,20 @@ body {
     color: #f59e0b;
 }
 
-.maint-card-operative .maint-dash-val {
-    color: #ef4444;
+.maint-card-unplanned-stop .maint-dash-val {
+    color: #f87171;
+}
+
+.maint-card-operative .maint-dash-val, .maint-card-unplanned-no-stop .maint-dash-val {
+    color: #fb923c;
 }
 
 .maint-card-planned .maint-dash-val {
     color: #c084fc;
+}
+
+.maint-card-planned-no-stop .maint-dash-val {
+    color: #38bdf8;
 }
 
 /* Subtitulo aclaratorio de cada tarjeta */

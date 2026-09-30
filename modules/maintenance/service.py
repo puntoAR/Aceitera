@@ -24,8 +24,14 @@ def create_maintenance_activity(title, category, equipment_tag, priority, descri
     if not title or not title.strip():
         # Lanza error si falta el titulo de la tarea
         raise ValueError("El título de la actividad de mantenimiento es obligatorio.")
-    # Valida que la categoria sea una de las tres oficiales
-    valid_categories = ('operativa', 'planificada_con_parada', 'planificada_sin_parada')
+    # Valida que la categoria sea una de las autorizadas (planificadas y no planificadas, con o sin parada de planta)
+    valid_categories = (
+        'operativa',
+        'planificada_con_parada',
+        'planificada_sin_parada',
+        'no_planificada_con_parada',
+        'no_planificada_sin_parada'
+    )
     # Comprueba la presencia de la categoria en la tupla
     if category not in valid_categories:
         # Lanza error si la categoria no coincide con las autorizadas
@@ -58,16 +64,18 @@ def get_maintenance_activities(category=None, status=None, limit=100):
         params = []
         # Si se especifica una categoria particular
         if category:
-            # Agrega clausula de filtro por categoria
-            query += " AND category = ?"
-            # Agrega el valor a los parametros
-            params.append(category)
+            if category in ('no_planificada_sin_parada', 'operativa'):
+                query += " AND category IN ('no_planificada_sin_parada', 'operativa')"
+            else:
+                query += " AND category = ?"
+                params.append(category)
         # Si se especifica un estado particular
         if status:
-            # Agrega clausula de filtro por estado
-            query += " AND status = ?"
-            # Agrega el valor del estado a los parametros
-            params.append(status)
+            if status in ('pendiente', 'activas'):
+                query += " AND status IN ('pendiente', 'en_progreso')"
+            else:
+                query += " AND status = ?"
+                params.append(status)
         # Agrega ordenamiento descendente por fecha y limite
         query += " ORDER BY id DESC LIMIT ?"
         # Agrega el limite a la lista
@@ -94,29 +102,49 @@ def get_activity_by_id(activity_id):
         # Retorna el diccionario o None si no existe
         return dict(row) if row else None
 
-# Actualiza el estado y notas tecnicas de cierre de una actividad
-def update_activity_status(activity_id, status, resolution_notes=None, completed_at=None, operator_name='Sistema'):
+# Actualiza el estado, notas tecnicas de cierre y opcionalmente reclasifica la categoria de una actividad
+def update_activity_status(activity_id, status, resolution_notes=None, completed_at=None, operator_name='Sistema', category=None):
     # Valida los estados permitidos
     valid_statuses = ('pendiente', 'en_progreso', 'completada', 'cancelada')
     # Verifica que el estado indicado este contemplado
     if status not in valid_statuses:
         # Lanza error si el estado es desconocido
         raise ValueError(f"Estado inválido. Debe ser: {', '.join(valid_statuses)}")
+    
+    # Valida la categoria si fue suministrada
+    valid_categories = (
+        'operativa',
+        'planificada_con_parada',
+        'planificada_sin_parada',
+        'no_planificada_con_parada',
+        'no_planificada_sin_parada'
+    )
+    if category and category not in valid_categories:
+        raise ValueError(f"Categoría inválida. Debe ser una de: {', '.join(valid_categories)}")
+
     # Si el estado es completada y no se paso fecha, toma la hora oficial de planta (Argentina UTC-3)
     if status == 'completada' and not completed_at:
         completed_at = get_plant_now_str()
     # Abre conexion para modificar el registro
     with get_db_connection() as conn:
-        # Ejecuta el update de estado y resolucion
-        conn.execute("""
-            UPDATE maintenance_activities
-            SET status = ?, resolution_notes = COALESCE(?, resolution_notes), completed_at = COALESCE(?, completed_at)
-            WHERE id = ?;
-        """, (status, resolution_notes, completed_at, activity_id))
+        # Ejecuta el update de estado, categoria y resolucion
+        if category:
+            conn.execute("""
+                UPDATE maintenance_activities
+                SET status = ?, resolution_notes = COALESCE(?, resolution_notes), completed_at = COALESCE(?, completed_at), category = ?
+                WHERE id = ?;
+            """, (status, resolution_notes, completed_at, category, activity_id))
+        else:
+            conn.execute("""
+                UPDATE maintenance_activities
+                SET status = ?, resolution_notes = COALESCE(?, resolution_notes), completed_at = COALESCE(?, completed_at)
+                WHERE id = ?;
+            """, (status, resolution_notes, completed_at, activity_id))
         # Confirma la modificacion
         conn.commit()
     # Registra en auditoria el cambio de estado
-    record_audit_event('MANTENIMIENTO', 'ESTADO_ACTUALIZADO', f"Actividad #{activity_id} actualizada a '{status}' por {operator_name}.")
+    cat_desc = f" (categoría: {category})" if category else ""
+    record_audit_event('MANTENIMIENTO', 'ESTADO_ACTUALIZADO', f"Actividad #{activity_id} actualizada a '{status}'{cat_desc} por {operator_name}.")
     # Retorna verdadero confirmando la actualizacion
     return True
 
@@ -353,7 +381,7 @@ def get_spare_parts_report_data():
         'generated_at': get_plant_now().strftime('%d/%m/%Y %H:%M')
     }
 
-# Obtiene los tres indicadores clave de mantenimiento para el cockpit ejecutivo
+# Obtiene los indicadores clave de mantenimiento para el cockpit ejecutivo (5 categorias y tareas activas)
 def get_maintenance_dashboard_kpis():
     # Abre conexion a la base de datos
     with get_db_connection() as conn:
@@ -364,20 +392,117 @@ def get_maintenance_dashboard_kpis():
             return {
                 'pending_count': 0,
                 'operative_count': 0,
-                'planned_stop_count': 0
+                'unplanned_stop_count': 0,
+                'unplanned_no_stop_count': 0,
+                'planned_stop_count': 0,
+                'planned_no_stop_count': 0,
+                'total_active_count': 0
             }
         
-        # Conteo de tareas pendientes
-        pending = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status = 'pendiente';").fetchone()[0]
-        # Conteo de tareas operativas (urgencias / en marcha)
-        operative = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'operativa';").fetchone()[0]
+        # Conteo de tareas pendientes o en curso (no concluidas ni canceladas)
+        pending = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status IN ('pendiente', 'en_progreso');").fetchone()[0]
+        # Conteo de tareas no planificadas con parada de planta (roturas críticas, trabas de equipo)
+        unplanned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'no_planificada_con_parada' AND status != 'cancelada';").fetchone()[0]
+        # Conteo de tareas no planificadas sin parada de planta (urgencias en marcha, incluye 'operativa')
+        unplanned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('no_planificada_sin_parada', 'operativa') AND status != 'cancelada';").fetchone()[0]
         # Conteo de tareas planificadas con parada de planta
-        planned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_con_parada';").fetchone()[0]
+        planned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_con_parada' AND status != 'cancelada';").fetchone()[0]
+        # Conteo de tareas planificadas sin parada de planta
+        planned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_sin_parada' AND status != 'cancelada';").fetchone()[0]
+        # Conteo para retrocompatibilidad con codigo o tests que lean operative_count
+        operative = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('operativa', 'no_planificada_sin_parada') AND status != 'cancelada';").fetchone()[0]
         
         # Retorna el diccionario de KPIs para el dashboard
         return {
             'pending_count': int(pending or 0),
             'operative_count': int(operative or 0),
-            'planned_stop_count': int(planned_stop or 0)
+            'unplanned_stop_count': int(unplanned_stop or 0),
+            'unplanned_no_stop_count': int(unplanned_no_stop or 0),
+            'planned_stop_count': int(planned_stop or 0),
+            'planned_no_stop_count': int(planned_no_stop or 0),
+            'total_active_count': int(pending or 0)
+        }
+
+# Genera el conjunto de datos para el reporte imprimible de actividades de reparacion con filtros
+def get_maintenance_repairs_report(start_date=None, end_date=None, equipment_tag=None, category=None, status=None):
+    with get_db_connection() as conn:
+        query = "SELECT * FROM maintenance_activities WHERE 1=1"
+        params = []
+
+        # Filtro de fecha desde (sobre created_at o completed_at o scheduled_date)
+        if start_date and start_date.strip():
+            s_date = start_date.strip()
+            query += " AND (date(created_at) >= ? OR (completed_at IS NOT NULL AND date(completed_at) >= ?) OR (scheduled_date IS NOT NULL AND scheduled_date >= ?))"
+            params.extend([s_date, s_date, s_date])
+
+        # Filtro de fecha hasta
+        if end_date and end_date.strip():
+            e_date = end_date.strip()
+            query += " AND (date(created_at) <= ? OR (completed_at IS NOT NULL AND date(completed_at) <= ?) OR (scheduled_date IS NOT NULL AND scheduled_date <= ?))"
+            params.extend([e_date, e_date, e_date])
+
+        # Filtro de equipo o sector
+        if equipment_tag and equipment_tag.strip() and equipment_tag.strip().lower() != 'todos':
+            eq = equipment_tag.strip()
+            query += " AND (equipment_tag = ? OR equipment_tag LIKE ?)"
+            params.extend([eq, f"%{eq}%"])
+
+        # Filtro de categoria
+        if category and category.strip() and category.strip().lower() != 'todas':
+            cat = category.strip()
+            if cat in ('no_planificada_sin_parada', 'operativa'):
+                query += " AND category IN ('no_planificada_sin_parada', 'operativa')"
+            else:
+                query += " AND category = ?"
+                params.append(cat)
+
+        # Filtro de estado
+        if status and status.strip() and status.strip().lower() != 'todos':
+            st = status.strip()
+            if st == 'activas':
+                query += " AND status IN ('pendiente', 'en_progreso')"
+            else:
+                query += " AND status = ?"
+                params.append(st)
+
+        query += " ORDER BY id DESC;"
+        rows = conn.execute(query, tuple(params)).fetchall()
+        activities = [dict(r) for r in rows]
+
+        # Enriquecer cada actividad con fotos asociadas
+        for act in activities:
+            img_count = conn.execute("SELECT COUNT(*) FROM maintenance_images WHERE activity_id = ?;", (act['id'],)).fetchone()[0]
+            act['images_count'] = img_count
+
+        # Estadisticas resumen para la cabecera del reporte
+        total_activities = len(activities)
+        completed_count = sum(1 for a in activities if a['status'] == 'completada')
+        pending_count = sum(1 for a in activities if a['status'] in ('pendiente', 'en_progreso'))
+        unplanned_stop_count = sum(1 for a in activities if a['category'] == 'no_planificada_con_parada')
+        unplanned_no_stop_count = sum(1 for a in activities if a['category'] in ('no_planificada_sin_parada', 'operativa'))
+        planned_stop_count = sum(1 for a in activities if a['category'] == 'planificada_con_parada')
+        planned_no_stop_count = sum(1 for a in activities if a['category'] == 'planificada_sin_parada')
+
+        return {
+            'activities': activities,
+            'stats': {
+                'total': total_activities,
+                'completed': completed_count,
+                'pending': pending_count,
+                'unplanned_stop': unplanned_stop_count,
+                'unplanned_no_stop': unplanned_no_stop_count,
+                'planned_stop': planned_stop_count,
+                'planned_no_stop': planned_no_stop_count,
+                'total_stoppage': unplanned_stop_count + planned_stop_count,
+                'total_running': unplanned_no_stop_count + planned_no_stop_count
+            },
+            'filters': {
+                'start_date': start_date or '',
+                'end_date': end_date or '',
+                'equipment': equipment_tag if equipment_tag and equipment_tag.lower() != 'todos' else 'Todos los Equipos',
+                'category': category if category and category.lower() != 'todas' else 'Todas las Categorías',
+                'status': status if status and status.lower() != 'todos' else 'Todos los Estados'
+            },
+            'generated_at': get_plant_now().strftime('%d/%m/%Y %H:%M')
         }
 

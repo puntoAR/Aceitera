@@ -28,15 +28,20 @@
                 <!-- Icono mas -->
                 <span>➕</span> Nueva Actividad
             </button>
+            <!-- Boton para abrir modal de reporte de reparaciones imprimible -->
+            <button type="button" onclick="openPrintRepairsModal()" style="background: #0284c7; color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Generar reporte técnico imprimible de reparaciones e intervenciones">
+                <!-- Icono impresora -->
+                <span>🖨️</span> Reporte de Reparaciones
+            </button>
             <!-- Boton para abrir modal de nuevo repuesto -->
             <button type="button" onclick="openNewPartModal()" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                 <!-- Icono paquete -->
                 <span>📦</span> Nuevo Repuesto
             </button>
-            <!-- Enlace para abrir vista de impresion de reporte -->
-            <a href="{{ url_for('maintenance.print_report') }}" target="_blank" style="background: #334155; color: #f8fafc; text-decoration: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid #475569;">
-                <!-- Icono impresora -->
-                <span>🖨️</span> Imprimir Reporte
+            <!-- Enlace para abrir vista de impresion de reporte de pañol -->
+            <a href="{{ url_for('maintenance.print_report') }}" target="_blank" style="background: #334155; color: #f8fafc; text-decoration: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid #475569;" title="Imprimir catálogo y stock de pañol">
+                <!-- Icono lista -->
+                <span>📋</span> Repuestos Pañol
             </a>
             <!-- Enlace para descargar reporte en CSV -->
             <a href="{{ url_for('maintenance.export_csv') }}" style="background: #10b981; color: white; text-decoration: none; padding: 0.6rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
@@ -47,55 +52,79 @@
     </div>
 
     <!-- Tarjetas de indicadores clave (KPIs) del modulo de mantenimiento -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-        <!-- Tarjeta 1: Tareas Pendientes -->
-        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+        <!-- Tarjeta 1: Tareas Pendientes / Activas -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b;">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Tareas Pendientes</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Tareas Pendientes</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.8rem; font-weight: 800; color: #f59e0b; margin-top: 0.25rem;">
-                {{ activities | selectattr('status', 'equalto', 'pendiente') | list | length }}
+            <div style="font-size: 1.7rem; font-weight: 800; color: #f59e0b; margin-top: 0.2rem;">
+                {{ activities | selectattr('status', 'in', ['pendiente', 'en_progreso']) | list | length }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Intervenciones en espera</div>
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">Intervenciones en espera o curso</div>
         </div>
 
-        <!-- Tarjeta 2: Tareas Operativas (Correctivas en marcha) -->
-        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444;">
+        <!-- Tarjeta 2: No Planificadas con Parada de Planta -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444;">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Operativas (En Marcha)</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. c/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.8rem; font-weight: 800; color: #ef4444; margin-top: 0.25rem;">
-                {{ activities | selectattr('category', 'equalto', 'operativa') | list | length }}
+            <div style="font-size: 1.7rem; font-weight: 800; color: #f87171; margin-top: 0.2rem;">
+                {{ activities | selectattr('category', 'equalto', 'no_planificada_con_parada') | list | length }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Urgencias del momento</div>
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🚨 Trabas o roturas c/ parada</div>
         </div>
 
-        <!-- Tarjeta 3: Planificadas con Parada de Planta -->
-        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6;">
+        <!-- Tarjeta 3: No Planificadas sin Parada (Operativas) -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f97316;">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Planificadas c/ Parada</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. s/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.8rem; font-weight: 800; color: #c084fc; margin-top: 0.25rem;">
+            <div style="font-size: 1.7rem; font-weight: 800; color: #fb923c; margin-top: 0.2rem;">
+                {{ activities | selectattr('category', 'in', ['no_planificada_sin_parada', 'operativa']) | list | length }}
+            </div>
+            <!-- Subtitulo aclaratorio -->
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">⚠️ Operativas en marcha</div>
+        </div>
+
+        <!-- Tarjeta 4: Planificadas con Parada de Planta -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6;">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas c/ Parada</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.7rem; font-weight: 800; color: #c084fc; margin-top: 0.2rem;">
                 {{ activities | selectattr('category', 'equalto', 'planificada_con_parada') | list | length }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">Requieren detener planta</div>
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🛑 Requieren detener planta</div>
         </div>
 
-        <!-- Tarjeta 4: Stock Critico en Pañol (Alerta de Reposicion) -->
-        <div style="background: #1e293b; padding: 1.1rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %};">
+        <!-- Tarjeta 5: Planificadas sin Parada de Planta -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #0ea5e9;">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.78rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Stock Crítico Pañol</div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas s/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.8rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.25rem;">
+            <div style="font-size: 1.7rem; font-weight: 800; color: #38bdf8; margin-top: 0.2rem;">
+                {{ activities | selectattr('category', 'equalto', 'planificada_sin_parada') | list | length }}
+            </div>
+            <!-- Subtitulo aclaratorio -->
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🔄 Preventivo en marcha</div>
+        </div>
+
+        <!-- Tarjeta 6: Stock Critico en Pañol (Alerta de Reposicion) -->
+        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %};">
+            <!-- Titulo de la tarjeta -->
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Stock Crítico Pañol</div>
+            <!-- Valor numerico -->
+            <div style="font-size: 1.7rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.2rem;">
                 {{ report_data.critical_items }}
             </div>
             <!-- Subtitulo aclaratorio con alerta -->
-            <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.2rem;">
+            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">
                 {% if report_data.critical_items > 0 %}
-                    <strong style="color: #f43f5e;">⚠️ Requiere compra urgente</strong>
+                    <strong style="color: #f43f5e;">⚠️ Requiere compra</strong>
                 {% else %}
                     <span style="color: #10b981;">Niveles normales</span>
                 {% endif %}
@@ -126,21 +155,30 @@
             <!-- Etiqueta de filtros -->
             <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Filtrar por Categoría:</span>
             <!-- Boton Todas -->
-            <a href="{{ url_for('maintenance.index') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if not selected_category %}background: #f59e0b; color: #0f172a;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+            <a href="{{ url_for('maintenance.index') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if not selected_category and not selected_status %}background: #f59e0b; color: #0f172a;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
                 Todas ({{ activities | length }})
             </a>
-            <!-- Boton Operativas -->
-            <a href="{{ url_for('maintenance.index', category='operativa') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'operativa' %}background: #ef4444; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🔧 Operativas (En marcha)
+            <!-- Boton No Planificadas c/ Parada -->
+            <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'no_planificada_con_parada' %}background: #ef4444; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                🚨 No Planif. c/ Parada
+            </a>
+            <!-- Boton No Planificadas s/ Parada -->
+            <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category in ['no_planificada_sin_parada', 'operativa'] %}background: #f97316; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                ⚠️ No Planif. s/ Parada
             </a>
             <!-- Boton Planificadas con Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_con_parada' %}background: #8b5cf6; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🛑 Planificadas c/ Parada
+                🛑 Planif. c/ Parada
             </a>
             <!-- Boton Planificadas sin Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_sin_parada' %}background: #0ea5e9; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🔄 Planificadas s/ Parada
+                🔄 Planif. s/ Parada
             </a>
+            {% if selected_status %}
+            <span style="margin-left: auto; font-size: 0.75rem; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid #f59e0b; padding: 0.25rem 0.6rem; border-radius: 9999px;">
+                Filtro estado: <strong>{{ selected_status }}</strong> <a href="{{ url_for('maintenance.index') }}" style="color: #cbd5e1; text-decoration: none; margin-left: 0.3rem;">✖</a>
+            </span>
+            {% endif %}
         </div>
 
         <!-- Contenedor responsivo de la tabla de actividades -->
@@ -180,16 +218,20 @@
                             <td style="padding: 0.85rem 1rem; font-weight: 700; color: #cbd5e1;">#{{ act.id }}</td>
                             <!-- Columna Categoria con badge distintivo -->
                             <td style="padding: 0.85rem 1rem;">
-                                {% if act.category == 'operativa' %}
-                                    <span style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid #ef4444; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
-                                        ⚡ Operativa
+                                {% if act.category == 'no_planificada_con_parada' %}
+                                    <span style="background: rgba(239,68,68,0.25); color: #f87171; border: 1px solid #ef4444; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                        🚨 No Planif. c/ Parada
+                                    </span>
+                                {% elif act.category in ['no_planificada_sin_parada', 'operativa'] %}
+                                    <span style="background: rgba(249,115,22,0.25); color: #fb923c; border: 1px solid #f97316; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                        ⚠️ No Planif. s/ Parada
                                     </span>
                                 {% elif act.category == 'planificada_con_parada' %}
-                                    <span style="background: rgba(139,92,246,0.2); color: #c084fc; border: 1px solid #8b5cf6; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                    <span style="background: rgba(139,92,246,0.25); color: #c084fc; border: 1px solid #8b5cf6; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
                                         🛑 Planif. c/ Parada
                                     </span>
                                 {% else %}
-                                    <span style="background: rgba(14,165,233,0.2); color: #38bdf8; border: 1px solid #0ea5e9; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                    <span style="background: rgba(14,165,233,0.25); color: #38bdf8; border: 1px solid #0ea5e9; padding: 0.25rem 0.55rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
                                         🔄 Planif. s/ Parada
                                     </span>
                                 {% endif %}
@@ -270,7 +312,7 @@
                                     📷+
                                 </button>
                                 <!-- Boton para cambiar estado o completar -->
-                                <button type="button" onclick="openUpdateStatusModal({{ act.id }}, '{{ act.status }}', '{{ act.title | replace("'", "\\'") }}')" title="Cambiar Estado / Resolver" style="background: #0284c7; border: none; color: white; padding: 0.35rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
+                                <button type="button" onclick="openUpdateStatusModal({{ act.id }}, '{{ act.status }}', '{{ act.title | replace("'", "\\'") }}', '{{ act.category }}')" title="Cambiar Estado / Categoría" style="background: #0284c7; border: none; color: white; padding: 0.35rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
                                     ⚙️ Estado
                                 </button>
                             </td>
@@ -482,9 +524,10 @@
                 <div>
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Categoría Operativa *</label>
                     <select name="category" required style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
-                        <option value="operativa">🔧 Operativa (En el momento / En marcha)</option>
-                        <option value="planificada_con_parada">🛑 Planificada con Parada de Planta</option>
-                        <option value="planificada_sin_parada">🔄 Planificada sin Parada de Planta</option>
+                        <option value="no_planificada_con_parada">🚨 No Planificada (Con Parada de Planta - Urgencia / Rotura / Traba)</option>
+                        <option value="no_planificada_sin_parada">⚠️ No Planificada (Sin Parada de Planta - Operativa en Marcha)</option>
+                        <option value="planificada_con_parada">🛑 Planificada (Con Parada de Planta - Mantenimiento Mayor)</option>
+                        <option value="planificada_sin_parada">🔄 Planificada (Sin Parada de Planta - Rutina Preventiva)</option>
                     </select>
                 </div>
                 <!-- Prioridad -->
@@ -560,6 +603,16 @@
                     <option value="cancelada">❌ Cancelada</option>
                 </select>
             </div>
+            <!-- Selector de categoria para reclasificacion -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Categoría de la Tarea</label>
+                <select id="update-category-select" name="category" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="no_planificada_con_parada">🚨 No Planificada (Con Parada de Planta)</option>
+                    <option value="no_planificada_sin_parada">⚠️ No Planificada (Sin Parada de Planta)</option>
+                    <option value="planificada_con_parada">🛑 Planificada (Con Parada de Planta)</option>
+                    <option value="planificada_sin_parada">🔄 Planificada (Sin Parada de Planta)</option>
+                </select>
+            </div>
             <!-- Notas de resolucion tecnica -->
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Notas de Resolución Técnica / Cierre</label>
@@ -574,6 +627,72 @@
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
                 <button type="button" onclick="closeModal('modal-update-status')" style="padding: 0.6rem 1rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
                 <button type="submit" style="padding: 0.6rem 1.25rem; background: #0284c7; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer;">Guardar Cambio</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL DE FILTRADO PARA REPORTE IMPRIMIBLE DE REPARACIONES -->
+<div id="modal-print-repairs" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
+    <div style="background: #1e293b; width: 100%; max-width: 520px; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h3 style="color: #38bdf8; margin: 0; font-size: 1.15rem; font-weight: 700;">🖨️ Generar Reporte Imprimible de Reparaciones</h3>
+            <button type="button" onclick="closeModal('modal-print-repairs')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form action="{{ url_for('maintenance.print_repairs_report') }}" method="GET" target="_blank" style="padding: 1.25rem;">
+            <!-- Fechas Desde / Hasta -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Fecha Desde</label>
+                    <input type="date" name="start_date" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Fecha Hasta</label>
+                    <input type="date" name="end_date" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <!-- Zona o Equipo intervenido -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Zona o Equipo Intervenido</label>
+                <select name="equipment" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="">-- Todos los Equipos y Sectores --</option>
+                    {% for eq in equipment_data %}
+                    <option value="{{ eq.tag }}">{{ eq.tag }} - {{ eq.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Categoria de mantenimiento -->
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Categoría de Falla / Trabajo</label>
+                <select name="category" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="">-- Todas las Categorías --</option>
+                    <option value="no_planificada_con_parada">🚨 No Planificada c/ Parada (Traba / Rotura)</option>
+                    <option value="no_planificada_sin_parada">⚠️ No Planificada s/ Parada (Operativa en marcha)</option>
+                    <option value="planificada_con_parada">🛑 Planificada c/ Parada (Mantenimiento Mayor)</option>
+                    <option value="planificada_sin_parada">🔄 Planificada s/ Parada (Rutina Preventiva)</option>
+                </select>
+            </div>
+
+            <!-- Estado de la actividad -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Estado de la Intervención</label>
+                <select name="status" style="width: 100%; padding: 0.55rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 0.4rem; font-size: 0.85rem; box-sizing: border-box;">
+                    <option value="">-- Todas las Tareas --</option>
+                    <option value="completada">✔ Solo Concluidas / Resueltas</option>
+                    <option value="activas">⏳ Solo Activas (Pendientes o En Curso)</option>
+                    <option value="pendiente">⏳ Solo Pendientes</option>
+                    <option value="cancelada">❌ Canceladas</option>
+                </select>
+            </div>
+
+            <!-- Botones -->
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" onclick="closeModal('modal-print-repairs')" style="padding: 0.6rem 1rem; background: #334155; color: #cbd5e1; border: none; border-radius: 0.4rem; cursor: pointer;">Cancelar</button>
+                <button type="submit" onclick="closeModal('modal-print-repairs')" style="padding: 0.6rem 1.25rem; background: #0284c7; color: white; border: none; border-radius: 0.4rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;">
+                    <span>🖨️</span> Abrir Reporte Imprimible
+                </button>
             </div>
         </form>
     </div>
@@ -768,12 +887,20 @@
         document.getElementById('modal-new-activity').style.display = 'flex';
     }
 
-    // Abre el modal para actualizar estado de una tarea
-    function openUpdateStatusModal(actId, currentStatus, title) {
+    // Abre el modal para actualizar estado de una tarea y su categoria
+    function openUpdateStatusModal(actId, currentStatus, title, currentCategory) {
         document.getElementById('update-modal-title').textContent = '⚙️ Actualizar Actividad #' + actId;
         document.getElementById('update-status-form').action = '/maintenance/activity/' + actId + '/status';
         document.getElementById('update-status-select').value = currentStatus;
+        if (currentCategory && document.getElementById('update-category-select')) {
+            document.getElementById('update-category-select').value = currentCategory;
+        }
         document.getElementById('modal-update-status').style.display = 'flex';
+    }
+
+    // Abre el modal para configurar el reporte imprimible de reparaciones
+    function openPrintRepairsModal() {
+        document.getElementById('modal-print-repairs').style.display = 'flex';
     }
 
     // Abre el modal para adjuntar foto

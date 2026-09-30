@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<!-- Declaración de documento HTML5 para reporte técnico imprimible -->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioBalcarce - Reporte de Reparaciones y Mantenimiento</title>
+    <style>
+        /* Estilos base para papel y pantalla */
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            color: #0f172a;
+            margin: 15mm 15mm;
+            background: #ffffff;
+            line-height: 1.35;
+        }
+
+        /* Barra de herramientas para pantalla (oculta en papel) */
+        .no-print {
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .no-print-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .no-print-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .filter-group label {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+        }
+
+        .filter-group input, .filter-group select {
+            padding: 5px 8px;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            background: #ffffff;
+        }
+
+        .btn-print {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 9.5pt;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-print:hover {
+            background: #0369a1;
+        }
+
+        .btn-close {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 9pt;
+        }
+
+        .btn-filter-submit {
+            background: #0f172a;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 8.5pt;
+            height: 29px;
+        }
+
+        /* Cabecera institucional */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+
+        .brand-title {
+            font-size: 16pt;
+            font-weight: 800;
+            color: #b45309;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-subtitle {
+            font-size: 9pt;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .report-main-title {
+            font-size: 13pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .report-meta {
+            text-align: right;
+            font-size: 8.5pt;
+            color: #475569;
+        }
+
+        /* Cuadro de resumen metrico */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+            page-break-inside: avoid;
+        }
+
+        .summary-card {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            text-align: center;
+            background: #f8fafc;
+        }
+
+        .summary-card-label {
+            font-size: 7.5pt;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .summary-card-val {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 2px;
+        }
+
+        /* Tabla tecnica */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+        }
+
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 8.5pt;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 7.5pt;
+            color: #334155;
+            letter-spacing: 0.03em;
+        }
+
+        /* Badges de categoria para papel */
+        .badge {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 800;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+
+        .badge-unplanned-stop {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+        }
+
+        .badge-unplanned-no-stop {
+            background: #ffedd5;
+            color: #c2410c;
+            border: 1px solid #fb923c;
+        }
+
+        .badge-planned-stop {
+            background: #f3e8ff;
+            color: #6b21a8;
+            border: 1px solid #c084fc;
+        }
+
+        .badge-planned-no-stop {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #38bdf8;
+        }
+
+        .priority-critica {
+            color: #b91c1c;
+            font-weight: 800;
+        }
+
+        .priority-alta {
+            color: #c2410c;
+            font-weight: 700;
+        }
+
+        .priority-media {
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .priority-baja {
+            color: #64748b;
+        }
+
+        /* Seccion de firmas */
+        .signatures {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-around;
+            page-break-inside: avoid;
+        }
+
+        .sig-block {
+            text-align: center;
+            width: 220px;
+            border-top: 1px solid #0f172a;
+            padding-top: 6px;
+            font-size: 8.5pt;
+            color: #334155;
+        }
+
+        /* Reglas de impresion en papel */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                margin: 0;
+                font-size: 9pt;
+            }
+            th, td {
+                padding: 4px 6px;
+                font-size: 8pt;
+            }
+            .summary-card-val {
+                font-size: 12pt;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA INTERACTIVA EN PANTALLA (OCULTA EN PAPEL) -->
+    <div class="no-print">
+        <div class="no-print-header">
+            <div>
+                <strong style="color: #0f172a; font-size: 10.5pt;">🖨️ Vista Oficial de Impresión — Reporte de Reparaciones</strong>
+                <div style="font-size: 8.5pt; color: #64748b;">Ajuste los filtros requeridos y presione <strong>Imprimir Ahora</strong>. En el diálogo de impresión seleccione orientación horizontal (Landscape) recomendada.</div>
+            </div>
+            <div>
+                <button type="button" onclick="window.print()" class="btn-print">
+                    <span>🖨️</span> Imprimir Ahora / Guardar PDF
+                </button>
+                <button type="button" onclick="window.close()" class="btn-close">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+
+        <!-- FORMULARIO DE FILTROS DINAMICOS -->
+        <form method="GET" action="{{ url_for('maintenance.print_repairs_report') }}" class="no-print-filters">
+            <!-- Filtro Fecha Desde -->
+            <div class="filter-group">
+                <label>Fecha Desde</label>
+                <input type="date" name="start_date" value="{{ report.filters.start_date }}">
+            </div>
+
+            <!-- Filtro Fecha Hasta -->
+            <div class="filter-group">
+                <label>Fecha Hasta</label>
+                <input type="date" name="end_date" value="{{ report.filters.end_date }}">
+            </div>
+
+            <!-- Filtro Equipo / Sector -->
+            <div class="filter-group">
+                <label>Zona o Equipo</label>
+                <select name="equipment">
+                    <option value="">-- Todos los Equipos / Zonas --</option>
+                    {% for eq in equipment_list %}
+                    <option value="{{ eq.tag }}" {% if report.filters.equipment == eq.tag %}selected{% endif %}>
+                        {{ eq.tag }} - {{ eq.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtro Categoria -->
+            <div class="filter-group">
+                <label>Categoría</label>
+                <select name="category">
+                    <option value="">-- Todas las Categorías --</option>
+                    <option value="no_planificada_con_parada" {% if report.filters.category == 'no_planificada_con_parada' %}selected{% endif %}>🚨 No Planificada c/ Parada</option>
+                    <option value="no_planificada_sin_parada" {% if report.filters.category in ['no_planificada_sin_parada', 'operativa'] %}selected{% endif %}>⚠️ No Planificada s/ Parada</option>
+                    <option value="planificada_con_parada" {% if report.filters.category == 'planificada_con_parada' %}selected{% endif %}>🛑 Planificada c/ Parada</option>
+                    <option value="planificada_sin_parada" {% if report.filters.category == 'planificada_sin_parada' %}selected{% endif %}>🔄 Planificada s/ Parada</option>
+                </select>
+            </div>
+
+            <!-- Filtro Estado -->
+            <div class="filter-group">
+                <label>Estado</label>
+                <select name="status">
+                    <option value="">-- Todos los Estados --</option>
+                    <option value="completada" {% if report.filters.status == 'completada' %}selected{% endif %}>✔ Resueltas / Concluidas</option>
+                    <option value="activas" {% if report.filters.status == 'activas' %}selected{% endif %}>⏳ Pendientes y En Curso</option>
+                    <option value="pendiente" {% if report.filters.status == 'pendiente' %}selected{% endif %}>⏳ Solo Pendientes</option>
+                    <option value="cancelada" {% if report.filters.status == 'cancelada' %}selected{% endif %}>❌ Canceladas</option>
+                </select>
+            </div>
+
+            <!-- Boton Actualizar -->
+            <div>
+                <button type="submit" class="btn-filter-submit">
+                    🔍 Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- CABECERA INSTITUCIONAL OFICIAL -->
+    <div class="report-header">
+        <div>
+            <div class="brand-title">BioBalcarce S.A.</div>
+            <div class="brand-subtitle">Planta de Extrusado y Prensado de Semillas Oleaginosas — Balcarce, Bs. As.</div>
+            <div class="report-main-title">Reporte Técnico de Reparaciones e Intervenciones</div>
+        </div>
+        <div class="report-meta">
+            <div><strong>Emisión:</strong> {{ report.generated_at }}</div>
+            {% if report.filters.start_date or report.filters.end_date %}
+            <div><strong>Período:</strong> {{ report.filters.start_date or 'Inicio' }} al {{ report.filters.end_date or 'Actualidad' }}</div>
+            {% else %}
+            <div><strong>Período:</strong> Histórico Completo</div>
+            {% endif %}
+            <div><strong>Zona / Equipo:</strong> {{ report.filters.equipment }}</div>
+            <div><strong>Categoría:</strong> {{ report.filters.category }}</div>
+            <div><strong>Estado:</strong> {{ report.filters.status }}</div>
+        </div>
+    </div>
+
+    <!-- CUADRO DE RESUMEN METRICO DEL PERIODO -->
+    <div class="summary-grid">
+        <div class="summary-card" style="border-top: 3px solid #0f172a;">
+            <div class="summary-card-label">Total Reparaciones</div>
+            <div class="summary-card-val">{{ report.stats.total }}</div>
+        </div>
+        <div class="summary-card" style="border-top: 3px solid #ef4444;">
+            <div class="summary-card-label">🚨 No Planif. c/ Parada</div>
+            <div class="summary-card-val" style="color: #b91c1c;">{{ report.stats.unplanned_stop }}</div>
+        </div>
+        <div class="summary-card" style="border-top: 3px solid #f97316;">
+            <div class="summary-card-label">⚠️ No Planif. s/ Parada</div>
+            <div class="summary-card-val" style="color: #c2410c;">{{ report.stats.unplanned_no_stop }}</div>
+        </div>
+        <div class="summary-card" style="border-top: 3px solid #8b5cf6;">
+            <div class="summary-card-label">🛑 Planif. c/ Parada</div>
+            <div class="summary-card-val" style="color: #6b21a8;">{{ report.stats.planned_stop }}</div>
+        </div>
+        <div class="summary-card" style="border-top: 3px solid #0ea5e9;">
+            <div class="summary-card-label">🔄 Planif. s/ Parada</div>
+            <div class="summary-card-val" style="color: #0369a1;">{{ report.stats.planned_no_stop }}</div>
+        </div>
+    </div>
+
+    <!-- TABLA TECNICA DE INTERVENCIONES -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40px;">ID</th>
+                <th style="width: 75px;">Fecha</th>
+                <th style="width: 120px;">Categoría</th>
+                <th style="width: 90px;">Equipo / Zona</th>
+                <th style="width: 60px;">Prioridad</th>
+                <th>Título & Descripción de la Falla</th>
+                <th style="width: 85px;">Asignado</th>
+                <th style="width: 70px;">Estado</th>
+                <th>Diagnóstico & Resolución Técnica</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if report.activities | length == 0 %}
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 25px; color: #64748b;">
+                    No se registran actividades de reparación con los filtros seleccionados para este período.
+                </td>
+            </tr>
+            {% else %}
+            {% for act in report.activities %}
+            <tr>
+                <td style="font-weight: bold; color: #334155;">#{{ act.id }}</td>
+                <td style="font-size: 7.8pt;">
+                    {{ act.created_at[:10] if act.created_at else '' }}
+                    {% if act.scheduled_date and act.scheduled_date != act.created_at[:10] %}
+                    <div style="font-size: 7pt; color: #64748b;">Prog: {{ act.scheduled_date }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if act.category == 'no_planificada_con_parada' %}
+                        <span class="badge badge-unplanned-stop">🚨 No Planif. c/ Parada</span>
+                    {% elif act.category in ['no_planificada_sin_parada', 'operativa'] %}
+                        <span class="badge badge-unplanned-no-stop">⚠️ No Planif. s/ Parada</span>
+                    {% elif act.category == 'planificada_con_parada' %}
+                        <span class="badge badge-planned-stop">🛑 Planif. c/ Parada</span>
+                    {% else %}
+                        <span class="badge badge-planned-no-stop">🔄 Planif. s/ Parada</span>
+                    {% endif %}
+                </td>
+                <td style="font-weight: 700; color: #0f172a;">{{ act.equipment_tag or 'General' }}</td>
+                <td>
+                    <span class="priority-{{ act.priority }}">{{ act.priority | upper }}</span>
+                </td>
+                <td>
+                    <strong style="color: #0f172a;">{{ act.title }}</strong>
+                    {% if act.description %}
+                    <div style="font-size: 7.8pt; color: #475569; margin-top: 2px;">{{ act.description }}</div>
+                    {% endif %}
+                    {% if act.images_count > 0 %}
+                    <div style="font-size: 7pt; color: #0284c7; margin-top: 2px;">📷 {{ act.images_count }} foto{{ 's' if act.images_count > 1 else '' }} registradas</div>
+                    {% endif %}
+                </td>
+                <td>{{ act.assigned_to or 'Sin asignar' }}</td>
+                <td>
+                    {% if act.status == 'completada' %}
+                        <strong style="color: #15803d;">✔ Resuelta</strong>
+                    {% elif act.status == 'en_progreso' %}
+                        <strong style="color: #0284c7;">🔄 En Curso</strong>
+                    {% elif act.status == 'pendiente' %}
+                        <strong style="color: #b45309;">⏳ Pendiente</strong>
+                    {% else %}
+                        <span style="color: #64748b;">Cancelada</span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 8pt;">
+                    {% if act.resolution_notes %}
+                        <div style="color: #0f172a;">{{ act.resolution_notes }}</div>
+                        {% if act.completed_at %}
+                        <div style="font-size: 7pt; color: #64748b; margin-top: 2px;">Cierre: {{ act.completed_at[:16] }}</div>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: #94a3b8; font-style: italic;">Sin notas de cierre registradas</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- BLOQUE FORMAL DE FIRMAS TECNICAS -->
+    <div class="signatures">
+        <div class="sig-block">
+            <strong>Responsable de Mantenimiento</strong>
+            <div style="font-size: 7.5pt; color: #64748b; margin-top: 2px;">Firma y Aclaración</div>
+        </div>
+        <div class="sig-block">
+            <strong>Jefatura de Operaciones / Planta</strong>
+            <div style="font-size: 7.5pt; color: #64748b; margin-top: 2px;">Conformidad Técnica</div>
+        </div>
+    </div>
+
+</body>
+</html>

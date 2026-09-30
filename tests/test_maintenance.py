@@ -21,7 +21,8 @@ from modules.maintenance.service import (
     create_maintenance_activity, get_maintenance_activities, get_activity_by_id,
     update_activity_status, save_maintenance_image, get_activity_images,
     create_or_update_spare_part, get_spare_parts, get_spare_part_by_id,
-    record_spare_part_movement, get_spare_parts_report_data, get_maintenance_dashboard_kpis
+    record_spare_part_movement, get_spare_parts_report_data, get_maintenance_dashboard_kpis,
+    get_maintenance_repairs_report
 )
 
 
@@ -421,7 +422,131 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         self.assertIn('Urgencias del momento', html)
         self.assertIn('Requieren detener planta', html)
 
+    # Prueba exhaustiva de las 4 categorias (con y sin parada) y la visualizacion en el cockpit del dashboard
+    def test_all_maintenance_categories_and_dashboard_kpis(self):
+        # 1. Registra evento no planificado con parada de planta (caso equipo trabado)
+        act_unplanned_stop = create_maintenance_activity(
+            title="Traba mecánica en alimentador de Prensa 1",
+            category="no_planificada_con_parada",
+            equipment_tag="PRENSA-01",
+            priority="critica",
+            description="Se trabó cuerpo extraño. Hubo que detener planta para destrabar e inspeccionar sinfín.",
+            reported_by="Operador Turno Mañana"
+        )
+        self.assertIsNotNone(act_unplanned_stop)
+
+        # 2. Registra evento no planificado sin parada de planta (en marcha)
+        act_unplanned_no_stop = create_maintenance_activity(
+            title="Ajuste de prensaestopas bomba de aceite",
+            category="no_planificada_sin_parada",
+            equipment_tag="BOMBA-TK01",
+            priority="media",
+            description="Goteo menor corregido en marcha",
+            reported_by="Mantenimiento"
+        )
+        self.assertIsNotNone(act_unplanned_no_stop)
+
+        # 3. Registra planificada con parada
+        act_planned_stop = create_maintenance_activity(
+            title="Mantenimiento semestral reductor principal",
+            category="planificada_con_parada",
+            equipment_tag="EXTRUSOR-01",
+            priority="alta",
+            description="Cambio de aceite sintético y alineación láser",
+            reported_by="Jefe Mantenimiento"
+        )
+        self.assertIsNotNone(act_planned_stop)
+
+        # 4. Registra planificada sin parada
+        act_planned_no_stop = create_maintenance_activity(
+            title="Engrase de rodamientos de zaranda",
+            category="planificada_sin_parada",
+            equipment_tag="ZARANDA-01",
+            priority="baja",
+            description="Lubricación de rutina programada",
+            reported_by="Técnico Lubricador"
+        )
+        self.assertIsNotNone(act_planned_no_stop)
+
+        # 5. Verifica los KPIs de mantenimiento
+        kpis = get_maintenance_dashboard_kpis()
+        self.assertEqual(kpis['pending_count'], 4)
+        self.assertEqual(kpis['unplanned_stop_count'], 1)
+        self.assertEqual(kpis['unplanned_no_stop_count'], 1)
+        self.assertEqual(kpis['planned_stop_count'], 1)
+        self.assertEqual(kpis['planned_no_stop_count'], 1)
+
+        # 6. Reclasifica una tarea y actualiza su estado
+        update_activity_status(act_unplanned_no_stop, status='completada', resolution_notes='Empaquetadura ajustada', category='no_planificada_sin_parada')
+        kpis_after = get_maintenance_dashboard_kpis()
+        self.assertEqual(kpis_after['pending_count'], 3) # Una se completo
+
+        # 7. Verifica presencia en dashboard HTML
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Planta'
+            sess['role'] = 'administrador'
+
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn('No Planificadas', html)
+        self.assertIn('Roturas y trabas c/ parada', html)
+        self.assertIn('Planificadas', html)
+
+    # Prueba de generacion de reporte de reparaciones y vista imprimible con filtros
+    def test_maintenance_repairs_report_and_print_view(self):
+        # 1. Crea actividades en distintos equipos y fechas
+        act1 = create_maintenance_activity(
+            title="Reparación de cinta transportadora",
+            category="no_planificada_con_parada",
+            equipment_tag="CINTA-01",
+            priority="critica",
+            description="Corte de banda por traba de piedra",
+            reported_by="Operador"
+        )
+        act2 = create_maintenance_activity(
+            title="Ajuste de válvula dosificadora",
+            category="planificada_sin_parada",
+            equipment_tag="CALDERA-01",
+            priority="media",
+            description="Calibración rutinaria",
+            reported_by="Instrumentista"
+        )
+
+        # 2. Marca la primera como resuelta
+        update_activity_status(act1, status='completada', resolution_notes='Se vulcanizó parche y se alineó cinta.')
+
+        # 3. Consulta reporte filtrado por equipo
+        rep_cinta = get_maintenance_repairs_report(equipment_tag="CINTA-01")
+        self.assertEqual(rep_cinta['stats']['total'], 1)
+        self.assertEqual(rep_cinta['stats']['completed'], 1)
+        self.assertEqual(rep_cinta['stats']['unplanned_stop'], 1)
+        self.assertEqual(rep_cinta['activities'][0]['id'], act1)
+
+        # 4. Consulta reporte filtrado por categoria
+        rep_plan = get_maintenance_repairs_report(category="planificada_sin_parada")
+        self.assertEqual(rep_plan['stats']['total'], 1)
+        self.assertEqual(rep_plan['activities'][0]['id'], act2)
+
+        # 5. Verifica endpoint web de impresion oficial
+        with self.client.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Planta'
+            sess['role'] = 'administrador'
+
+        resp_print = self.client.get('/maintenance/report/repairs/print?equipment=CINTA-01')
+        self.assertEqual(resp_print.status_code, 200)
+        html_print = resp_print.get_data(as_text=True)
+        self.assertIn('Reporte Técnico de Reparaciones e Intervenciones', html_print)
+        self.assertIn('CINTA-01', html_print)
+        self.assertIn('Se vulcanizó parche', html_print)
+        self.assertIn('Imprimir Ahora', html_print)
+
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':
     unittest.main()
+
 

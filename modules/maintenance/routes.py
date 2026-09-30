@@ -8,7 +8,8 @@ from modules.maintenance.service import (
     create_maintenance_activity, get_maintenance_activities, get_activity_by_id,
     update_activity_status, save_maintenance_image, get_activity_images,
     get_all_recent_images, create_or_update_spare_part, get_spare_parts,
-    get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data
+    get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data,
+    get_maintenance_repairs_report
 )
 # Importa el servicio de configuracion para obtener equipos y turnos
 from modules.configuration.service import get_all_equipment, get_active_shift
@@ -118,12 +119,14 @@ def update_status(activity_id):
     try:
         # Obtiene el nuevo estado deseado
         new_status = request.form.get('status')
+        # Obtiene nueva categoria opcional para reclasificacion
+        category = request.form.get('category')
         # Obtiene notas de resolucion tecnica
         resolution_notes = request.form.get('resolution_notes', '')
         # Nombre del operario que efectua el cambio
         operator_name = g.user.get('full_name', 'Operario') if hasattr(g, 'user') and g.user else 'Operario'
-        # Ejecuta la actualizacion de estado mediante el servicio
-        update_activity_status(activity_id, new_status, resolution_notes=resolution_notes, operator_name=operator_name)
+        # Ejecuta la actualizacion de estado y categoria mediante el servicio
+        update_activity_status(activity_id, new_status, resolution_notes=resolution_notes, operator_name=operator_name, category=category)
         # Si ademas se cargo una foto de la reparacion terminada
         if 'photo' in request.files and request.files['photo'].filename:
             # Guarda la imagen de cierre
@@ -291,3 +294,32 @@ def print_report():
     report_data = get_spare_parts_report_data()
     # Renderiza plantilla minimalista para impresion
     return render_template('maintenance_print.html', report=report_data)
+
+# Vista dedicada para impresion oficial del reporte de reparaciones e intervenciones
+@maintenance_bp.route('/report/repairs/print')
+@roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+def print_repairs_report():
+    # Obtiene parametros de filtrado desde la URL
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+    equipment_tag = request.args.get('equipment', '').strip()
+    category = request.args.get('category', '').strip()
+    status = request.args.get('status', '').strip()
+
+    # Genera el conjunto de datos enriquecidos y metricas
+    report_data = get_maintenance_repairs_report(
+        start_date=start_date,
+        end_date=end_date,
+        equipment_tag=equipment_tag,
+        category=category,
+        status=status
+    )
+    # Obtiene listado de equipos para el selector de filtros de pantalla
+    equipment_list = get_all_equipment()
+
+    # Renderiza la plantilla imprimible oficial
+    return render_template(
+        'maintenance_activities_print.html',
+        report=report_data,
+        equipment_list=equipment_list
+    )

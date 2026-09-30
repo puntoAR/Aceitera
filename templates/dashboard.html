@@ -161,7 +161,7 @@
         left: 0 !important;
         right: 0 !important;
         height: 4px !important;
-        background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6) !important;
+        background: linear-gradient(90deg, #f59e0b, #ef4444, #f97316, #8b5cf6, #0ea5e9) !important;
     }
 
     .maint-sidebar-header {
@@ -186,8 +186,8 @@
     .maint-sidebar-cards {
         display: flex !important;
         flex-direction: column !important;
-        gap: 0.6rem !important;
-        margin-top: 0.5rem !important;
+        gap: 0.45rem !important;
+        margin-top: 0.45rem !important;
     }
 
     .maint-dash-card {
@@ -195,8 +195,8 @@
         flex-direction: column !important;
         background: #1e293b !important;
         border: 1px solid #334155 !important;
-        border-radius: 0.55rem !important;
-        padding: 0.65rem 0.75rem !important;
+        border-radius: 0.5rem !important;
+        padding: 0.5rem 0.65rem !important;
         text-decoration: none !important;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
         transition: transform 0.15s ease, box-shadow 0.15s ease !important;
@@ -212,16 +212,24 @@
         border-top: 4px solid #f59e0b !important;
     }
 
-    .maint-card-operative {
+    .maint-card-unplanned-stop {
         border-top: 4px solid #ef4444 !important;
+    }
+
+    .maint-card-operative, .maint-card-unplanned-no-stop {
+        border-top: 4px solid #f97316 !important;
     }
 
     .maint-card-planned {
         border-top: 4px solid #8b5cf6 !important;
     }
 
+    .maint-card-planned-no-stop {
+        border-top: 4px solid #0ea5e9 !important;
+    }
+
     .maint-dash-title {
-        font-size: 0.7rem !important;
+        font-size: 0.68rem !important;
         text-transform: uppercase !important;
         color: #94a3b8 !important;
         font-weight: 700 !important;
@@ -229,28 +237,36 @@
     }
 
     .maint-dash-val {
-        font-size: 1.6rem !important;
+        font-size: 1.45rem !important;
         font-weight: 800 !important;
         line-height: 1.1 !important;
-        margin-top: 0.15rem !important;
+        margin-top: 0.1rem !important;
     }
 
     .maint-card-pending .maint-dash-val {
         color: #f59e0b !important;
     }
 
-    .maint-card-operative .maint-dash-val {
-        color: #ef4444 !important;
+    .maint-card-unplanned-stop .maint-dash-val {
+        color: #f87171 !important;
+    }
+
+    .maint-card-operative .maint-dash-val, .maint-card-unplanned-no-stop .maint-dash-val {
+        color: #fb923c !important;
     }
 
     .maint-card-planned .maint-dash-val {
         color: #c084fc !important;
     }
 
+    .maint-card-planned-no-stop .maint-dash-val {
+        color: #38bdf8 !important;
+    }
+
     .maint-dash-sub {
-        font-size: 0.68rem !important;
+        font-size: 0.64rem !important;
         color: #64748b !important;
-        margin-top: 0.15rem !important;
+        margin-top: 0.1rem !important;
     }
 
     .maint-sidebar-footer {
@@ -1116,27 +1132,41 @@
             </a>
         </div>
 
-        <!-- Las 3 Tarjetas de Indicadores Solicitadas (Estilo Dark Slate identico a Mantenimiento) -->
+        <!-- Las Tarjetas de Indicadores Solicitadas (5 Categorías de Mantenimiento Industrial) -->
         <div class="maint-sidebar-cards">
             <!-- Tarjeta 1: Tareas Pendientes -->
-            <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-dash-card maint-card-pending" title="Ver tareas de mantenimiento pendientes">
+            <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-dash-card maint-card-pending" title="Ver tareas de mantenimiento pendientes o en curso">
                 <div class="maint-dash-title"><span class="mobile-hidden">Tareas </span>Pendientes</div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.pending_count }}</div>
                 <div class="maint-dash-sub">Intervenciones en espera</div>
             </a>
 
-            <!-- Tarjeta 2: Operativas (En Marcha) -->
-            <a href="{{ url_for('maintenance.index', category='operativa') }}" class="maint-dash-card maint-card-operative" title="Ver intervenciones urgentes y en marcha">
-                <div class="maint-dash-title">Operativas<span class="mobile-hidden"> (En Marcha)</span></div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.operative_count }}</div>
-                <div class="maint-dash-sub">Urgencias del momento</div>
+            <!-- Tarjeta 2: No Planificadas c/ Parada (Atascamientos, Roturas Forzadas) -->
+            <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" class="maint-dash-card maint-card-unplanned-stop" title="Ver emergencias y roturas que obligaron a parar la planta">
+                <div class="maint-dash-title">No Planificadas<span class="mobile-hidden"> c/ Parada</span></div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.unplanned_stop_count }}</div>
+                <div class="maint-dash-sub">🚨 Roturas y trabas c/ parada</div>
             </a>
 
-            <!-- Tarjeta 3: Planificadas c/ Parada -->
+            <!-- Tarjeta 3: No Planificadas s/ Parada / Operativas (En Marcha) -->
+            <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" class="maint-dash-card maint-card-operative" title="Ver intervenciones de emergencia con planta en marcha">
+                <div class="maint-dash-title">No Planificadas<span class="mobile-hidden"> s/ Parada</span></div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.unplanned_no_stop_count }}</div>
+                <div class="maint-dash-sub">Operativas (En Marcha) - Urgencias del momento</div>
+            </a>
+
+            <!-- Tarjeta 4: Planificadas c/ Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" class="maint-dash-card maint-card-planned" title="Ver tareas programadas que requieren detener planta">
                 <div class="maint-dash-title">Planificadas<span class="mobile-hidden"> c/ Parada</span></div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.planned_stop_count }}</div>
                 <div class="maint-dash-sub">Requieren detener planta</div>
+            </a>
+
+            <!-- Tarjeta 5: Planificadas s/ Parada -->
+            <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" class="maint-dash-card maint-card-planned-no-stop" title="Ver mantenimiento preventivo de rutina con planta en marcha">
+                <div class="maint-dash-title">Planificadas<span class="mobile-hidden"> s/ Parada</span></div>
+                <div class="maint-dash-val">{{ data.maintenance_kpis.planned_no_stop_count }}</div>
+                <div class="maint-dash-sub">Preventivo con planta en marcha</div>
             </a>
         </div>
 
