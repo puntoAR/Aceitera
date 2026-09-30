@@ -23,12 +23,12 @@
             <span>+ Nueva Pesada Manual</span>
         </button>
 
-        <a href="{{ url_for('weighbridge.export_excel', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date) }}"
+        <a href="{{ url_for('weighbridge.export_excel', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date, order_by=current_order_by) }}"
            class="btn" style="background: #059669; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; text-decoration: none;" title="Descargar planilla Excel">
             <span>📤 Exportar Excel</span>
         </a>
 
-        <a href="{{ url_for('weighbridge.export_csv', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date) }}"
+        <a href="{{ url_for('weighbridge.export_csv', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date, order_by=current_order_by) }}"
            class="btn" style="background: #475569; color: white; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; font-size: 0.85rem; padding: 0.55rem 0.95rem; border-radius: 0.4rem; text-decoration: none;" title="Descargar archivo CSV">
             <span>CSV</span>
         </a>
@@ -384,6 +384,16 @@
                    class="form-input" style="width: 100%; padding: 0.45rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;">
         </div>
 
+        <div style="flex: 1; min-width: 175px;"> <!-- Selector de ordenamiento -->
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Ordenar por</label> <!-- Etiqueta orden -->
+            <select name="order_by" class="form-select" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-size: 0.85rem;"> <!-- Selector orden -->
+                <option value="ticket_asc" {% if current_order_by == 'ticket_asc' %}selected{% endif %}>N° Ticket (Ascendente 1095 → 1207)</option> <!-- Opcion ticket asc -->
+                <option value="ticket_desc" {% if current_order_by == 'ticket_desc' %}selected{% endif %}>N° Ticket (Descendente 1207 → 1095)</option> <!-- Opcion ticket desc -->
+                <option value="date_desc" {% if current_order_by == 'date_desc' %}selected{% endif %}>Fecha (Más reciente primero)</option> <!-- Opcion fecha desc -->
+                <option value="date_asc" {% if current_order_by == 'date_asc' %}selected{% endif %}>Fecha (Más antigua primero)</option> <!-- Opcion fecha asc -->
+            </select> <!-- Fin selector -->
+        </div> <!-- Fin contenedor orden -->
+
         <div style="display: flex; gap: 0.35rem;">
             <button type="submit" class="btn" style="background: #0f172a; color: white; padding: 0.55rem 1rem; border: none; border-radius: 0.4rem; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
                 Filtrar
@@ -406,9 +416,9 @@
         </h3>
         <span style="font-size: 0.8rem; color: #64748b;"> <!-- Contenedor de estado de listado -->
             {% if current_start_date or current_end_date or current_product != 'todos' or current_operation != 'todos' or current_search %} <!-- Si hay filtros activos -->
-                Mostrando {{ weighings|length }} pesadas filtradas <!-- Leyenda de registros filtrados -->
+                Mostrando {{ weighings|length }} pesadas filtradas (Orden: {{ 'N° Ticket Ascendente' if current_order_by == 'ticket_asc' else ('N° Ticket Descendente' if current_order_by == 'ticket_desc' else ('Fecha Descendente' if current_order_by == 'date_desc' else 'Fecha Ascendente')) }}) <!-- Leyenda filtradas -->
             {% else %} <!-- Si se muestran los mas recientes -->
-                Mostrando las últimas {{ weighings|length }} pesadas registradas <!-- Leyenda por omision -->
+                Mostrando las últimas {{ weighings|length }} pesadas registradas (Orden: {{ 'N° Ticket Ascendente' if current_order_by == 'ticket_asc' else ('N° Ticket Descendente' if current_order_by == 'ticket_desc' else ('Fecha Descendente' if current_order_by == 'date_desc' else 'Fecha Ascendente')) }}) <!-- Leyenda general -->
             {% endif %} <!-- Fin comprobacion de filtros -->
         </span> <!-- Fin contenedor -->
     </div>
@@ -417,8 +427,34 @@
         <table class="table" style="font-size: 0.825rem; width: 100%; border-collapse: collapse;">
             <thead> <!-- Cabecera de la tabla de balanza -->
                 <tr style="background: #0f172a; color: #ffffff; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;"> <!-- Fila de cabeceras -->
-                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">ID</th> <!-- 1. ID -->
-                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Fecha Egreso</th> <!-- 2. Fecha Egreso -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;"> <!-- 1. ID / N° Ticket clickeable para ordenar -->
+                        <a href="{{ url_for('weighbridge.index', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date, order_by='ticket_desc' if current_order_by == 'ticket_asc' else 'ticket_asc') }}"
+                           style="color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;"
+                           title="Ordenar por N° de Ticket irrepetible"> <!-- Enlace de ordenamiento -->
+                            <span>ID / Ticket</span> <!-- Etiqueta columna -->
+                            {% if current_order_by == 'ticket_asc' %} <!-- Si esta ordenado ascendente -->
+                                <span style="color: #38bdf8; font-size: 0.85rem;" title="Orden ascendente activo">▲</span> <!-- Icono ascendente -->
+                            {% elif current_order_by == 'ticket_desc' %} <!-- Si esta ordenado descendente -->
+                                <span style="color: #38bdf8; font-size: 0.85rem;" title="Orden descendente activo">▼</span> <!-- Icono descendente -->
+                            {% else %} <!-- Si no esta ordenado por ticket -->
+                                <span style="color: #94a3b8; font-size: 0.75rem;" title="Haga clic para ordenar">↕</span> <!-- Icono neutral -->
+                            {% endif %} <!-- Fin comprobacion orden ticket -->
+                        </a> <!-- Fin enlace orden ticket -->
+                    </th> <!-- Fin th ticket -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;"> <!-- 2. Fecha Egreso clickeable para ordenar -->
+                        <a href="{{ url_for('weighbridge.index', product=current_product, operation_type=current_operation, search=current_search, start_date=current_start_date, end_date=current_end_date, order_by='date_desc' if current_order_by == 'date_asc' else 'date_asc') }}"
+                           style="color: #ffffff; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;"
+                           title="Ordenar por Fecha cronológica"> <!-- Enlace orden fecha -->
+                            <span>Fecha Egreso</span> <!-- Etiqueta fecha egreso -->
+                            {% if current_order_by == 'date_asc' %} <!-- Si orden fecha ascendente -->
+                                <span style="color: #38bdf8; font-size: 0.85rem;" title="Orden fecha ascendente activo">▲</span> <!-- Icono ascendente -->
+                            {% elif current_order_by == 'date_desc' %} <!-- Si orden fecha descendente -->
+                                <span style="color: #38bdf8; font-size: 0.85rem;" title="Orden fecha descendente activo">▼</span> <!-- Icono descendente -->
+                            {% else %} <!-- Si no esta ordenado por fecha -->
+                                <span style="color: #94a3b8; font-size: 0.75rem;" title="Haga clic para ordenar">↕</span> <!-- Icono neutral -->
+                            {% endif %} <!-- Fin comprobacion orden fecha -->
+                        </a> <!-- Fin enlace fecha -->
+                    </th> <!-- Fin th fecha egreso -->
                     <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Fecha Ingreso</th> <!-- 3. Fecha Ingreso -->
                     <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Producto</th> <!-- 4. Producto -->
                     <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Cliente</th> <!-- 5. Cliente -->

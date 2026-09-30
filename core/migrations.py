@@ -531,9 +531,26 @@ REGISTERED_MIGRATIONS = [
             WHERE exit_date LIKE '%/%' OR (exit_date LIKE '%-%' AND substr(exit_date, 3, 1) = '-');
         """,
         # Callback en Python para conversion exhaustiva de fechas y casos especiales
-        'callback': lambda conn: backfill_normalize_weighbridge_dates(conn)
-    }
-]
+        'callback': lambda conn: backfill_normalize_weighbridge_dates(conn) # Normaliza fechas
+    }, # Fin de migracion 17
+    { # Definicion de migracion 18
+        # Version 18: Indices de ordenamiento numerico y busqueda de tickets de balanza
+        'version': 18, # Version 18
+        # Identificador de la migracion
+        'name': 'v18_weighbridge_ticket_indices', # Nombre
+        # Descripcion
+        'description': 'Indices de optimizacion para busqueda, ordenamiento numerico de tickets y fechas de pesadas de balanza', # Descripcion
+        # Script SQL para indices
+        'sql': """
+            -- Indice para acelerar busqueda y ordenamiento por numero de ticket
+            CREATE INDEX IF NOT EXISTS idx_weighings_ticket ON truck_scale_weighings(ticket_number);
+            -- Indice compuesto para fechas de egreso e ingreso de balanza
+            CREATE INDEX IF NOT EXISTS idx_weighings_dates ON truck_scale_weighings(weigh_date, exit_date, entry_date);
+        """, # Sentencias SQL
+        # Callback opcional en Python
+        'callback': None # Sin callback
+    } # Fin migracion 18
+] # Fin REGISTERED_MIGRATIONS
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes
 def backfill_weighbridge_standard_columns(conn):

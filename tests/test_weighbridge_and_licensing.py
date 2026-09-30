@@ -663,9 +663,108 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
             self.assertIn(b'v1.2.0', r_adm.data)
             self.assertIn(b'Revisar e Instalar', r_adm.data)
 
-        finally:
-            if os.path.exists(test_zip):
-                os.remove(test_zip)
+        finally: # Bloque de limpieza
+            if os.path.exists(test_zip): # Si existe archivo temporal
+                os.remove(test_zip) # Elimina archivo zip de prueba
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_ticket_identification_and_truncated_headers(self): # Prueba de deteccion de ticket y cabeceras truncadas de balanza
+        """Verifica que se identifique el ticket 1095 y las cabeceras truncadas como Transport, Patente A, Destinata, etc.""" # Docstring
+        # Cabecera truncada idéntica a BALANZA TOTAL.xls
+        header_line = "ID\tFecha Egreso\tFecha Ingreso\tProducto\tCliente\tTransport\tDestinata\tPatente C\tPatente A\tProceden\tNombre C\tPrecintos\tObservaci\tID Usuaric\tPeso Egre\tPeso Ingre\tPeso Net\tExportado\tTara Ma\tNacionali\tBultos\tAduana\tLOT\tDNI Chofe\tUsuario\tPesada Un\tDestinaci\n" # Cabecera con nombres truncados
+        row_line = "1095\t11/6/2026 09:40\t11/6/2026 08:30\tSemilla\tAgronorte\tTransChaco\tBioBalcarce\tAA111BB\tCC222DD\tBalcarce\tMario Gomez\tPR-11\tCarga conforme\t1\t15000\t45000\t30000\tBioBalcarce Export\tNO\tArgentina\tGranel\tAduana MdP\tLOT-1095\t20123456\tbalancero1\tNO\tExportacion\n" # Fila de ticket 1095
+        tsv_content = (header_line + row_line).encode('utf-8') # Codifica en bytes
+        result = import_weighings_from_file(tsv_content, "BALANZA TOTAL.xls", sync_inventory=False) # Importa
+        self.assertTrue(result['success']) # Exito
+        self.assertEqual(result['imported_count'], 1) # 1 registro
+        weighings = get_recent_weighings() # Consulta pesadas
+        w = weighings[0] # Primer pesada
+        self.assertEqual(w['ticket_number'], "1095") # Ticket correcto 1095
+        self.assertEqual(w['transport_company'], "TransChaco") # Transportista
+        self.assertEqual(w['trailer_plate'], "CC222DD") # Acoplado
+        self.assertEqual(w['truck_plate'], "AA111BB") # Chasis
+        self.assertEqual(w['driver_name'], "Mario Gomez") # Chofer
+        self.assertEqual(w['exporter'], "BioBalcarce Export") # Exportador
+        self.assertEqual(w['manual_tare'], "NO") # Tara manual
+        self.assertEqual(w['net_weight_kg'], 30000.0) # Neto en kg
+
+    def test_weighbridge_sorting_by_ticket_and_date(self): # Prueba de ordenamiento numerico de tickets y cronologico
+        """Verifica que con filtro de fecha 01/06/2026 al 30/06/2026 el primer ticket mostrado sea el 1095 (ascendente) o 1207 (descendente)""" # Docstring
+        record_weighing( # Registra ticket 1207 (fin de junio)
+            ticket_number="1207", # Ticket 1207
+            weigh_date="2026-06-30 08:34:00", # Fecha 30 de junio
+            exit_date="2026-06-30 08:34:00", # Fecha egreso
+            truck_plate="ABC120", # Patente
+            product="semilla", # Producto
+            gross_weight_kg=40000, # Bruto
+            tare_weight_kg=10000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra ticket 1095 (primer ticket del mes en la muestra)
+            ticket_number="1095", # Ticket 1095
+            weigh_date="2026-06-11 09:40:00", # Fecha 11 de junio
+            exit_date="2026-06-11 09:40:00", # Fecha egreso
+            truck_plate="ABC109", # Patente
+            product="semilla", # Producto
+            gross_weight_kg=42000, # Bruto
+            tare_weight_kg=12000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra ticket intermedio 1150
+            ticket_number="1150", # Ticket 1150
+            weigh_date="2026-06-20 14:00:00", # Fecha 20 de junio
+            exit_date="2026-06-20 14:00:00", # Fecha egreso
+            truck_plate="ABC115", # Patente
+            product="semilla", # Producto
+            gross_weight_kg=41000, # Bruto
+            tare_weight_kg=11000 # Tara
+        ) # Cierra llamada
+
+        # 1. Consulta con filtro de junio y orden ascendente por ticket (por omision)
+        w_asc = get_recent_weighings(start_date="2026-06-01", end_date="2026-06-30", order_by="ticket_asc") # Consulta asc
+        self.assertEqual(len(w_asc), 3) # 3 pesadas
+        self.assertEqual(w_asc[0]['ticket_number'], "1095") # Primer ticket es el 1095 requerido
+        self.assertEqual(w_asc[1]['ticket_number'], "1150") # Segundo ticket 1150
+        self.assertEqual(w_asc[2]['ticket_number'], "1207") # Tercer ticket 1207
+
+        # 2. Consulta con orden descendente por ticket
+        w_desc = get_recent_weighings(start_date="2026-06-01", end_date="2026-06-30", order_by="ticket_desc") # Consulta desc
+        self.assertEqual(len(w_desc), 3) # 3 pesadas
+        self.assertEqual(w_desc[0]['ticket_number'], "1207") # Primer ticket es el 1207
+        self.assertEqual(w_desc[1]['ticket_number'], "1150") # Segundo ticket 1150
+        self.assertEqual(w_desc[2]['ticket_number'], "1095") # Ultimo ticket 1095
+
+    def test_reimport_upsert_fills_missing_tickets(self): # Prueba de enriquecimiento sin duplicar registros
+        """Verifica que la re-importacion de una pesada previa sin ticket actualice el ticket_number y transporte""" # Docstring
+        # Inserta registro previo que se habia quedado sin ticket_number
+        with get_db_connection() as conn: # Abre conexion
+            conn.execute("""
+                INSERT INTO truck_scale_weighings (ticket_number, weigh_date, exit_date, truck_plate, operation_type, product, transport_company)
+                VALUES (NULL, '2026-06-11 09:40:00', '2026-06-11 09:40:00', 'REIMP11', 'egreso', 'aceite', NULL);
+            """) # Insercion incompleta
+            conn.commit() # Confirma
+
+        self.assertEqual(len(get_recent_weighings()), 1) # Comprueba 1 pesada previa
+        w_before = get_recent_weighings()[0] # Obtiene registro
+        self.assertIsNone(w_before['ticket_number']) # Ticket previo nulo
+        self.assertIsNone(w_before['transport_company']) # Transporte previo nulo
+
+        # Importa archivo con ticket 1095 y transporte para la misma patente y fecha
+        header = "ID\tFecha Egreso\tPatente Chasis\tTransportista\tOperacion\tProducto\tPeso Egreso\tPeso Ingreso\n" # Cabeceras
+        row = "1095\t2026-06-11 09:40:00\tREIMP11\tTransBio\tegreso\taceite\t30000\t10000\n" # Renglon de actualizacion
+        tsv = (header + row).encode('utf-8') # Codifica
+        result = import_weighings_from_file(tsv, "BALANZA.xls") # Ejecuta re-importacion
+        self.assertTrue(result['success']) # Exito
+
+        # Verifica que NO se duplico el registro y que se actualizo el ticket y transportista
+        weighings = get_recent_weighings() # Consulta pesadas
+        self.assertEqual(len(weighings), 1) # Exactamente 1 fila sin duplicados
+        self.assertEqual(weighings[0]['ticket_number'], "1095") # Ticket actualizado
+        self.assertEqual(weighings[0]['transport_company'], "TransBio") # Transporte actualizado
+
+    def test_migration_18_applied(self): # Prueba de aplicacion de migracion 18
+        """Verifica que la migracion 18 de indices de ticket se aplique correctamente""" # Docstring
+        from core.migrations import apply_pending_migrations, get_applied_migration_versions # Importa funciones de migracion
+        apply_pending_migrations() # Aplica pendientes
+        applied = get_applied_migration_versions() # Consulta versiones
+        self.assertIn(18, applied) # Comprueba version 18 registrada
+
+if __name__ == '__main__': # Punto de entrada de ejecucion
+    unittest.main() # Ejecuta pruebas unitarias

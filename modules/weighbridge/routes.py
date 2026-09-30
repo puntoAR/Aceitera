@@ -20,16 +20,18 @@ weighbridge_bp = Blueprint('weighbridge', __name__, url_prefix='/weighbridge')
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def index():
     # Parametros de filtrado
-    product = request.args.get('product', 'todos')
-    operation_type = request.args.get('operation_type', 'todos')
-    search = request.args.get('search', '').strip()
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
+    product = request.args.get('product', 'todos') # Filtro por producto
+    operation_type = request.args.get('operation_type', 'todos') # Filtro por tipo de operacion
+    search = request.args.get('search', '').strip() # Texto de busqueda
+    start_date = request.args.get('start_date', '') # Fecha inicio de rango
+    end_date = request.args.get('end_date', '') # Fecha fin de rango
+    order_by = request.args.get('order_by', 'ticket_asc').strip().lower() # Criterio de orden por omision ticket ascendente
 
     # Obtiene listado de pesadas con limite ampliado para visualizacion completa de periodos
     weighings = get_recent_weighings( # Consulta pesadas filtradas
         limit=500, product=product, operation_type=operation_type, # Limite hasta 500 registros y filtros
-        search=search, start_date=start_date, end_date=end_date # Criterios de busqueda y rango de fechas
+        search=search, start_date=start_date, end_date=end_date, # Criterios de busqueda y rango de fechas
+        order_by=order_by # Ordenamiento numerico de comprobantes o fechas
     ) # Retorna pesadas
 
     # Metricas resumen de balanza sincronizadas con todos los filtros activos (fechas, operacion, producto, busqueda)
@@ -37,19 +39,20 @@ def index():
         start_date=start_date, end_date=end_date, # Rango de fechas
         product=product, operation_type=operation_type, search=search # Filtros de operacion, producto y texto
     ) # Retorna metricas
-    active_shift = get_active_shift()
+    active_shift = get_active_shift() # Obtiene turno activo
 
-    return render_template(
-        'weighbridge.html',
-        weighings=weighings,
-        stats=stats,
-        active_shift=active_shift,
-        current_product=product,
-        current_operation=operation_type,
-        current_search=search,
-        current_start_date=start_date,
-        current_end_date=end_date
-    )
+    return render_template( # Renderiza plantilla con pesadas y variables de contexto
+        'weighbridge.html', # Nombre del template
+        weighings=weighings, # Listado de pesadas ordenadas
+        stats=stats, # Indicadores KPI sincronizados
+        active_shift=active_shift, # Turno operativo actual
+        current_product=product, # Producto filtrado
+        current_operation=operation_type, # Operacion filtrada
+        current_search=search, # Busqueda activa
+        current_start_date=start_date, # Fecha inicio activa
+        current_end_date=end_date, # Fecha fin activa
+        current_order_by=order_by # Sentido de ordenamiento actual
+    ) # Fin render template
 
 # Endpoint para registrar una pesada manual
 @weighbridge_bp.route('/add', methods=['POST'])
@@ -179,52 +182,56 @@ def import_excel():
 @weighbridge_bp.route('/export/excel', methods=['GET'])
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def export_excel():
-    try:
-        product = request.args.get('product', 'todos')
-        operation_type = request.args.get('operation_type', 'todos')
-        search = request.args.get('search', '').strip()
-        start_date = request.args.get('start_date', '')
-        end_date = request.args.get('end_date', '')
+    try: # Bloque de proteccion para exportacion Excel
+        product = request.args.get('product', 'todos') # Filtro de producto
+        operation_type = request.args.get('operation_type', 'todos') # Filtro de operacion
+        search = request.args.get('search', '').strip() # Texto de busqueda
+        start_date = request.args.get('start_date', '') # Fecha inicial
+        end_date = request.args.get('end_date', '') # Fecha final
+        order_by = request.args.get('order_by', 'ticket_asc').strip().lower() # Criterio de ordenacion para exportacion
 
-        weighings = get_recent_weighings(
-            limit=5000, product=product, operation_type=operation_type,
-            search=search, start_date=start_date, end_date=end_date
-        )
+        weighings = get_recent_weighings( # Consulta pesadas a exportar
+            limit=5000, product=product, operation_type=operation_type, # Limite hasta 5000 registros
+            search=search, start_date=start_date, end_date=end_date, # Filtros aplicados
+            order_by=order_by # Respeta el orden solicitado
+        ) # Obtiene registros ordenados
 
-        excel_stream = export_weighings_to_excel(weighings, as_stream=True)
-        date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M')
-        filename = f"BioBalcarce_Balanza_{date_str}.xlsx"
+        excel_stream = export_weighings_to_excel(weighings, as_stream=True, order_by=order_by) # Genera flujo Excel
+        date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M') # Estampa de tiempo para archivo
+        filename = f"BioBalcarce_Balanza_{date_str}.xlsx" # Nombre de archivo descargable
 
-        return send_file(
-            excel_stream,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
-    except Exception as e:
-        log_error('WEIGHBRIDGE_ROUTE', 'Error al exportar pesadas a Excel', e)
-        flash(f'Error al generar archivo Excel: {str(e)}', 'danger')
-        return redirect(url_for('weighbridge.index'))
+        return send_file( # Envia archivo binario para descarga
+            excel_stream, # Flujo en memoria
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', # Tipo MIME XLSX
+            as_attachment=True, # Forzar descarga como adjunto
+            download_name=filename # Nombre sugerido
+        ) # Fin send_file
+    except Exception as e: # Manejo de errores
+        log_error('WEIGHBRIDGE_ROUTE', 'Error al exportar pesadas a Excel', e) # Registro en bitacora
+        flash(f'Error al generar archivo Excel: {str(e)}', 'danger') # Mensaje flash
+        return redirect(url_for('weighbridge.index')) # Redirecciona a index
 
 # Endpoint para exportar listado filtrado a CSV
-@weighbridge_bp.route('/export/csv', methods=['GET'])
-@roles_required('gerencia', 'administrador', 'admin_sistema')
-def export_csv():
-    try:
-        product = request.args.get('product', 'todos')
-        operation_type = request.args.get('operation_type', 'todos')
-        search = request.args.get('search', '').strip()
-        start_date = request.args.get('start_date', '')
-        end_date = request.args.get('end_date', '')
+@weighbridge_bp.route('/export/csv', methods=['GET']) # Ruta GET CSV
+@roles_required('gerencia', 'administrador', 'admin_sistema') # Roles autorizados
+def export_csv(): # Controlador de exportacion CSV
+    try: # Bloque protegido
+        product = request.args.get('product', 'todos') # Filtro de producto
+        operation_type = request.args.get('operation_type', 'todos') # Filtro de operacion
+        search = request.args.get('search', '').strip() # Busqueda
+        start_date = request.args.get('start_date', '') # Fecha desde
+        end_date = request.args.get('end_date', '') # Fecha hasta
+        order_by = request.args.get('order_by', 'ticket_asc').strip().lower() # Orden para CSV
 
-        weighings = get_recent_weighings(
-            limit=5000, product=product, operation_type=operation_type,
-            search=search, start_date=start_date, end_date=end_date
-        )
+        weighings = get_recent_weighings( # Consulta pesadas
+            limit=5000, product=product, operation_type=operation_type, # Filtros y limite
+            search=search, start_date=start_date, end_date=end_date, # Rango
+            order_by=order_by # Respeta el orden solicitado
+        ) # Retorna pesadas
 
-        csv_content = export_weighings_to_csv(weighings)
-        date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M')
-        filename = f"BioBalcarce_Balanza_{date_str}.csv"
+        csv_content = export_weighings_to_csv(weighings, order_by=order_by) # Genera texto CSV con orden
+        date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M') # Estampa de tiempo
+        filename = f"BioBalcarce_Balanza_{date_str}.csv" # Nombre archivo CSV
 
         return Response(
             csv_content,

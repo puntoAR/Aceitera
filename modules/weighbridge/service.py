@@ -90,20 +90,24 @@ class HTMLTableParser(HTMLParser):
                 # Agrega la fila al conjunto de filas extraidas
                 self.rows.append(self.current_row)
 
-# Normaliza texto para comparacion insensible a acentos, espacios y mayusculas
-def _clean_header(h):
+# Normaliza texto para comparacion insensible a acentos, espacios, marcas BOM y mayusculas
+def _clean_header(h): # Funcion de saneamiento de nombres de columnas
     # Si viene vacio o nulo
-    if not h:
+    if h is None: # Comprueba si el valor es nulo
         # Retorna cadena vacia
-        return ''
+        return '' # Retorna vacio
+    # Convierte a texto plano
+    h = str(h) # Conversion explicita a cadena
+    # Remueve marcas UTF-8 BOM, espacios especiales de no separacion y caracteres de control
+    h = re.sub(r'[\ufeff\u200b\u200c\u200d\xa0\x00-\x1f\x7f-\x9f]', '', h) # Sanea caracteres invisibles
     # Convierte a texto en minusculas sin espacios extremos
-    h = str(h).strip().lower()
+    h = h.strip().lower() # Minusculas y recorte lateral
     # Reemplaza vocales acentuadas
-    h = h.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+    h = h.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u') # Normaliza tildes
     # Reemplaza signos de puntuacion, guiones y barras por espacios
-    h = h.replace('_', ' ').replace('-', ' ').replace('.', '').replace('/', ' ')
+    h = h.replace('_', ' ').replace('-', ' ').replace('.', '').replace('/', ' ') # Normaliza separadores
     # Retorna texto limpio con espacios unificados
-    return ' '.join(h.split())
+    return ' '.join(h.split()) # Retorna texto estandarizado
 
 # Determina el tipo de operacion y producto estandarizado a partir de texto libre
 def _normalize_operation_and_product(raw_op, raw_prod):
@@ -325,8 +329,8 @@ CASE
 END
 """
 
-# Obtiene la lista filtrada de pesadas de balanza para la vista web
-def get_recent_weighings(limit=500, product=None, operation_type=None, search=None, start_date=None, end_date=None): # Consulta pesadas con filtros completos
+# Obtiene la lista filtrada de pesadas de balanza para la vista web con soporte de ordenamiento
+def get_recent_weighings(limit=500, product=None, operation_type=None, search=None, start_date=None, end_date=None, order_by='ticket_asc'): # Consulta pesadas con filtros completos y orden
     # Sentencia base de consulta
     query = "SELECT * FROM truck_scale_weighings WHERE 1=1" # Base SQL
     # Lista de parametros para prevenir inyecciones SQL
@@ -377,8 +381,36 @@ def get_recent_weighings(limit=500, product=None, operation_type=None, search=No
             # Agrega parametro normalizado
             params.append(e_norm) # Parametro fecha final
 
-    # Orden cronologico descendente por fecha normalizada
-    query += f" ORDER BY ({_SQL_WEIGH_DATE_EXPR}) DESC, id DESC" # Ordenamiento descendente
+    # Normaliza opcion de ordenamiento solicitada
+    ob = str(order_by or 'ticket_asc').strip().lower() # Limpia texto de ordenamiento
+    # Si se solicito orden por ticket descendente
+    if ob == 'ticket_desc': # Caso ticket descendente
+        # Ordena tickets numericos de mayor a menor y nulos al final
+        order_clause = """
+            CASE WHEN ticket_number IS NOT NULL AND ticket_number != '' AND ticket_number NOT GLOB '*[^0-9]*' THEN 0 ELSE 1 END,
+            CASE WHEN ticket_number IS NOT NULL AND ticket_number != '' AND ticket_number NOT GLOB '*[^0-9]*' THEN CAST(ticket_number AS INTEGER) ELSE id END DESC,
+            ticket_number DESC, id DESC
+        """ # Clausula SQL descendente
+    # Si se solicito orden cronologico descendente (mas reciente primero)
+    elif ob == 'date_desc': # Caso fecha descendente
+        # Ordena por fecha normalizada descendente
+        order_clause = f"({_SQL_WEIGH_DATE_EXPR}) DESC, id DESC" # Clausula SQL fecha desc
+    # Si se solicito orden cronologico ascendente (mas antigua primero)
+    elif ob == 'date_asc': # Caso fecha ascendente
+        # Ordena por fecha normalizada ascendente
+        order_clause = f"({_SQL_WEIGH_DATE_EXPR}) ASC, id ASC" # Clausula SQL fecha asc
+    # Por omision: ticket ascendente (1095, 1096... 1207)
+    else: # Caso ticket ascendente por defecto
+        # Ordena tickets numericos de menor a mayor y alfanumericos al final
+        order_clause = """
+            CASE WHEN ticket_number IS NOT NULL AND ticket_number != '' AND ticket_number NOT GLOB '*[^0-9]*' THEN 0 ELSE 1 END,
+            CASE WHEN ticket_number IS NOT NULL AND ticket_number != '' AND ticket_number NOT GLOB '*[^0-9]*' THEN CAST(ticket_number AS INTEGER) ELSE id END ASC,
+            ticket_number ASC, id ASC
+        """ # Clausula SQL ascendente
+
+    # Concatena clausula ORDER BY en la consulta SQL
+    query += f" ORDER BY {order_clause}" # Aplica orden
+
     # Si se especifico un limite maximo de registros
     if limit: # Limite definido
         # Concatena clausula LIMIT
@@ -826,7 +858,7 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
         if not norm: # Si la celda está vacía continúa
             continue # Salta a siguiente columna
 
-        # Mapeo de columnas estándar de balanza
+        # Mapeo de columnas estándar de balanza y sus variantes abreviadas o truncadas
         if 'fecha egreso' in norm or ('salida' in norm and 'fecha' in norm): # Cabecera de fecha de egreso
             col_map['fecha_egreso'] = c_idx # Guarda índice de fecha egreso
         elif 'fecha ingreso' in norm or ('entrada' in norm and 'fecha' in norm): # Cabecera de fecha de ingreso
@@ -834,59 +866,59 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
         elif any(k in norm for k in ['fecha', 'hora', 'date', 'timestamp']): # Cabecera genérica de fecha
             if 'fecha' not in col_map: # Prioriza primer campo fecha detectado
                 col_map['fecha'] = c_idx # Guarda índice general de fecha
-        elif 'peso egreso' in norm or ('salida' in norm and 'peso' in norm): # Cabecera de peso de egreso
+        elif any(k in norm for k in ['peso egreso', 'peso egr', 'egreso peso']) or ('salida' in norm and 'peso' in norm): # Cabecera de peso de egreso
             col_map['peso_egreso'] = c_idx # Guarda índice de peso egreso
-        elif 'peso ingreso' in norm or ('entrada' in norm and 'peso' in norm): # Cabecera de peso de ingreso
+        elif any(k in norm for k in ['peso ingreso', 'peso ing', 'ingreso peso']) or ('entrada' in norm and 'peso' in norm): # Cabecera de peso de ingreso
             col_map['peso_ingreso'] = c_idx # Guarda índice de peso ingreso
-        elif 'peso neto' in norm or norm == 'neto' or 'kg neto' in norm: # Cabecera de peso neto
+        elif any(k in norm for k in ['peso neto', 'peso net']) or norm in ['neto', 'net'] or 'kg neto' in norm: # Cabecera de peso neto
             col_map['neto'] = c_idx # Guarda índice de peso neto
-        elif 'peso bruto' in norm or norm == 'bruto' or 'kg bruto' in norm or 'pesada 1' in norm: # Cabecera de peso bruto
+        elif any(k in norm for k in ['peso bruto', 'peso brut']) or norm in ['bruto', 'brut'] or 'kg bruto' in norm or 'pesada 1' in norm: # Cabecera de peso bruto
             col_map['bruto'] = c_idx # Guarda índice de peso bruto
-        elif 'tara manual' in norm or norm == 'tara_manual': # Cabecera de tara manual
+        elif 'tara m' in norm or norm in ['tara_m', 'tara manual', 'tara ma']: # Cabecera de tara manual
             col_map['tara_manual'] = c_idx # Guarda índice de tara manual
         elif 'peso tara' in norm or norm == 'tara' or 'kg tara' in norm or 'pesada 2' in norm: # Cabecera de peso tara estándar
             col_map['tara'] = c_idx # Guarda índice de peso tara
-        elif 'id usuario' in norm or norm == 'id_usuario' or 'cod usuario' in norm: # Cabecera de código ID de usuario
+        elif any(k in norm for k in ['id usuar', 'id_usuar', 'cod usuar', 'id op', 'id usuaric']): # Cabecera de código ID de usuario
             col_map['id_usuario'] = c_idx # Guarda índice de ID usuario
-        elif norm == 'usuario' or norm == 'operador' or 'user' in norm: # Cabecera de nombre de usuario/operador
+        elif norm in ['usuario', 'operador', 'user', 'usuar']: # Cabecera de nombre de usuario/operador
             col_map['usuario'] = c_idx # Guarda índice de usuario
-        elif norm == 'id' or any(k in norm for k in ['ticket', 'comprobante', 'remito', 'boleta', 'nro']): # Cabecera identificadora de pesada/ticket
+        elif norm in ['id', 'ticket', 'comprobante', 'remito', 'boleta', 'nro', 'n', 'no', '#'] or (norm.startswith('id') and 'usuar' not in norm and 'user' not in norm and 'op' not in norm): # Cabecera identificadora de pesada/ticket
             if 'ticket' not in col_map: # Asigna si no fue mapeado previamente
                 col_map['ticket'] = c_idx # Guarda índice de ticket o ID
         elif 'cliente' in norm: # Cabecera de cliente
             col_map['cliente'] = c_idx # Guarda índice de cliente
-        elif 'destinatario' in norm: # Cabecera de destinatario
+        elif 'proceden' in norm and 'destino' in norm: # Cabecera combinada Procedencia/Destino (evaluada antes de destino solo)
+            col_map['procedencia_destino'] = c_idx # Guarda índice de procedencia/destino
+        elif 'destinat' in norm: # Cabecera de destinatario (cubre Destinatario y Destinata)
             col_map['destinatario'] = c_idx # Guarda índice de destinatario
-        elif any(k in norm for k in ['transportista', 'transporte', 'empresa', 'razon social']): # Cabecera de empresa transportista
+        elif any(k in norm for k in ['transport', 'transp', 'empresa', 'razon social']): # Cabecera de empresa transportista (cubre 'Transport' y 'Transportista')
             col_map['transporte'] = c_idx # Guarda índice de transporte
-        elif 'acoplado' in norm or 'semi' in norm or 'trailer' in norm: # Cabecera de patente de acoplado
+        elif any(k in norm for k in ['acoplado', 'acop', 'patente a', 'pat a', 'trailer', 'semi']): # Cabecera de patente de acoplado (cubre 'Patente A')
             col_map['acoplado'] = c_idx # Guarda índice de acoplado
-        elif 'chasis' in norm or 'camion' in norm or 'patente' in norm or 'dominio' in norm: # Cabecera de patente de chasis
+        elif any(k in norm for k in ['chasis', 'camion', 'patente c', 'pat c', 'dominio']) or ('patente' in norm and 'acoplado' not in norm and 'patente a' not in norm): # Cabecera de patente de chasis
             if 'chasis' not in col_map: # Si no se ha asignado patente de chasis
                 col_map['chasis'] = c_idx # Guarda índice de chasis
-        elif 'procedencia' in norm and 'destino' in norm: # Cabecera combinada Procedencia/Destino
-            col_map['procedencia_destino'] = c_idx # Guarda índice de procedencia/destino
-        elif any(k in norm for k in ['origen', 'procedencia', 'proveedor']): # Cabecera de origen o procedencia
+        elif any(k in norm for k in ['origen', 'proceden', 'proveedor']): # Cabecera de origen o procedencia (cubre 'Proceden')
             col_map['origen'] = c_idx # Guarda índice de origen
         elif any(k in norm for k in ['destino']): # Cabecera de destino
             col_map['destino'] = c_idx # Guarda índice de destino
-        elif any(k in norm for k in ['chofer', 'conductor']): # Cabecera de nombre de chofer
-            col_map['chofer'] = c_idx # Guarda índice de chofer
-        elif any(k in norm for k in ['dni', 'cuit', 'documento']): # Cabecera de documento del chofer
+        elif any(k in norm for k in ['dni', 'cuit', 'documento']): # Cabecera de documento del chofer (evaluada antes de chofer)
             col_map['dni'] = c_idx # Guarda índice de DNI chofer
-        elif 'nacionalidad' in norm: # Cabecera de nacionalidad del chofer
+        elif any(k in norm for k in ['chofer', 'conductor', 'nombre c', 'chofe']) and 'dni' not in norm: # Cabecera de nombre de chofer
+            col_map['chofer'] = c_idx # Guarda índice de chofer
+        elif 'nacionali' in norm: # Cabecera de nacionalidad del chofer (cubre 'Nacionali' y 'Nacionalidad')
             col_map['nacionalidad'] = c_idx # Guarda índice de nacionalidad
-        elif 'exportador' in norm: # Cabecera de exportador
+        elif 'export' in norm: # Cabecera de exportador (cubre 'Exportado')
             col_map['exportador'] = c_idx # Guarda índice de exportador
         elif any(k in norm for k in ['bulto', 'bultos', 'paquete', 'paquetes']): # Cabecera de cantidad de bultos
             col_map['bultos'] = c_idx # Guarda índice de bultos
         elif 'aduana' in norm: # Cabecera de aduana
             col_map['aduana'] = c_idx # Guarda índice de aduana
-        elif norm == 'lot' or 'lote' in norm: # Cabecera de lote o LOT
+        elif norm in ['lot', 'lote'] or 'lote' in norm: # Cabecera de lote o LOT
             col_map['lot'] = c_idx # Guarda índice de LOT
-        elif 'pesada unica' in norm or norm == 'pesada_unica': # Cabecera de pesada única
+        elif any(k in norm for k in ['pesada u', 'pesada_u']): # Cabecera de pesada única (cubre 'Pesada Un')
             col_map['pesada_unica'] = c_idx # Guarda índice de pesada única
-        elif 'destinacion' in norm or 'destinacion aduanera' in norm: # Cabecera de destinación aduanera
+        elif any(k in norm for k in ['destinac', 'destinacion']): # Cabecera de destinación aduanera (cubre 'Destinaci')
             col_map['destinacion'] = c_idx # Guarda índice de destinación
         elif any(k in norm for k in ['producto', 'material', 'cereal', 'mercaderia']): # Cabecera de producto o material
             col_map['producto'] = c_idx # Guarda índice de producto
@@ -894,8 +926,14 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
             col_map['operacion'] = c_idx # Guarda índice de tipo de operación
         elif any(k in norm for k in ['precinto', 'precintos', 'seals']): # Cabecera de precintos
             col_map['precintos'] = c_idx # Guarda índice de precintos
-        elif any(k in norm for k in ['observacion', 'observaciones', 'notas', 'obs']): # Cabecera de observaciones
+        elif any(k in norm for k in ['observa', 'notas', 'obs']): # Cabecera de observaciones (cubre 'Observaci')
             col_map['notas'] = c_idx # Guarda índice de observaciones
+
+    # Fallback garantizado para Ticket en la primera columna si no fue asignado previamente
+    if 'ticket' not in col_map and len(header_row) > 0: # Si ticket aun no esta en el mapa de columnas
+        first_col_norm = _clean_header(header_row[0]) # Normaliza cabecera de la primera celda
+        if not any(k in first_col_norm for k in ['fecha', 'date', 'peso', 'neto', 'bruto', 'tara', 'prod']): # Verifica no ser metrica o fecha
+            col_map['ticket'] = 0 # Asigna columna 0 como identificador irrepetible de ticket
 
     imported_count = 0 # Inicializa contador de importados exitosos
     skipped_count = 0 # Inicializa contador de registros ignorados
@@ -915,7 +953,14 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
                     return v.strftime('%Y-%m-%d %H:%M:%S') # Formatea a texto con hora
                 if isinstance(v, datetime.date): # Si es tipo date
                     return v.strftime('%Y-%m-%d') # Formatea a texto solo fecha
-                return str(v).strip() # Retorna cadena sin espacios laterales
+                if isinstance(v, float) and v.is_integer(): # Si es flotante entero ej 1095.0
+                    return str(int(v)) # Formatea a numero entero en cadena
+                if isinstance(v, int): # Si ya es entero
+                    return str(v) # Retorna como cadena
+                s = str(v).strip() # Limpia espacios de la cadena
+                if re.match(r'^\d+\.0+$', s): # Si es cadena con decimales ceros
+                    s = s.split('.')[0] # Remueve ceros decimales innecesarios
+                return s # Retorna cadena sin espacios laterales
             return default # Retorna valor por omisión si no existe la columna
 
         def get_float(key, default=0.0): # Función auxiliar para obtener número de punto flotante
@@ -930,6 +975,8 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
                 return default # Retorna número por omisión
 
         ticket = get_val('ticket') # Extrae número de ticket o comprobante
+        if ticket and re.match(r'^\d+\.0+$', ticket): # Si el ticket tiene formato decimal ej 1095.0
+            ticket = ticket.split('.')[0] # Limpia a entero puro
         fecha_egreso = normalize_date_str(get_val('fecha_egreso')) # Extrae fecha de egreso normalizada
         fecha_ingreso = normalize_date_str(get_val('fecha_ingreso')) # Extrae fecha de ingreso normalizada
         fecha = fecha_egreso or fecha_ingreso or normalize_date_str(get_val('fecha')) or get_plant_now_str() # Resuelve fecha de la pesada normalizada
@@ -1027,48 +1074,136 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
                 peso_ingreso = bruto if bruto > 0.0 else neto # Ingreso con carga
                 peso_egreso = tara # Egreso vacío
 
-        try: # Intenta registrar la pesada en la base de datos
-            record_weighing( # Invoca servicio de registro con todas las columnas estándar
-                ticket_number=ticket, # Número de ticket
-                weigh_date=fecha, # Fecha general de pesada
-                operation_type=op_type, # Tipo de operación (ingreso/egreso)
-                product=prod_norm, # Producto estandarizado
-                truck_plate=chasis, # Patente de chasis
-                trailer_plate=acoplado, # Patente de acoplado
-                transport_company=transporte, # Empresa transportista
-                driver_name=chofer, # Nombre de conductor
-                driver_dni=dni, # Documento de conductor
-                gross_weight_kg=bruto, # Peso bruto en kg
-                tare_weight_kg=tara, # Peso tara en kg
-                net_weight_kg=neto, # Peso neto en kg
-                origin=origen, # Origen de carga
-                destination=destino, # Destino de carga
-                seals_numbers=precintos, # Números de precinto
-                notes=notas, # Observaciones adicionales
-                operator_name=usuario or operator_name, # Nombre del operador
-                shift_id=shift_id, # Turno asignado
-                sync_inventory=sync_inventory, # Flag de sincronización con existencias
-                exit_date=fecha_egreso, # Fecha de egreso de balanza
-                entry_date=fecha_ingreso, # Fecha de ingreso de balanza
-                client=cliente, # Cliente
-                recipient=destinatario, # Destinatario
-                origin_destination=origen_destino, # Procedencia/Destino
-                user_id_code=id_usuario, # ID numérico del usuario de balanza
-                exit_weight_kg=peso_egreso, # Peso al egreso de balanza
-                entry_weight_kg=peso_ingreso, # Peso al ingreso de balanza
-                exporter=exportador, # Razón social del exportador
-                manual_tare=tara_manual, # Indicador de tara manual
-                driver_nationality=nacionalidad, # Nacionalidad del chofer
-                packages=bultos, # Cantidad de bultos
-                customs=aduana, # Nombre o código de aduana
-                lot=lot, # Número o código de LOT
-                single_weighing=pesada_unica, # Indicador de pesada única
-                customs_destination=destinacion # Destinación aduanera
-            ) # Fin de llamada a record_weighing
-            imported_count += 1 # Incrementa contador de pesadas importadas
-        except Exception as e: # Captura excepción en procesamiento de fila
-            errors.append(f"Fila {r_idx}: {str(e)}") # Almacena mensaje descriptivo de error
-            skipped_count += 1 # Incrementa contador de omitidos
+        # Verifica si ya existe una pesada previa para actualizarla o registrar nueva
+        existing_id = None # Inicializa identificador de registro existente
+        try: # Intento de busqueda de registro preexistente
+            with get_db_connection() as conn: # Abre conexion a base de datos
+                if ticket: # Si se especifico numero de ticket
+                    # Consulta pesada por comprobante o ticket exacto
+                    row_found = conn.execute("SELECT id FROM truck_scale_weighings WHERE ticket_number = ?;", (ticket,)).fetchone() # Busca ticket
+                    if row_found: # Si encontro registro coincidente
+                        existing_id = row_found['id'] if isinstance(row_found, dict) else row_found[0] # Obtiene identificador existente
+                # Si no encontro por ticket pero hay patente y fecha
+                if not existing_id and chasis and (fecha_egreso or fecha_ingreso or fecha): # Condiciones para deduccion
+                    target_date = fecha_egreso or fecha_ingreso or fecha # Fecha objetivo de la pesada
+                    # Busca pesadas previas que no tenian ticket guardado con misma fecha y patente
+                    row_found = conn.execute("""
+                        SELECT id FROM truck_scale_weighings 
+                        WHERE (ticket_number IS NULL OR ticket_number = '') 
+                          AND truck_plate = ? 
+                          AND (weigh_date = ? OR exit_date = ? OR entry_date = ?);
+                    """, (chasis.upper(), target_date, target_date, target_date)).fetchone() # Busca coincidencia sin ticket
+                    if row_found: # Si encontro registro previo sin ticket
+                        existing_id = row_found['id'] if isinstance(row_found, dict) else row_found[0] # Asigna ID para actualizar
+        except Exception: # Captura fallos de busqueda sin abortar proceso
+            existing_id = None # Restablece identificador
+
+        # Si el registro ya existia previamente
+        if existing_id: # Pesada preexistente encontrada
+            try: # Intento de actualizacion de datos
+                with get_db_connection() as conn: # Abre conexion para update
+                    # Actualiza pesada existente completando campos de ticket y metadatos faltantes
+                    conn.execute("""
+                        UPDATE truck_scale_weighings SET
+                            ticket_number = COALESCE(NULLIF(?, ''), ticket_number),
+                            weigh_date = COALESCE(NULLIF(?, ''), weigh_date),
+                            operation_type = COALESCE(NULLIF(?, ''), operation_type),
+                            product = COALESCE(NULLIF(?, ''), product),
+                            truck_plate = COALESCE(NULLIF(?, ''), truck_plate),
+                            trailer_plate = COALESCE(NULLIF(?, ''), trailer_plate),
+                            transport_company = COALESCE(NULLIF(?, ''), transport_company),
+                            driver_name = COALESCE(NULLIF(?, ''), driver_name),
+                            driver_dni = COALESCE(NULLIF(?, ''), driver_dni),
+                            gross_weight_kg = CASE WHEN ? > 0 THEN ? ELSE gross_weight_kg END,
+                            tare_weight_kg = CASE WHEN ? > 0 THEN ? ELSE tare_weight_kg END,
+                            net_weight_kg = CASE WHEN ? > 0 THEN ? ELSE net_weight_kg END,
+                            net_weight_tons = CASE WHEN ? > 0 THEN ? ELSE net_weight_tons END,
+                            origin = COALESCE(NULLIF(?, ''), origin),
+                            destination = COALESCE(NULLIF(?, ''), destination),
+                            seals_numbers = COALESCE(NULLIF(?, ''), seals_numbers),
+                            notes = COALESCE(NULLIF(?, ''), notes),
+                            exit_date = COALESCE(NULLIF(?, ''), exit_date),
+                            entry_date = COALESCE(NULLIF(?, ''), entry_date),
+                            client = COALESCE(NULLIF(?, ''), client),
+                            recipient = COALESCE(NULLIF(?, ''), recipient),
+                            origin_destination = COALESCE(NULLIF(?, ''), origin_destination),
+                            user_id_code = COALESCE(NULLIF(?, ''), user_id_code),
+                            exit_weight_kg = CASE WHEN ? > 0 THEN ? ELSE exit_weight_kg END,
+                            entry_weight_kg = CASE WHEN ? > 0 THEN ? ELSE entry_weight_kg END,
+                            exporter = COALESCE(NULLIF(?, ''), exporter),
+                            manual_tare = COALESCE(NULLIF(?, ''), manual_tare),
+                            driver_nationality = COALESCE(NULLIF(?, ''), driver_nationality),
+                            packages = COALESCE(NULLIF(?, ''), packages),
+                            customs = COALESCE(NULLIF(?, ''), customs),
+                            lot = COALESCE(NULLIF(?, ''), lot),
+                            single_weighing = COALESCE(NULLIF(?, ''), single_weighing),
+                            customs_destination = COALESCE(NULLIF(?, ''), customs_destination)
+                        WHERE id = ?;
+                    """, (
+                        ticket, fecha, op_type, prod_norm,
+                        chasis.upper(), (acoplado or '').upper() if acoplado else None,
+                        transporte, chofer, dni,
+                        bruto, bruto,
+                        tara, tara,
+                        neto, neto,
+                        round(neto / 1000.0, 3), round(neto / 1000.0, 3),
+                        origen, destino, precintos, notas,
+                        fecha_egreso, fecha_ingreso, cliente, destinatario, origen_destino,
+                        str(id_usuario or '1'),
+                        peso_egreso, peso_egreso,
+                        peso_ingreso, peso_ingreso,
+                        exportador, tara_manual, nacionalidad,
+                        bultos, aduana, lot, pesada_unica, destinacion,
+                        existing_id
+                    )) # Ejecuta sentencia SQL
+                    conn.commit() # Confirma cambios
+                imported_count += 1 # Incrementa contador de registros procesados
+            except Exception as e: # Captura fallo en actualizacion
+                errors.append(f"Fila {r_idx} (Actualización #{existing_id}): {str(e)}") # Almacena detalle
+                skipped_count += 1 # Incrementa omitidos
+        else: # Si no existia previamente, realiza insercion normal
+            try: # Intenta registrar la pesada en la base de datos
+                record_weighing( # Invoca servicio de registro con todas las columnas estándar
+                    ticket_number=ticket, # Número de ticket
+                    weigh_date=fecha, # Fecha general de pesada
+                    operation_type=op_type, # Tipo de operación (ingreso/egreso)
+                    product=prod_norm, # Producto estandarizado
+                    truck_plate=chasis, # Patente de chasis
+                    trailer_plate=acoplado, # Patente de acoplado
+                    transport_company=transporte, # Empresa transportista
+                    driver_name=chofer, # Nombre de conductor
+                    driver_dni=dni, # Documento de conductor
+                    gross_weight_kg=bruto, # Peso bruto en kg
+                    tare_weight_kg=tara, # Peso tara en kg
+                    net_weight_kg=neto, # Peso neto en kg
+                    origin=origen, # Origen de carga
+                    destination=destino, # Destino de carga
+                    seals_numbers=precintos, # Números de precinto
+                    notes=notas, # Observaciones adicionales
+                    operator_name=usuario or operator_name, # Nombre del operador
+                    shift_id=shift_id, # Turno asignado
+                    sync_inventory=sync_inventory, # Flag de sincronización con existencias
+                    exit_date=fecha_egreso, # Fecha de egreso de balanza
+                    entry_date=fecha_ingreso, # Fecha de ingreso de balanza
+                    client=cliente, # Cliente
+                    recipient=destinatario, # Destinatario
+                    origin_destination=origen_destino, # Procedencia/Destino
+                    user_id_code=id_usuario, # ID numérico del usuario de balanza
+                    exit_weight_kg=peso_egreso, # Peso al egreso de balanza
+                    entry_weight_kg=peso_ingreso, # Peso al ingreso de balanza
+                    exporter=exportador, # Razón social del exportador
+                    manual_tare=tara_manual, # Indicador de tara manual
+                    driver_nationality=nacionalidad, # Nacionalidad del chofer
+                    packages=bultos, # Cantidad de bultos
+                    customs=aduana, # Nombre o código de aduana
+                    lot=lot, # Número o código de LOT
+                    single_weighing=pesada_unica, # Indicador de pesada única
+                    customs_destination=destinacion # Destinación aduanera
+                ) # Fin de llamada a record_weighing
+                imported_count += 1 # Incrementa contador de pesadas importadas
+            except Exception as e: # Captura excepción en procesamiento de fila
+                errors.append(f"Fila {r_idx}: {str(e)}") # Almacena mensaje descriptivo de error
+                skipped_count += 1 # Incrementa contador de omitidos
 
     record_audit_event('BALANZA', 'IMPORTACION_EXCEL', f"Importación de balanza: {imported_count} registros incorporados, {skipped_count} omitidos.") # Auditoría
     return { # Retorno estructurado de resultado
@@ -1079,13 +1214,13 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
     } # Fin de retorno
 
 # Exporta los registros a un archivo Excel (.xlsx) estructurado con las 27 columnas estándar
-def export_weighings_to_excel(weighings=None, as_stream=False): # Función de exportación a Excel
+def export_weighings_to_excel(weighings=None, as_stream=False, order_by='ticket_asc'): # Función de exportación a Excel
     # Verifica la disponibilidad de la libreria openpyxl
     if openpyxl is None: # Si openpyxl no está instalado
         # Lanza excepcion descriptiva si no se encuentra instalada
         raise RuntimeError("La exportación a formato Excel requiere la librería openpyxl instalada.") # Error
     if weighings is None: # Si no se suministraron registros
-        weighings = get_recent_weighings(limit=5000) # Consulta registros recientes
+        weighings = get_recent_weighings(limit=5000, order_by=order_by) # Consulta registros recientes con orden especificado
     wb = openpyxl.Workbook() # Crea nuevo libro Excel
     ws = wb.active # Obtiene hoja activa
     ws.title = "Pesadas de Balanza" # Establece título de pestaña
@@ -1207,9 +1342,9 @@ def export_weighings_to_excel(weighings=None, as_stream=False): # Función de ex
     return output.getvalue() # Retorna bytes binarios
 
 # Exporta los registros a formato CSV estructurado con las 27 columnas estándar
-def export_weighings_to_csv(weighings=None): # Función de exportación CSV
+def export_weighings_to_csv(weighings=None, order_by='ticket_asc'): # Función de exportación CSV con soporte de orden
     if weighings is None: # Si no se suministraron registros
-        weighings = get_recent_weighings(limit=5000) # Obtiene pesadas
+        weighings = get_recent_weighings(limit=5000, order_by=order_by) # Obtiene pesadas respetando el orden seleccionado
     output = io.StringIO() # Flujo de texto en memoria
     writer = csv.writer(output, delimiter=';') # Crea escritor CSV delimitado por punto y coma
 
