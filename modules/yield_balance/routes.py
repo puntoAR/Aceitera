@@ -17,7 +17,10 @@ from core.error_logger import log_error
 # Importa auditoria
 from core.audit import record_audit_event
 # Importa utilidades de conversion numerica segura
+# Importa utilidades de conversion numerica segura
 from core.utils import safe_float
+# Importa funcion horaria oficial de fecha de planta
+from core.timezone import get_plant_today_str
 
 # Define Blueprint de rendimiento y balance
 yield_bp = Blueprint('yield', __name__, url_prefix='/yield')
@@ -26,15 +29,20 @@ yield_bp = Blueprint('yield', __name__, url_prefix='/yield')
 @yield_bp.route('/', methods=['GET'])
 # Permite acceso de visualizacion a administradores (gerencia) y administradores de sistema
 @roles_required('gerencia', 'administrador', 'admin_sistema')
+# Controlador de vista de rendimiento
 def index():
     # Obtiene turno activo
     active_shift = get_active_shift()
-    # Obtiene el resumen de velocidades y produccion estimada del turno
-    prod_summary = get_shift_speed_summary(active_shift['shift_id'])
-    # Obtiene las medias de laboratorio para materia grasa
-    lab_averages = get_shift_lab_averages(active_shift['shift_id'])
+    # Obtiene la fecha oficial de planta
+    plant_today = get_plant_today_str()
+    # Extrae la fecha objetivo desde los parametros o usa la fecha oficial
+    target_date = request.args.get('target_date', plant_today)
+    # Obtiene el resumen de velocidades y produccion estimada del turno para la fecha
+    prod_summary = get_shift_speed_summary(active_shift['shift_id'], target_date=target_date)
+    # Obtiene las medias de laboratorio para materia grasa para la fecha
+    lab_averages = get_shift_lab_averages(active_shift['shift_id'], target_date=target_date)
     # Calcula la eficiencia y rendimientos en forma automatica a partir de la informacion registrada en el sistema
-    auto_efficiency = get_auto_efficiency_data(active_shift['shift_id'])
+    auto_efficiency = get_auto_efficiency_data(active_shift['shift_id'], target_date=target_date)
     # Calcula el rendimiento de linea y eficiencia de extraccion cruzando caudales con analitica de laboratorio
     line_yield_info = calculate_line_yield_and_oil_efficiency(
         seed_speed_kg_h=prod_summary.get('seed_avg_speed', 0.0),
@@ -49,7 +57,8 @@ def index():
                            prod_summary=prod_summary, lab_averages=lab_averages,
                            auto_efficiency=auto_efficiency,
                            line_yield_info=line_yield_info,
-                           reconciliations=reconciliations)
+                           reconciliations=reconciliations,
+                           plant_today=plant_today, target_date=target_date)
 
 # Endpoint para procesar y guardar la conciliacion con juego de datos ingresado por el usuario
 @yield_bp.route('/reconcile', methods=['POST'])

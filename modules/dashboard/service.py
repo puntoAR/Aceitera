@@ -62,26 +62,44 @@ def get_shift_and_daily_performance(target_date=None, selected_shifts=None):
         lab_rows = [dict(r) for r in conn.execute("SELECT * FROM lab_analyses ORDER BY timestamp ASC;").fetchall()]
 
     dates_with_data = set()
+    # Itera sobre cada pesada para determinar su fecha y turno operativo
     for w in weighings_rows:
+        # Determina la franja horaria segun el timestamp de carga
         slot = determine_time_slot(w.get('timestamp'))
-        w['_op_date'] = slot['operational_date']
-        w['_slot_shift'] = slot['shift_id']
-        w['_time_slot'] = slot['time_slot']
-        dates_with_data.add(slot['operational_date'])
+        # Asigna la fecha de muestra como fecha operativa (o la del slot si no esta presente)
+        w['_op_date'] = w.get('sample_date') or slot['operational_date']
+        # Asigna el turno de la muestra (o el del slot si no esta presente)
+        w['_slot_shift'] = w.get('shift_id') or slot['shift_id']
+        # Asigna franja horaria
+        w['_time_slot'] = w.get('time_slot') or slot['time_slot']
+        # Agrega la fecha operativa al conjunto de fechas con datos
+        dates_with_data.add(w['_op_date'])
 
+    # Itera sobre paradas de linea
     for s in stops_rows:
+        # Determina franja horaria de la detencion
         slot = determine_time_slot(s.get('start_time'))
+        # Asigna fecha operativa
         s['_op_date'] = slot['operational_date']
-        s['_slot_shift'] = slot['shift_id']
+        # Asigna turno de la parada
+        s['_slot_shift'] = s.get('shift_id') or slot['shift_id']
+        # Asigna franja horaria
         s['_time_slot'] = slot['time_slot']
+        # Registra fecha con datos
         dates_with_data.add(slot['operational_date'])
 
+    # Itera sobre determinaciones analiticas de laboratorio
     for l in lab_rows:
+        # Determina franja horaria de la carga
         slot = determine_time_slot(l.get('timestamp'))
-        l['_op_date'] = slot['operational_date']
-        l['_slot_shift'] = slot['shift_id']
-        l['_time_slot'] = slot['time_slot']
-        dates_with_data.add(slot['operational_date'])
+        # Asigna la fecha de la muestra analizada como fecha operativa principal
+        l['_op_date'] = l.get('sample_date') or slot['operational_date']
+        # Asigna el turno en que se tomo la muestra
+        l['_slot_shift'] = l.get('shift_id') or slot['shift_id']
+        # Asigna franja horaria
+        l['_time_slot'] = l.get('time_slot') or slot['time_slot']
+        # Agrega la fecha de la muestra al conjunto de fechas con datos
+        dates_with_data.add(l['_op_date'])
 
     if target_date:
         active_op_date = target_date

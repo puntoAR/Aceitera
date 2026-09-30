@@ -4,13 +4,39 @@
 {% block title %}Control de Producción y Pesadas - BioBalcarce{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Control de Línea y Muestreo Horario</h1>
-        <p style="color: #64748b;">
-            Turno Activo: <strong>{{ active_shift.shift_name }}</strong> &bull; Operador: <strong>{{ active_shift.operator_name }}</strong>
-        </p>
+<!-- Cabecera principal con indicador de turno y selector de fecha de evaluacion -->
+<div class="page-header" style="margin-bottom: 1.25rem;">
+    <!-- Contenedor flexible de cabecera -->
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
+        <!-- Informacion del turno activo -->
+        <div>
+            <!-- Titulo de pagina -->
+            <h1 class="page-title">Control de Línea y Muestreo Horario</h1>
+            <!-- Subtitulo con turno, operador y fecha -->
+            <p style="color: #64748b;">
+                <!-- Turno activo -->
+                Turno Activo: <strong>{{ active_shift.shift_name }}</strong> &bull;
+                <!-- Operador en linea -->
+                Operador: <strong>{{ active_shift.operator_name }}</strong> &bull;
+                <!-- Fecha de evaluacion de muestras -->
+                Fecha Muestras: <strong>{{ target_date }}</strong>
+            <!-- Cierre de subtitulo -->
+            </p>
+        <!-- Cierre de bloque de informacion -->
+        </div>
+        <!-- Selector de fecha para evaluar el turno -->
+        <form method="GET" action="{{ url_for('production.index') }}" style="display: flex; align-items: center; gap: 0.5rem; background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.4rem 0.75rem; border-radius: 0.5rem;">
+            <!-- Etiqueta de selector de fecha -->
+            <label for="target_date" style="font-size: 0.8rem; font-weight: 600; color: #475569; margin: 0;">📅 Fecha Muestras:</label>
+            <!-- Input de fecha objetivo -->
+            <input type="date" id="target_date" name="target_date" value="{{ target_date }}" class="form-input" style="font-size: 0.8rem; padding: 0.25rem 0.5rem; width: auto;" onchange="this.form.submit();">
+            <!-- Boton submit para navegadores sin JS -->
+            <noscript><button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Filtrar</button></noscript>
+        <!-- Cierre de formulario selector de fecha -->
+        </form>
+    <!-- Cierre de contenedor flexible -->
     </div>
+<!-- Cierre de cabecera -->
 </div>
 
 <!-- ========================================================================= -->
@@ -74,9 +100,61 @@
         <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
             + Registrar Muestra de Bolsa
         </h3>
+        <!-- Formulario para registrar pesada de linea -->
         <form action="{{ url_for('production.add_weighing') }}" method="POST">
-            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+            <!-- Operador en linea -->
             <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+            <!-- Bloque de Identificacion de Fecha y Turno de la Muestra -->
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+                <!-- Cabecera de bloque -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.35rem;">
+                    <!-- Titulo de origen de muestra -->
+                    <span style="font-size: 0.8rem; font-weight: 700; color: #1e40af; text-transform: uppercase;">
+                        📅 Fecha y Turno de Origen de la Muestra:
+                    <!-- Cierre de titulo -->
+                    </span>
+                    <!-- Aclaracion operativa -->
+                    <span style="font-size: 0.72rem; color: #64748b;">
+                        Indique la fecha y turno real en que se tomó el balde de pesada.
+                    <!-- Cierre de aclaracion -->
+                    </span>
+                <!-- Cierre de cabecera -->
+                </div>
+                <!-- Grilla de fecha y turno -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <!-- Grupo para fecha de muestra -->
+                    <div class="form-group" style="margin: 0;">
+                        <!-- Etiqueta de fecha -->
+                        <label class="form-label" for="sample_date" style="font-weight: 600; color: #1e3a8a; font-size: 0.85rem;">Fecha de la Muestra</label>
+                        <!-- Input de fecha de muestra -->
+                        <input class="form-input" type="date" id="sample_date" name="sample_date" value="{{ plant_today }}" required style="padding: 0.5rem; font-weight: 600;">
+                        <!-- Descripcion auxiliar -->
+                        <small style="color: #64748b; font-size: 0.72rem;">Fecha real en que se tomó la muestra</small>
+                    <!-- Cierre de grupo fecha -->
+                    </div>
+                    <!-- Grupo para turno de muestra -->
+                    <div class="form-group" style="margin: 0;">
+                        <!-- Etiqueta de turno -->
+                        <label class="form-label" for="shift_id" style="font-weight: 600; color: #1e3a8a; font-size: 0.85rem;">Turno de la Muestra</label>
+                        <!-- Selector de turno -->
+                        <select class="form-select" id="shift_id" name="shift_id" required style="padding: 0.5rem; font-weight: 600;">
+                            <!-- Opcion Turno Manana -->
+                            <option value="TM" {% if active_shift.shift_id == 'TM' %}selected{% endif %}>Turno Mañana (TM: 06:00 - 14:00)</option>
+                            <!-- Opcion Turno Tarde -->
+                            <option value="TT" {% if active_shift.shift_id == 'TT' %}selected{% endif %}>Turno Tarde (TT: 14:00 - 22:00)</option>
+                            <!-- Opcion Turno Noche -->
+                            <option value="TN" {% if active_shift.shift_id == 'TN' %}selected{% endif %}>Turno Noche (TN: 22:00 - 06:00)</option>
+                        <!-- Cierre de select -->
+                        </select>
+                        <!-- Descripcion auxiliar -->
+                        <small style="color: #64748b; font-size: 0.72rem;">Turno operativo al que corresponde el pesaje</small>
+                    <!-- Cierre de grupo turno -->
+                    </div>
+                <!-- Cierre de grilla -->
+                </div>
+            <!-- Cierre de bloque de fecha y turno -->
+            </div>
 
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label class="form-label" for="sample_point">Punto de Medición</label>
@@ -253,116 +331,260 @@
     </h3>
     <div class="table-responsive">
         <table class="table">
+            <!-- Cabecera de la tabla de pesadas -->
             <thead>
+                <!-- Fila de cabecera -->
                 <tr>
-                    <th>Fecha / Hora</th>
-                    <th>Franja</th>
+                    <!-- Columna Fecha de la Muestra tomada -->
+                    <th>Fecha Muestra</th>
+                    <!-- Columna Turno de la Muestra tomada -->
+                    <th>Turno</th>
+                    <!-- Columna Hora en que se cargo al sistema -->
+                    <th>Hora de Carga</th>
+                    <!-- Columna Punto de muestreo -->
                     <th>Punto de Muestra</th>
+                    <!-- Columna Peso neto de muestra -->
                     <th>Peso Neto</th>
+                    <!-- Columna Tiempo de muestreo en segundos -->
                     <th>Tiempo (seg)</th>
+                    <!-- Columna Velocidad horaria calculada -->
                     <th>Velocidad (kg/h)</th>
+                    <!-- Columna Proyeccion a 8 horas -->
                     <th>Proy. 8h</th>
+                    <!-- Columna Proyeccion a 24 horas -->
                     <th>Proy. 24h</th>
+                    <!-- Columna Estado de linea -->
                     <th>Estado</th>
+                    <!-- Columna Operario que registro -->
                     <th>Operario</th>
+                    <!-- Columna Acciones operativas -->
                     <th style="text-align: right;">Acciones</th>
+                <!-- Cierre de fila de cabecera -->
                 </tr>
+            <!-- Cierre de cabecera -->
             </thead>
+            <!-- Cuerpo de la tabla de pesadas -->
             <tbody>
+                <!-- Itera sobre cada pesada de produccion -->
                 {% for w in weighings %}
+                <!-- Fila de pesada individual -->
                 <tr>
-                    <td>{{ w.timestamp }}</td>
+                    <!-- Fecha en que se tomo la muestra -->
                     <td>
+                        <!-- Etiqueta destacada de fecha de muestra -->
+                        <strong style="color: #0f172a;">{{ w.sample_date or (w.timestamp.split(' ')[0] if ' ' in w.timestamp else w.timestamp) }}</strong>
+                    <!-- Cierre celda fecha muestra -->
+                    </td>
+                    <!-- Turno al que corresponde la muestra -->
+                    <td>
+                        <!-- Badge de turno -->
                         <span style="font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 9999px; white-space: nowrap;">
-                            {{ w.time_slot or '-' }}
+                            <!-- Muestra codigo de turno -->
+                            {{ w.shift_id or '-' }}
+                        <!-- Cierre de badge -->
                         </span>
+                    <!-- Cierre celda turno -->
                     </td>
+                    <!-- Hora en que se asento en el sistema -->
+                    <td style="color: #64748b; font-size: 0.8rem;">
+                        <!-- Muestra hora de carga HH:MM -->
+                        {{ w.timestamp.split(' ')[-1][:5] if ' ' in w.timestamp else w.timestamp }}
+                    <!-- Cierre celda hora de carga -->
+                    </td>
+                    <!-- Punto de muestreo en planta -->
                     <td>
+                        <!-- Condicion para ingreso de semilla -->
                         {% if w.sample_point == 'ingreso_semilla' %}
+                        <!-- Etiqueta verde de semilla -->
                         <span style="color: #15803d; font-weight: 600;">Ingreso Semilla</span>
+                        <!-- Caso de salida de expeller -->
                         {% else %}
+                        <!-- Etiqueta marron de expeller -->
                         <span style="color: #854d0e; font-weight: 600;">Salida Expeller</span>
+                        <!-- Cierre de condicion -->
                         {% endif %}
+                    <!-- Cierre de celda punto de muestreo -->
                     </td>
+                    <!-- Peso neto registrado -->
                     <td>{{ w.net_weight_kg }} kg</td>
+                    <!-- Tiempo de llenado cronometrado -->
                     <td>{{ w.fill_time_seconds }} s</td>
+                    <!-- Velocidad calculada en kg por hora -->
                     <td><strong>{{ "{:,.0f}".format(w.speed_kg_h).replace(",", ".") }} kg/h</strong></td>
+                    <!-- Proyeccion de volumen a 8 horas -->
                     <td>{{ "{:,.0f}".format(w.proj_8h_kg).replace(",", ".") }} kg</td>
+                    <!-- Proyeccion de volumen a 24 horas -->
                     <td>{{ "{:,.1f}".format(w.proj_24h_kg / 1000.0).replace(",", ".") }} Tn</td>
+                    <!-- Estado operativo de la linea -->
                     <td>
+                        <!-- Badge de estado operando o detenida -->
                         <span style="font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: {{ '#dcfce7' if w.line_status == 'operando' else '#fee2e2' }}; color: {{ '#166534' if w.line_status == 'operando' else '#991b1b' }};">
+                            <!-- Texto de estado -->
                             {{ w.line_status }}
+                        <!-- Cierre de badge -->
                         </span>
+                    <!-- Cierre de celda estado -->
                     </td>
+                    <!-- Operario que cargo el dato -->
                     <td>{{ w.operator_name }}</td>
+                    <!-- Botones de edicion y eliminacion con trazabilidad -->
                     <td style="text-align: right; white-space: nowrap;">
+                        <!-- Boton para desplegar formulario de edicion -->
                         <button type="button" onclick="const er = document.getElementById('edit-weighing-{{ w.id }}'); er.style.display = (er.style.display === 'none' ? 'table-row' : 'none');" class="btn" style="background: #0284c7; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer; margin-right: 0.25rem;" title="Editar pesada y ajustar cálculo">
+                            <!-- Icono y texto de edicion -->
                             ✏️ Editar
+                        <!-- Cierre boton edicion -->
                         </button>
+                        <!-- Formulario de eliminacion con auditoria -->
                         <form action="{{ url_for('production.delete_weighing_route', weighing_id=w.id) }}" method="POST" style="display: inline; margin: 0;" onsubmit="const r = prompt('Motivo de eliminación de pesada #{{ w.id }} (obligatorio para auditoría):'); if(!r) return false; this.delete_reason.value = r; return true;">
+                            <!-- Input oculto para motivo de borrado -->
                             <input type="hidden" name="delete_reason" value="">
+                            <!-- Boton de eliminacion -->
                             <button type="submit" class="btn" style="background: #ef4444; color: white; border: none; padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: 600; cursor: pointer;" title="Eliminar pesada">
+                                <!-- Icono y texto de borrado -->
                                 🗑️ Eliminar
+                            <!-- Cierre boton borrado -->
                             </button>
+                        <!-- Cierre formulario eliminacion -->
                         </form>
+                    <!-- Cierre celda acciones -->
                     </td>
+                <!-- Cierre fila pesada -->
                 </tr>
 
                 <!-- FILA EXPANDIBLE: MODIFICACION Y AUDITORIA DE PESADA -->
                 <tr id="edit-weighing-{{ w.id }}" style="display: none; background: #f0fdf4; border-bottom: 2px solid #86efac;">
-                    <td colspan="11" style="padding: 1rem 1.25rem;">
+                    <!-- Celda de ancho completo para formulario de edicion -->
+                    <td colspan="12" style="padding: 1rem 1.25rem;">
+                        <!-- Formulario de envio para edicion -->
                         <form action="{{ url_for('production.edit_weighing', weighing_id=w.id) }}" method="POST" style="margin: 0;">
+                            <!-- Encabezado de la edicion -->
                             <div style="font-weight: 700; color: #166534; margin-bottom: 0.65rem; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between;">
-                                <span>✏️ Modificar Pesada #{{ w.id }} (Registrada a las {{ w.timestamp }})</span>
+                                <!-- Titulo con id y fecha de carga -->
+                                <span>✏️ Modificar Pesada #{{ w.id }} (Carga registrada: {{ w.timestamp }})</span>
+                                <!-- Aclaracion de auditoria -->
                                 <span style="font-size: 0.75rem; font-weight: normal; color: #4b5563;">El cambio quedará registrado en el log de auditoría.</span>
+                            <!-- Cierre encabezado -->
                             </div>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                            <!-- Grilla de campos editables -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <!-- Campo editable: Fecha de la muestra -->
                                 <div>
+                                    <!-- Etiqueta fecha muestra -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Fecha Muestra</label>
+                                    <!-- Input de fecha de muestra -->
+                                    <input type="date" name="sample_date" value="{{ w.sample_date or (w.timestamp.split(' ')[0] if ' ' in w.timestamp else plant_today) }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                <!-- Cierre campo fecha -->
+                                </div>
+                                <!-- Campo editable: Turno de la muestra -->
+                                <div>
+                                    <!-- Etiqueta turno muestra -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Turno Muestra</label>
+                                    <!-- Selector de turno -->
+                                    <select name="shift_id" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <!-- Opcion Turno Manana -->
+                                        <option value="TM" {% if w.shift_id == 'TM' %}selected{% endif %}>Turno Mañana (TM)</option>
+                                        <!-- Opcion Turno Tarde -->
+                                        <option value="TT" {% if w.shift_id == 'TT' %}selected{% endif %}>Turno Tarde (TT)</option>
+                                        <!-- Opcion Turno Noche -->
+                                        <option value="TN" {% if w.shift_id == 'TN' %}selected{% endif %}>Turno Noche (TN)</option>
+                                    <!-- Cierre select turno -->
+                                    </select>
+                                <!-- Cierre campo turno -->
+                                </div>
+                                <!-- Campo editable: Punto de muestreo -->
+                                <div>
+                                    <!-- Etiqueta punto -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Punto de Muestra</label>
+                                    <!-- Selector punto -->
                                     <select name="sample_point" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                        <!-- Opcion semilla -->
                                         <option value="ingreso_semilla" {% if w.sample_point == 'ingreso_semilla' %}selected{% endif %}>Ingreso Semilla</option>
+                                        <!-- Opcion expeller -->
                                         <option value="salida_expeller" {% if w.sample_point == 'salida_expeller' %}selected{% endif %}>Salida Expeller</option>
+                                    <!-- Cierre select punto -->
                                     </select>
+                                <!-- Cierre campo punto -->
                                 </div>
+                                <!-- Campo editable: Peso bruto -->
                                 <div>
+                                    <!-- Etiqueta peso bruto -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Peso Bruto (kg)</label>
+                                    <!-- Input peso bruto -->
                                     <input type="number" step="0.01" name="gross_weight_kg" value="{{ w.gross_weight_kg }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                <!-- Cierre campo bruto -->
                                 </div>
+                                <!-- Campo editable: Tara -->
                                 <div>
+                                    <!-- Etiqueta tara -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Tara (kg)</label>
+                                    <!-- Input tara -->
                                     <input type="number" step="0.01" name="tare_weight_kg" value="{{ w.tare_weight_kg }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                <!-- Cierre campo tara -->
                                 </div>
+                                <!-- Campo editable: Tiempo llenado -->
                                 <div>
+                                    <!-- Etiqueta tiempo -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Tiempo Llenado (s)</label>
+                                    <!-- Input tiempo -->
                                     <input type="number" step="0.1" name="fill_time_seconds" value="{{ w.fill_time_seconds }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>
+                                <!-- Cierre campo tiempo -->
                                 </div>
+                                <!-- Campo editable: Estado de linea -->
                                 <div>
+                                    <!-- Etiqueta estado -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Estado Línea</label>
+                                    <!-- Selector estado -->
                                     <select name="line_status" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <!-- Opcion operando -->
                                         <option value="operando" {% if w.line_status == 'operando' %}selected{% endif %}>Operando</option>
+                                        <!-- Opcion detenida -->
                                         <option value="detenida" {% if w.line_status == 'detenida' %}selected{% endif %}>Detenida</option>
+                                    <!-- Cierre selector estado -->
                                     </select>
+                                <!-- Cierre campo estado -->
                                 </div>
+                                <!-- Campo justificacion de auditoria -->
                                 <div style="grid-column: span 2;">
+                                    <!-- Etiqueta obligatoria de auditoria -->
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #b91c1c; display: block; margin-bottom: 0.2rem;">Motivo del Ajuste (Obligatorio para Auditoría)</label>
-                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de tara del balde / error de cronómetro..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                    <!-- Input texto de motivo -->
+                                    <input type="text" name="edit_reason" placeholder="Ej: Corrección de fecha de toma / ajuste de balde..." class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; border: 1px solid #f87171;" required>
+                                <!-- Cierre campo justificacion -->
                                 </div>
+                            <!-- Cierre grilla de campos -->
                             </div>
+                            <!-- Botones de accion para guardar o cancelar edicion -->
                             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <!-- Boton para cancelar edicion -->
                                 <button type="button" onclick="document.getElementById('edit-weighing-{{ w.id }}').style.display='none';" class="btn" style="background: #e2e8f0; color: #475569; border: none; padding: 0.35rem 0.8rem; border-radius: 0.3rem; font-size: 0.8rem; cursor: pointer;">
+                                    <!-- Texto cancelar -->
                                     Cancelar
+                                <!-- Cierre boton cancelar -->
                                 </button>
+                                <!-- Boton submit para confirmar edicion -->
                                 <button type="submit" class="btn" style="background: #16a34a; color: white; border: none; padding: 0.35rem 1.1rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                    <!-- Texto guardar -->
                                     💾 Guardar y Recalcular
+                                <!-- Cierre boton submit -->
                                 </button>
+                            <!-- Cierre bloque botones -->
                             </div>
+                        <!-- Cierre formulario de edicion -->
                         </form>
+                    <!-- Cierre celda expandible -->
                     </td>
+                <!-- Cierre fila expandible -->
                 </tr>
+                <!-- Caso cuando no hay pesadas cargadas -->
                 {% else %}
+                <!-- Fila vacia -->
                 <tr>
-                    <td colspan="11" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay pesadas registradas en el turno actual.</td>
+                    <!-- Mensaje informativo de ausencia de pesadas -->
+                    <td colspan="12" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay pesadas registradas en el turno actual.</td>
+                <!-- Cierre fila vacia -->
                 </tr>
+                <!-- Cierre bucle for -->
                 {% endfor %}
             </tbody>
         </table>

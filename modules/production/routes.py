@@ -15,50 +15,78 @@ from core.error_logger import log_error
 from core.audit import record_audit_event
 # Importa utilidades de conversion numerica segura
 from core.utils import safe_float
+# Importa funcion horaria oficial de fecha de planta
+from core.timezone import get_plant_today_str
 
 # Define el Blueprint para produccion
 production_bp = Blueprint('production', __name__, url_prefix='/production')
 
 # Vista principal del modulo de produccion para operarios de linea
 @production_bp.route('/', methods=['GET'])
+# Requiere rol de usuario o administrador de sistema
 @roles_required('usuario', 'admin_sistema')
+# Controlador de vista principal
 def index():
     # Obtiene el turno activo actual
     active_shift = get_active_shift()
-    # Obtiene las ultimas pesadas del turno activo
+    # Obtiene la fecha oficial de planta
+    plant_today = get_plant_today_str()
+    # Extrae la fecha objetivo del query param o usa la de hoy
+    target_date = request.args.get('target_date', plant_today)
+    # Obtiene las ultimas pesadas del turno activo ordenadas cronologicamente
     weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=30)
-    # Obtiene el resumen de velocidad y proyecciones
-    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'])
+    # Obtiene el resumen de velocidad y proyecciones filtradas por fecha de muestra
+    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'], target_date=target_date)
     # Obtiene las paradas registradas en el turno
     stops = get_shift_stops(shift_id=active_shift['shift_id'])
-    # Renderiza la vista de produccion
+    # Renderiza la vista de produccion pasando fecha y turno
     return render_template('production.html', active_shift=active_shift,
-                           weighings=weighings, summary=summary, stops=stops)
+                           weighings=weighings, summary=summary, stops=stops,
+                           plant_today=plant_today, target_date=target_date)
 
 # Endpoint para registrar un nuevo muestreo de bolsa
 @production_bp.route('/weighing', methods=['POST'])
+# Requiere permisos de operario o administrador
 @roles_required('usuario', 'admin_sistema')
+# Controlador de insercion de pesada
 def add_weighing():
     # Bloque de captura de errores
     try:
-        # Extrae datos del formulario
+        # Extrae turno de la muestra del formulario
         shift_id = request.form.get('shift_id')
+        # Extrae fecha de la toma de muestra del formulario
+        sample_date = request.form.get('sample_date')
+        # Extrae nombre del operario responsable
         operator_name = request.form.get('operator_name')
+        # Extrae punto de muestreo (semilla o expeller)
         sample_point = request.form.get('sample_point')
+        # Extrae peso bruto
         gross_weight_kg = safe_float(request.form.get('gross_weight_kg'), 0.0)
+        # Extrae tara del recipiente
         tare_weight_kg = safe_float(request.form.get('tare_weight_kg'), 0.0)
+        # Extrae tiempo de llenado en segundos
         fill_time_seconds = safe_float(request.form.get('fill_time_seconds'), 0.0)
+        # Extrae estado de operacion de linea
         line_status = request.form.get('line_status', 'operando')
+        # Extrae notas u observaciones
         notes = request.form.get('notes', '')
-        # Registra la pesada mediante el servicio
+        # Registra la pesada mediante el servicio asociando fecha y turno de origen
         result = record_weighing(
-            shift_id, operator_name, sample_point, gross_weight_kg,
-            tare_weight_kg, fill_time_seconds, line_status, notes
+            shift_id=shift_id,
+            operator_name=operator_name,
+            sample_point=sample_point,
+            gross_weight_kg=gross_weight_kg,
+            tare_weight_kg=tare_weight_kg,
+            fill_time_seconds=fill_time_seconds,
+            line_status=line_status,
+            notes=notes,
+            sample_date=sample_date
         )
         # Registra pesada en auditoria
-        record_audit_event('PRODUCCION', 'PESADA_REGISTRADA', f"Pesada en {sample_point}: {gross_weight_kg - tare_weight_kg:.2f} kg en {fill_time_seconds:.1f}s -> {result['speed_kg_h']} kg/h.")
+        record_audit_event('PRODUCCION', 'PESADA_REGISTRADA', f"Pesada en {sample_point} (Muestra: {result.get('sample_date')} - {result.get('shift_id')}): {gross_weight_kg - tare_weight_kg:.2f} kg en {fill_time_seconds:.1f}s -> {result['speed_kg_h']} kg/h.")
         # Notifica exito al operario
-        flash(f'Pesada de {sample_point} registrada con éxito: {result["speed_kg_h"]} kg/h.', 'success')
+        flash(f'Pesada de {sample_point} registrada con éxito para la fecha {result.get("sample_date")}: {result["speed_kg_h"]} kg/h.', 'success')
+    # Captura posibles excepciones durante el guardado
     except Exception as e:
         # Registra error en log
         log_error('PRODUCTION_ROUTE', 'Error al registrar pesada de linea', e)
@@ -151,12 +179,16 @@ def delete_stop_route(stop_id):
 
 # API JSON para actualizar graficos en tiempo real desde JavaScript
 @production_bp.route('/api/shift-summary', methods=['GET'])
+# Requiere rol operativo o administrador
 @roles_required('usuario', 'admin_sistema')
+# Controlador de api de resumen de turno
 def api_shift_summary():
     # Obtiene el turno activo
     active_shift = get_active_shift()
-    # Obtiene el resumen del turno activo
-    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'])
+    # Obtiene la fecha objetivo desde los parametros o usa la fecha oficial de planta
+    target_date = request.args.get('target_date', get_plant_today_str())
+    # Obtiene el resumen del turno activo para la fecha dada
+    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'], target_date=target_date)
     # Obtiene las ultimas 20 pesadas
     weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=20)
     # Retorna respuesta en formato JSON
@@ -164,22 +196,41 @@ def api_shift_summary():
 
 # Endpoint para editar y ajustar una pesada existente con trazabilidad
 @production_bp.route('/weighing/edit/<int:weighing_id>', methods=['POST'])
+# Requiere roles autorizados
 @roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
+# Controlador de edicion de pesada
 def edit_weighing(weighing_id):
+    # Captura de errores en edicion
     try:
+        # Extrae punto de muestreo
         sample_point = request.form.get('sample_point')
+        # Extrae fecha de la toma de muestra
+        sample_date = request.form.get('sample_date')
+        # Extrae turno al que pertenece la muestra
+        shift_id = request.form.get('shift_id')
+        # Extrae peso bruto
         gross_weight_kg = safe_float(request.form.get('gross_weight_kg'), 0.0)
+        # Extrae peso de la tara
         tare_weight_kg = safe_float(request.form.get('tare_weight_kg'), 0.0)
+        # Extrae tiempo de llenado
         fill_time_seconds = safe_float(request.form.get('fill_time_seconds'), 0.0)
+        # Extrae estado de linea
         line_status = request.form.get('line_status', 'operando')
+        # Extrae notas u observaciones
         notes = request.form.get('notes', '').strip()
+        # Extrae justificacion obligatoria del cambio
         edit_reason = request.form.get('edit_reason', '').strip()
+        # Obtiene el nombre del usuario responsable de la edicion
         op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
 
+        # Valida que se haya ingresado motivo de auditoria
         if not edit_reason:
+            # Notifica requerimiento
             flash('Debe especificar el motivo de la modificación para el registro de auditoría.', 'warning')
+            # Redirige a produccion
             return redirect(url_for('production.index'))
 
+        # Actualiza el registro de pesada con los nuevos valores y trazabilidad
         update_weighing(
             weighing_id=weighing_id,
             sample_point=sample_point,
@@ -189,12 +240,19 @@ def edit_weighing(weighing_id):
             line_status=line_status,
             notes=notes,
             edit_reason=edit_reason,
-            operator_name=op_name
+            operator_name=op_name,
+            sample_date=sample_date,
+            shift_id=shift_id
         )
+        # Notifica exito en modificacion
         flash(f'Pesada #{weighing_id} actualizada correctamente. Modificación registrada en auditoría.', 'success')
+    # Captura errores en ejecucion
     except Exception as e:
+        # Registra error en log
         log_error('PRODUCTION_ROUTE', f'Error al editar pesada #{weighing_id}', e)
+        # Notifica fallo al usuario
         flash(f'Error al modificar pesada: {str(e)}', 'danger')
+    # Redirige a la vista de produccion
     return redirect(url_for('production.index'))
 
 # Endpoint para eliminar una pesada historica

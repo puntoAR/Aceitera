@@ -14,18 +14,21 @@ from modules.calculations.speed_calc import (
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
 # Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
-from core.timezone import get_plant_now_str, determine_time_slot, get_plant_now
+from core.timezone import get_plant_now_str, determine_time_slot, get_plant_now, get_plant_today_str
 # Importa el servicio de auditoria de eventos
 from core.audit import record_audit_event
 
-# Registra un muestreo de pesada de bolsa con calculo automatico de velocidad y proyeccion
+# Registra un muestreo de pesada de bolsa con calculo automatico de velocidad y fecha/turno de muestra
 def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
-                    tare_weight_kg, fill_time_seconds, line_status='operando', notes=''):
+                    tare_weight_kg, fill_time_seconds, line_status='operando', notes='',
+                    sample_date=None):
     # Calcula el peso neto descontando la tara
     net_weight_kg = calculate_net_weight(gross_weight_kg, tare_weight_kg)
     # Inicializa las variables de velocidad y proyeccion
     speed_kg_h = 0.0
+    # Proyeccion a 8 horas
     proj_8h_kg = 0.0
+    # Proyeccion a 24 horas
     proj_24h_kg = 0.0
     # Si la linea esta operando y el tiempo es valido
     if line_status == 'operando' and fill_time_seconds > 0:
@@ -45,35 +48,59 @@ def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
         'formula_proj_8h': 'speed * 8',
         'formula_proj_24h': 'speed * 24'
     })
-    # Obtiene la fecha y hora oficial de planta (Argentina UTC-3)
+    # Obtiene la fecha y hora oficial de planta al momento de la carga (Argentina UTC-3)
     now_str = get_plant_now_str()
-    # Determina la franja horaria oficial de la muestra
+    # Determina la franja horaria segun el momento de carga
     slot_info = determine_time_slot(now_str)
-    time_slot = slot_info['time_slot']
+
+    # Determina la fecha de la muestra (si no se envia toma la fecha actual de planta)
+    clean_sample_date = str(sample_date).strip() if sample_date and str(sample_date).strip() else get_plant_today_str()
+
+    # Normaliza el turno correspondiente a la muestra
+    clean_shift = str(shift_id).strip().upper() if shift_id and str(shift_id).strip() and str(shift_id).strip().lower() != 'auto' else None
+    # Si no se envio turno especifico
+    if not clean_shift:
+        # Asigna el turno de la franja horaria
+        clean_shift = slot_info['shift_id']
+
+    # Asigna la franja horaria correspondiente al turno de la muestra
+    if clean_shift == 'TM':
+        # Turno Manana
+        time_slot = '06:00 - 14:00'
+    elif clean_shift == 'TT':
+        # Turno Tarde
+        time_slot = '14:00 - 22:00'
+    elif clean_shift == 'TN':
+        # Turno Noche
+        time_slot = '22:00 - 06:00'
+    else:
+        # Franja horaria por defecto
+        time_slot = slot_info['time_slot']
 
     # Abre conexion para insertar el registro en base de datos
     with get_db_connection() as conn:
-        # Inserta la pesada en la tabla de produccion incluyendo la franja horaria
+        # Inserta la pesada en la tabla de produccion incluyendo la fecha y turno de muestra
         cursor = conn.execute("""
             INSERT INTO production_weighings (
                 timestamp, shift_id, operator_name, sample_point,
                 gross_weight_kg, tare_weight_kg, net_weight_kg, fill_time_seconds,
-                line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """, (now_str, shift_id, operator_name, sample_point,
+                line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot, sample_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (now_str, clean_shift, operator_name, sample_point,
               gross_weight_kg, tare_weight_kg, net_weight_kg, fill_time_seconds,
-              line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot))
+              line_status, speed_kg_h, proj_8h_kg, proj_24h_kg, notes, params_snapshot, time_slot, clean_sample_date))
         # Confirma la transaccion
         conn.commit()
         # Obtiene el ID asignado a la nueva pesada
         weighing_id = cursor.lastrowid
     # Registra en log el muestreo de produccion
-    log_info('PRODUCTION', f'Pesada ID {weighing_id} registrada: {sample_point} a {speed_kg_h} kg/h en turno {shift_id} (Franja: {time_slot}).')
+    log_info('PRODUCTION', f'Pesada ID {weighing_id} registrada: {sample_point} a {speed_kg_h} kg/h del {clean_sample_date} en turno {clean_shift} (Franja: {time_slot}).')
     # Retorna el diccionario con la pesada registrada
     return {
         'id': weighing_id,
         'timestamp': now_str,
-        'shift_id': shift_id,
+        'sample_date': clean_sample_date,
+        'shift_id': clean_shift,
         'time_slot': time_slot,
         'sample_point': sample_point,
         'net_weight_kg': net_weight_kg,
@@ -85,75 +112,119 @@ def record_weighing(shift_id, operator_name, sample_point, gross_weight_kg,
 # Actualiza y ajusta una pesada historica con registro detallado en bitacora de auditoria
 def update_weighing(weighing_id, sample_point, gross_weight_kg, tare_weight_kg,
                     fill_time_seconds, line_status='operando', notes='',
-                    edit_reason='', operator_name=None):
-    """
-    Permite editar los datos de una pesada histórica recalculando velocidades y proyecciones,
-    registrando antes/después y el motivo en el log de auditoría.
-    """
+                    edit_reason='', operator_name=None, sample_date=None, shift_id=None):
+    # Convierte peso bruto
     gross_weight_kg = float(gross_weight_kg)
+    # Convierte tara
     tare_weight_kg = float(tare_weight_kg)
+    # Convierte tiempo
     fill_time_seconds = float(fill_time_seconds)
+    # Calcula peso neto efectivo
     net_weight_kg = calculate_net_weight(gross_weight_kg, tare_weight_kg)
 
+    # Inicializa velocidad calculada
     speed_kg_h = 0.0
+    # Proyeccion 8h
     proj_8h_kg = 0.0
+    # Proyeccion 24h
     proj_24h_kg = 0.0
+    # Si la linea esta operando y el tiempo es positivo
     if line_status == 'operando' and fill_time_seconds > 0:
+        # Calcula velocidad instantanea
         speed_kg_h = calculate_instant_speed(net_weight_kg, fill_time_seconds)
+        # Calcula proyeccion 8h
         proj_8h_kg = project_shift_production(speed_kg_h)
+        # Calcula proyeccion 24h
         proj_24h_kg = project_daily_production(speed_kg_h)
 
+    # Abre conexion para actualizar pesada
     with get_db_connection() as conn:
+        # Busca registro anterior
         old = conn.execute("SELECT * FROM production_weighings WHERE id = ?;", (weighing_id,)).fetchone()
+        # Si no existe
         if not old:
+            # Lanza error
             raise ValueError(f"Pesada con ID #{weighing_id} no encontrada.")
+        # Convierte a diccionario
         old_dict = dict(old)
 
+        # Determina nueva fecha de muestra
+        new_sample_date = str(sample_date).strip() if sample_date and str(sample_date).strip() else old_dict.get('sample_date')
+        # Determina nuevo turno de muestra
+        new_shift = str(shift_id).strip().upper() if shift_id and str(shift_id).strip() and str(shift_id).strip().lower() != 'auto' else old_dict.get('shift_id')
+
+        # Actualiza registro en base de datos
         conn.execute("""
             UPDATE production_weighings
             SET sample_point = ?, gross_weight_kg = ?, tare_weight_kg = ?,
                 net_weight_kg = ?, fill_time_seconds = ?, line_status = ?,
-                speed_kg_h = ?, proj_8h_kg = ?, proj_24h_kg = ?, notes = ?
+                speed_kg_h = ?, proj_8h_kg = ?, proj_24h_kg = ?, notes = ?,
+                sample_date = ?, shift_id = ?
             WHERE id = ?;
         """, (sample_point, gross_weight_kg, tare_weight_kg, net_weight_kg,
               fill_time_seconds, line_status, speed_kg_h, proj_8h_kg, proj_24h_kg,
-              notes, weighing_id))
+              notes, new_sample_date, new_shift, weighing_id))
+        # Confirma cambios
         conn.commit()
 
     # Registra en auditoria de planta
     details = (
         f"Edición de Pesada #{weighing_id} ({old_dict.get('shift_id', '-')}). Motivo: '{edit_reason or 'Ajuste operativo'}'. "
-        f"Antes: [Punto={old_dict.get('sample_point')}, Bruto={old_dict.get('gross_weight_kg')}kg, "
+        f"Antes: [Fecha={old_dict.get('sample_date')}, Turno={old_dict.get('shift_id')}, Punto={old_dict.get('sample_point')}, Bruto={old_dict.get('gross_weight_kg')}kg, "
         f"Tara={old_dict.get('tare_weight_kg')}kg, Neto={old_dict.get('net_weight_kg')}kg, "
         f"Tiempo={old_dict.get('fill_time_seconds')}s, Vel={old_dict.get('speed_kg_h')}kg/h, Estado={old_dict.get('line_status')}]. "
-        f"Ahora: [Punto={sample_point}, Bruto={gross_weight_kg}kg, "
+        f"Ahora: [Fecha={new_sample_date}, Turno={new_shift}, Punto={sample_point}, Bruto={gross_weight_kg}kg, "
         f"Tara={tare_weight_kg}kg, Neto={net_weight_kg}kg, "
         f"Tiempo={fill_time_seconds}s, Vel={speed_kg_h}kg/h, Estado={line_status}]."
     )
+    # Registra evento de auditoria
     record_audit_event('PRODUCCION', 'EDICION_PESADA', details, user_override=operator_name)
+    # Registra en log de produccion
     log_info('PRODUCTION', f"Pesada #{weighing_id} modificada por {operator_name or 'usuario'}: {details}")
+    # Retorna exito
     return True
 
-# Obtiene las ultimas pesadas registradas para un turno o fecha
-def get_recent_weighings(shift_id=None, limit=50):
+# Obtiene las ultimas pesadas registradas para un turno o fecha de muestra
+def get_recent_weighings(shift_id=None, limit=50, target_date=None):
     # Abre conexion a base de datos
     with get_db_connection() as conn:
-        # Si se especifico un turno en particular
-        if shift_id:
-            # Consulta pesadas filtrando por turno ordenadas cronologicamente descendente
+        # Si se filtro por turno y fecha de muestra
+        if shift_id and target_date:
+            # Consulta pesadas con ambos filtros ordenando cronologicamente por fecha de muestra
+            rows = conn.execute("""
+                SELECT * FROM production_weighings
+                WHERE shift_id = ? AND COALESCE(sample_date, date(timestamp)) = ?
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
+                LIMIT ?;
+            """, (shift_id, str(target_date).strip(), limit)).fetchall()
+        # Si se filtro solo por turno
+        elif shift_id:
+            # Consulta pesadas del turno ordenando por fecha de muestra
             rows = conn.execute("""
                 SELECT * FROM production_weighings
                 WHERE shift_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
                 LIMIT ?;
             """, (shift_id, limit)).fetchall()
-        else:
-            # Consulta las ultimas pesadas globales de la planta
+        # Si se filtro solo por fecha de muestra
+        elif target_date:
+            # Consulta pesadas de la fecha ordenando cronologicamente
             rows = conn.execute("""
                 SELECT * FROM production_weighings
-                ORDER BY timestamp DESC
+                WHERE COALESCE(sample_date, date(timestamp)) = ?
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
+                LIMIT ?;
+            """, (str(target_date).strip(), limit)).fetchall()
+        # Si no hay filtros
+        else:
+            # Consulta las ultimas pesadas globales ordenadas por fecha de muestra
+            rows = conn.execute("""
+                SELECT * FROM production_weighings
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
                 LIMIT ?;
             """, (limit,)).fetchall()
+        # Retorna lista de diccionarios
+        return [dict(row) for row in rows]
         # Retorna lista de diccionarios
         return [dict(row) for row in rows]
 
@@ -305,21 +376,41 @@ def get_shift_stops(shift_id=None):
         return [dict(row) for row in rows]
 
 # Calcula las metricas consolidadas de velocidad para un turno (semilla y expeller)
-def get_shift_speed_summary(shift_id):
+def get_shift_speed_summary(shift_id, target_date=None):
+    # Sanitiza o establece la fecha operativa objetivo
+    clean_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str()
     # Abre conexion a base de datos
     with get_db_connection() as conn:
-        # Obtiene las pesadas del turno
+        # Obtiene las pesadas del turno filtradas por fecha de muestra (o fecha de carga como fallback)
         rows = conn.execute("""
             SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
             FROM production_weighings
-            WHERE shift_id = ? AND line_status = 'operando';
-        """, (shift_id,)).fetchall()
-        # Obtiene los minutos totales de parada del turno
+            WHERE shift_id = ? AND COALESCE(sample_date, date(timestamp)) = ? AND line_status = 'operando';
+        """, (shift_id, clean_date)).fetchall()
+        # Si no hay registros exactos para esa fecha, busca los mas recientes del turno por fecha de muestra
+        if not rows:
+            # Consulta de respaldo para el turno
+            rows = conn.execute("""
+                SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
+                FROM production_weighings
+                WHERE shift_id = ? AND line_status = 'operando'
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
+                LIMIT 30;
+            """, (shift_id,)).fetchall()
+        # Obtiene los minutos totales de parada del turno para la fecha indicada
         stop_row = conn.execute("""
             SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min
             FROM line_stops
-            WHERE shift_id = ?;
-        """, (shift_id,)).fetchone()
+            WHERE shift_id = ? AND (date(start_time) = ? OR start_time LIKE ?);
+        """, (shift_id, clean_date, f"{clean_date}%")).fetchone()
+        # Si no hubo paradas cargadas para esa fecha especifica, consulta las paradas del turno en general
+        if not stop_row or stop_row['total_stop_min'] == 0:
+            # Consulta general de paradas para el turno
+            stop_row = conn.execute("""
+                SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min
+                FROM line_stops
+                WHERE shift_id = ?;
+            """, (shift_id,)).fetchone()
     # Minutos totales detenidos
     total_stop_minutes = stop_row['total_stop_min'] if stop_row else 0.0
     # Horas detenidas

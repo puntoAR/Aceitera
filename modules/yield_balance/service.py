@@ -181,7 +181,7 @@ def calculate_custom_efficiency(seed_processed_kg, expeller_produced_kg, oil_pro
     return res
 
 # Genera el dato de eficiencia y rendimiento en forma automatica a partir de la informacion registrada en el sistema
-def get_auto_efficiency_data(shift_id=None):
+def get_auto_efficiency_data(shift_id=None, target_date=None):
     # Importa el servicio de configuracion para obtener el turno activo si no se especifico
     from modules.configuration.service import get_active_shift
     # Importa el servicio de produccion para obtener velocidades y pesadas de guardia
@@ -190,6 +190,9 @@ def get_auto_efficiency_data(shift_id=None):
     from modules.laboratory.service import get_shift_lab_averages
     # Importa funciones de calculo horario de linea
     from modules.calculations.yield_calc import calculate_line_yield_and_oil_efficiency
+
+    # Sanitiza o establece la fecha operativa objetivo
+    clean_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str()
 
     # Si no se paso identificador de turno, consulta el turno actualmente en curso
     if not shift_id:
@@ -205,15 +208,13 @@ def get_auto_efficiency_data(shift_id=None):
         # Nombre de referencia
         shift_name = f"Turno {shift_id}"
 
-    # Fecha oficial de planta para la fecha de turno
-    today_str = get_plant_today_str()
     # Identificador textual de fecha y turno
-    date_shift = f"{today_str}-{target_shift_id}"
+    date_shift = f"{clean_date}-{target_shift_id}"
 
-    # Obtiene el resumen de velocidad y produccion estimada del turno segun pesadas
-    prod_summary = get_shift_speed_summary(target_shift_id)
-    # Obtiene las medias de laboratorio registradas en planta para materia grasa
-    lab_averages = get_shift_lab_averages(target_shift_id)
+    # Obtiene el resumen de velocidad y produccion estimada del turno segun pesadas para la fecha
+    prod_summary = get_shift_speed_summary(target_shift_id, target_date=clean_date)
+    # Obtiene las medias de laboratorio registradas en planta para materia grasa para la fecha
+    lab_averages = get_shift_lab_averages(target_shift_id, target_date=clean_date)
 
     # Cantidad de pesadas registradas en el turno
     seed_count = prod_summary.get('seed_sample_count', 0)

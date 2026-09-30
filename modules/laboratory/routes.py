@@ -13,6 +13,8 @@ from modules.configuration.service import get_active_shift, get_all_tanks
 from core.error_logger import log_error
 # Importa modulo de auditoria
 from core.audit import record_audit_event
+# Importa funcion horaria oficial de fecha de planta
+from core.timezone import get_plant_today_str
 
 # Define Blueprint de laboratorio
 laboratory_bp = Blueprint('laboratory', __name__, url_prefix='/laboratory')
@@ -21,12 +23,16 @@ laboratory_bp = Blueprint('laboratory', __name__, url_prefix='/laboratory')
 @laboratory_bp.route('/', methods=['GET'])
 @roles_required('usuario', 'admin_sistema')
 def index():
-    # Obtiene turno activo
+    # Obtiene turno activo de planta
     active_shift = get_active_shift()
-    # Obtiene ultimos analisis registrados
+    # Obtiene fecha actual de planta
+    plant_today = get_plant_today_str()
+    # Fecha objetivo para evaluar promedios analiticos
+    target_date = request.args.get('target_date', plant_today)
+    # Obtiene ultimos analisis registrados ordenados por fecha de muestra
     analyses = get_recent_analyses(limit=30)
-    # Obtiene promedios de calidad del turno activo
-    averages = get_shift_lab_averages(active_shift['shift_id'])
+    # Obtiene promedios de calidad para el turno activo y la fecha de muestra
+    averages = get_shift_lab_averages(active_shift['shift_id'], target_date=target_date)
     # Obtiene los tanques activos para seleccionar origen de carga de aceite
     tanks = get_all_tanks(only_active=True)
     # Obtiene los despachos de camiones recientes
@@ -35,6 +41,8 @@ def index():
     return render_template(
         'laboratory.html',
         active_shift=active_shift,
+        plant_today=plant_today,
+        target_date=target_date,
         analyses=analyses,
         averages=averages,
         tanks=tanks,
@@ -49,11 +57,19 @@ def add_analysis():
     try:
         # Extrae datos basicos del formulario
         sample_code = request.form.get('sample_code', 'M-001').strip()
+        # Producto
         product = request.form.get('product', 'semilla').strip()
+        # Prensa
         press_number = request.form.get('press_number')
+        # Punto de toma
         sampling_point = request.form.get('sampling_point', 'Tolva de Ingreso').strip()
+        # Turno al que corresponde la muestra
         shift_id = request.form.get('shift_id')
+        # Fecha en que se tomo la muestra
+        sample_date = request.form.get('sample_date')
+        # Operador analista
         operator_name = request.form.get('operator_name')
+        # Observaciones
         notes = request.form.get('notes', '').strip()
 
         # Construye el diccionario de datos combinando entrada rapida directa (%) y gravimetrica
@@ -76,11 +92,13 @@ def add_analysis():
             'acidity_naoh_ml': request.form.get('acidity_naoh_ml')
         }
 
-        # Registra el analisis mediante el servicio de laboratorio
-        result = record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes, press_number=press_number)
+        # Registra el analisis mediante el servicio de laboratorio asociando fecha y turno de muestra
+        result = record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes, press_number=press_number, sample_date=sample_date)
         # Notifica exito al analista especificando si es Prensa 1 o 2
         press_label = f" (Prensa {result.get('press_number')})" if result.get('press_number') else ""
-        flash(f'Análisis de {result.get("product", product)}{press_label} ({sample_code}) guardado exitosamente.', 'success')
+        # Emite notificacion flash al usuario
+        flash(f'Análisis de {result.get("product", product)}{press_label} ({sample_code}) del {result.get("sample_date")} guardado exitosamente.', 'success')
+    # Captura posibles errores en la ejecucion
     except Exception as e:
         # Registra error en log
         log_error('LAB_ROUTE', 'Error al registrar analisis de laboratorio', e)
@@ -150,21 +168,39 @@ def add_truck_dispatch():
 @laboratory_bp.route('/analysis/edit/<int:analysis_id>', methods=['POST'])
 @roles_required('usuario', 'admin_sistema', 'administrador', 'gerencia')
 def edit_analysis(analysis_id):
+    # Captura de errores
     try:
+        # Extrae punto de muestreo
         sampling_point = request.form.get('sampling_point', '').strip()
+        # Fecha de muestra
+        sample_date = request.form.get('sample_date')
+        # Turno de la muestra
+        shift_id = request.form.get('shift_id')
+        # Humedad porcentual
         moisture_pct = request.form.get('moisture_pct')
+        # Materia grasa porcentual
         fat_pct = request.form.get('fat_pct')
+        # Acidez porcentual
         acidity_pct = request.form.get('acidity_pct')
+        # Materia extrana porcentual
         foreign_matter_pct = request.form.get('foreign_matter_pct')
+        # Observaciones
         notes = request.form.get('notes', '').strip()
+        # Numero de prensa
         press_number = request.form.get('press_number')
+        # Motivo del ajuste analitico
         edit_reason = request.form.get('edit_reason', '').strip()
+        # Nombre del operador que ajusta
         op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Analista')
 
+        # Si no se indico motivo de auditoria
         if not edit_reason:
+            # Emite advertencia
             flash('Debe especificar el motivo del ajuste analítico para auditoría.', 'warning')
+            # Redirige
             return redirect(url_for('laboratory.index'))
 
+        # Actualiza el analisis con todos sus parametros incluyendo fecha y turno
         update_analysis(
             analysis_id=analysis_id,
             sampling_point=sampling_point,
@@ -175,12 +211,19 @@ def edit_analysis(analysis_id):
             notes=notes,
             press_number=press_number,
             edit_reason=edit_reason,
-            operator_name=op_name
+            operator_name=op_name,
+            sample_date=sample_date,
+            shift_id=shift_id
         )
+        # Emite notificacion de exito
         flash(f'Análisis #{analysis_id} actualizado con éxito. Ajuste registrado en bitácora de auditoría.', 'success')
+    # Captura posibles excepciones
     except Exception as e:
+        # Registra fallo en bitacora
         log_error('LAB_ROUTE', f'Error al editar análisis #{analysis_id}', e)
+        # Notifica error
         flash(f'Error al modificar análisis: {str(e)}', 'danger')
+    # Redirige a pantalla de laboratorio
     return redirect(url_for('laboratory.index'))
 
 # Endpoint para eliminar una determinacion analitica con registro de auditoria

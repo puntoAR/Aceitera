@@ -418,6 +418,24 @@ REGISTERED_MIGRATIONS = [
             VALUES ('mantenimiento', 'Técnico de Mantenimiento', 'mantenimiento', '4444', '50000000', '5492266000005', 'aprobado', 0, 1);
         """,
         'callback': lambda conn: backfill_time_slots(conn)
+    },
+    {
+        # Version 15: Independizacion de fecha de muestra respecto a fecha de carga
+        'version': 15,
+        # Identificador de la migracion
+        'name': 'v15_sample_date_and_shift_identification',
+        # Descripcion del ajuste estructural
+        'description': 'Incorpora sample_date a determinaciones de laboratorio y pesadas de produccion para identificar la fecha y turno real de la muestra',
+        # Sentencias SQL para agregar columnas si no existen
+        'sql': """
+            -- Agrega columna sample_date a determinaciones de laboratorio
+            ALTER TABLE lab_analyses ADD COLUMN sample_date TEXT DEFAULT NULL;
+
+            -- Agrega columna sample_date a pesadas de produccion de velocidad de linea
+            ALTER TABLE production_weighings ADD COLUMN sample_date TEXT DEFAULT NULL;
+        """,
+        # Callback para rellenar sample_date en datos historicos existentes
+        'callback': lambda conn: backfill_sample_dates(conn)
     }
 ]
 
@@ -445,6 +463,48 @@ def backfill_time_slots(conn):
             conn.execute("UPDATE lab_analyses SET time_slot = ? WHERE id = ?;", (slot, rid))
     except Exception as e:
         log_error('MIGRATIONS', 'Aviso al backfillear time_slot en lab_analyses', e)
+
+# Funcion de retro-compatibilidad para calcular y rellenar sample_date en registros historicos existentes
+def backfill_sample_dates(conn):
+    # Importa funcion de determinacion de jornada operativa de planta
+    from core.timezone import determine_time_slot
+    # Intento de backfill en determinaciones de laboratorio
+    try:
+        # Consulta analisis que no tengan sample_date cargado
+        rows = conn.execute("SELECT id, timestamp FROM lab_analyses WHERE sample_date IS NULL OR sample_date = '';").fetchall()
+        # Itera sobre cada registro sin fecha de muestra
+        for r in rows:
+            # Obtiene timestamp
+            ts = r['timestamp'] if isinstance(r, dict) else r[1]
+            # Obtiene id del registro
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            # Extrae la fecha operativa correspondiente a la estampa
+            op_date = determine_time_slot(ts)['operational_date']
+            # Actualiza el registro con la fecha calculada
+            conn.execute("UPDATE lab_analyses SET sample_date = ? WHERE id = ?;", (op_date, rid))
+    # Captura posibles excepciones sin interrumpir la migracion
+    except Exception as e:
+        # Registra advertencia en bitacora de errores
+        log_error('MIGRATIONS', 'Aviso al backfillear sample_date en lab_analyses', e)
+
+    # Intento de backfill en pesadas de produccion
+    try:
+        # Consulta pesadas que no posean sample_date cargado
+        rows = conn.execute("SELECT id, timestamp FROM production_weighings WHERE sample_date IS NULL OR sample_date = '';").fetchall()
+        # Itera sobre cada pesada historica
+        for r in rows:
+            # Obtiene timestamp
+            ts = r['timestamp'] if isinstance(r, dict) else r[1]
+            # Obtiene id
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            # Extrae la fecha operativa correspondiente
+            op_date = determine_time_slot(ts)['operational_date']
+            # Actualiza el registro con la fecha operativa
+            conn.execute("UPDATE production_weighings SET sample_date = ? WHERE id = ?;", (op_date, rid))
+    # Captura posibles errores en pesadas
+    except Exception as e:
+        # Registra advertencia en bitacora
+        log_error('MIGRATIONS', 'Aviso al backfillear sample_date en production_weighings', e)
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

@@ -88,9 +88,36 @@
     </div>
 
     <form action="{{ url_for('laboratory.add_analysis') }}" method="POST">
-        <!-- Datos de contexto del turno activo -->
-        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
+        <!-- Responsable de la carga -->
         <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+
+        <!-- Bloque de Identificacion de Fecha y Turno de la Muestra -->
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.35rem;">
+                <span style="font-size: 0.8rem; font-weight: 700; color: #1e40af; text-transform: uppercase;">
+                    📅 Fecha y Turno de Origen de la Muestra:
+                </span>
+                <span style="font-size: 0.72rem; color: #64748b;">
+                    Si el resultado se obtiene en un turno o día posterior, indique la fecha y turno real en que se tomó la muestra.
+                </span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="sample_date" style="font-weight: 600; color: #1e3a8a; font-size: 0.85rem;">Fecha de la Muestra</label>
+                    <input class="form-input" type="date" id="sample_date" name="sample_date" value="{{ plant_today }}" required style="padding: 0.5rem; font-weight: 600;">
+                    <small style="color: #64748b; font-size: 0.72rem;">Fecha en que se extrajo físicamente la muestra en planta</small>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label" for="shift_id" style="font-weight: 600; color: #1e3a8a; font-size: 0.85rem;">Turno de la Muestra</label>
+                    <select class="form-select" id="shift_id" name="shift_id" required style="padding: 0.5rem; font-weight: 600;">
+                        <option value="TM" {% if active_shift.shift_id == 'TM' %}selected{% endif %}>Turno Mañana (TM: 06:00 - 14:00)</option>
+                        <option value="TT" {% if active_shift.shift_id == 'TT' %}selected{% endif %}>Turno Tarde (TT: 14:00 - 22:00)</option>
+                        <option value="TN" {% if active_shift.shift_id == 'TN' %}selected{% endif %}>Turno Noche (TN: 22:00 - 06:00)</option>
+                    </select>
+                    <small style="color: #64748b; font-size: 0.72rem;">Turno operativo al que corresponde la muestra</small>
+                </div>
+            </div>
+        </div>
 
         <!-- Fila 1: Producto, Codigo de Muestra y Punto -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
@@ -436,8 +463,9 @@
         <table class="table" style="font-size: 0.825rem;">
             <thead>
                 <tr style="background: #f1f5f9; text-align: left;">
-                    <th>Fecha / Hora</th>
-                    <th>Franja</th>
+                    <th>Fecha Muestra</th>
+                    <th>Turno</th>
+                    <th>Hora de Carga</th>
                     <th>Código</th>
                     <th>Producto</th>
                     <th>Punto</th>
@@ -445,18 +473,22 @@
                     <th>Materia Grasa (%)</th>
                     <th>Acidez (%)</th>
                     <th>Observaciones</th>
-                    <th>Analista</th>
                     <th style="text-align: right;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for a in analyses %}
                 <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="white-space: nowrap;">{{ a.timestamp }}</td>
+                    <td style="white-space: nowrap;">
+                        <strong style="color: #1e40af;">{{ a.sample_date or a.timestamp.split(' ')[0] }}</strong>
+                    </td>
                     <td>
-                        <span style="font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 9999px; white-space: nowrap;">
-                            {{ a.time_slot or '-' }}
+                        <span style="font-size: 0.75rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 0.15rem 0.45rem; border-radius: 9999px; white-space: nowrap;">
+                            {{ a.shift_id or '-' }}
                         </span>
+                    </td>
+                    <td style="white-space: nowrap; font-size: 0.75rem; color: #64748b;">
+                        {{ a.timestamp }}
                     </td>
                     <td><strong>{{ a.sample_code }}</strong></td>
                     <td>
@@ -515,6 +547,18 @@
                                 <span style="font-size: 0.75rem; font-weight: normal; color: #4b5563;">El cambio quedará registrado en el log de auditoría.</span>
                             </div>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #1e40af; display: block; margin-bottom: 0.2rem;">Fecha Muestra</label>
+                                    <input type="date" name="sample_date" value="{{ a.sample_date or a.timestamp.split(' ')[0] }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; font-weight: 600;" required>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #1e40af; display: block; margin-bottom: 0.2rem;">Turno Muestra</label>
+                                    <select name="shift_id" class="form-select" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%; font-weight: 600;">
+                                        <option value="TM" {% if a.shift_id == 'TM' %}selected{% endif %}>Turno Mañana (TM)</option>
+                                        <option value="TT" {% if a.shift_id == 'TT' %}selected{% endif %}>Turno Tarde (TT)</option>
+                                        <option value="TN" {% if a.shift_id == 'TN' %}selected{% endif %}>Turno Noche (TN)</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Punto de Muestra</label>
                                     <input type="text" name="sampling_point" value="{{ a.sampling_point }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;" required>

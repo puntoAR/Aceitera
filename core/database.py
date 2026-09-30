@@ -446,7 +446,8 @@ def init_db():
             proj_24h_kg REAL NOT NULL,                  -- Proyeccion a 24 horas en kg
             notes TEXT,                                 -- Observaciones operativas
             params_snapshot TEXT,                       -- JSON con snapshot de constantes
-            time_slot TEXT                              -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
+            time_slot TEXT,                             -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
+            sample_date TEXT                            -- Fecha calendario de toma de muestra (YYYY-MM-DD)
         );
         """)
 
@@ -549,7 +550,8 @@ def init_db():
             acidity_pct REAL,                       -- Acidez libre en porcentaje (para aceite)
             raw_data_json TEXT,                     -- JSON con masas iniciales, secas, crisoles
             notes TEXT,                             -- Notas u observaciones analiticas
-            time_slot TEXT                          -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
+            time_slot TEXT,                         -- Franja horaria oficial (TM: 06-14, TT: 14-22, TN: 22-06)
+            sample_date TEXT                        -- Fecha calendario de toma de muestra (YYYY-MM-DD)
         );
         """)
 

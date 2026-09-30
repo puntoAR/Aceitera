@@ -40,40 +40,56 @@ class TestRemoteUpdater(unittest.TestCase):
 
     # Prueba 2: Deteccion de nueva version remota disponible simulada
     @patch('modules.updater.service.requests.get')
+    # Metodo de prueba de deteccion de actualizacion remota
     def test_check_remote_update_available(self, mock_get):
-        # Simula respuesta exitosa del servidor con version 1.2.0
+        # Simula respuesta exitosa del servidor con version superior 9.9.9
         mock_response = MagicMock()
+        # Codigo HTTP 200 OK
         mock_response.status_code = 200
+        # Payload simulado de la nueva version remota
         mock_response.json.return_value = {
-            'version': '1.2.0',
+            'version': '9.9.9',
             'release_date': '2026-10-01',
             'changelog': ['Mejora de rendimiento'],
-            'download_url': 'https://updates.biobalcarce.com/biobalcarce-v1.2.0.zip',
+            'download_url': 'https://updates.biobalcarce.com/biobalcarce-v9.9.9.zip',
             'sha256': 'abcdef123456'
         }
+        # Asigna el mock a requests.get
         mock_get.return_value = mock_response
 
         # Ejecuta la comprobacion
         result = check_for_remote_updates('https://updates.biobalcarce.com/latest.json')
+        # Verifica exito en la llamada
         self.assertTrue(result['success'])
+        # Verifica que detecte actualizacion disponible
         self.assertTrue(result['update_available'])
-        self.assertEqual(result['remote_version'], '1.2.0')
+        # Verifica la version remota informada
+        self.assertEqual(result['remote_version'], '9.9.9')
 
     # Prueba 3: Deteccion de sistema al dia cuando no hay versiones nuevas
     @patch('modules.updater.service.requests.get')
+    # Metodo de prueba cuando el sistema ya esta al dia
     def test_check_remote_already_up_to_date(self, mock_get):
-        # Simula respuesta con la misma version local (1.0.0)
+        # Obtiene version instalada actualmente
+        cur_v = get_current_version_info()['version']
+        # Simula respuesta con la misma version local
         mock_response = MagicMock()
+        # Codigo HTTP 200 OK
         mock_response.status_code = 200
+        # Payload con version identica a la instalada
         mock_response.json.return_value = {
-            'version': '1.0.0',
+            'version': cur_v,
             'release_date': '2026-09-21',
             'changelog': []
         }
+        # Asigna el mock
         mock_get.return_value = mock_response
 
+        # Ejecuta comprobacion de actualizacion
         result = check_for_remote_updates()
+        # Verifica exito de la consulta
         self.assertTrue(result['success'])
+        # Confirma que no hay actualizacion disponible
         self.assertFalse(result['update_available'])
 
     # Prueba 4: Manejo seguro ante corte de internet o timeout en planta
