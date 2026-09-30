@@ -46,8 +46,12 @@
             {{ stats.total_trucks }}
             <span style="font-size: 0.85rem; font-weight: 500; color: #64748b;">pesadas</span>
         </div>
-        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;">
-            Operaciones registradas
+        <div class="metric-subtitle" style="font-size: 0.75rem; color: #64748b;"> <!-- Contenedor de subtitulo de indicador -->
+            {% if current_start_date or current_end_date or current_product != 'todos' or current_operation != 'todos' or current_search %} <!-- Si hay filtros activos -->
+                Total en filtro activo <!-- Leyenda indicando datos filtrados -->
+            {% else %} <!-- Si no hay filtros aplicados -->
+                Operaciones registradas <!-- Leyenda por omision -->
+            {% endif %} <!-- Fin comprobacion de filtros -->
         </div>
     </div>
 
@@ -400,9 +404,13 @@
         <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0;">
             Historial de Pesadas de Balanza ({{ weighings|length }})
         </h3>
-        <span style="font-size: 0.8rem; color: #64748b;">
-            Mostrando las últimas {{ weighings|length }} pesadas registradas
-        </span>
+        <span style="font-size: 0.8rem; color: #64748b;"> <!-- Contenedor de estado de listado -->
+            {% if current_start_date or current_end_date or current_product != 'todos' or current_operation != 'todos' or current_search %} <!-- Si hay filtros activos -->
+                Mostrando {{ weighings|length }} pesadas filtradas <!-- Leyenda de registros filtrados -->
+            {% else %} <!-- Si se muestran los mas recientes -->
+                Mostrando las últimas {{ weighings|length }} pesadas registradas <!-- Leyenda por omision -->
+            {% endif %} <!-- Fin comprobacion de filtros -->
+        </span> <!-- Fin contenedor -->
     </div>
 
     <div class="table-responsive" style="overflow-x: auto;">

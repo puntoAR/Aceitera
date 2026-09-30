@@ -26,14 +26,17 @@ def index():
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
 
-    # Obtiene listado de pesadas
-    weighings = get_recent_weighings(
-        limit=200, product=product, operation_type=operation_type,
-        search=search, start_date=start_date, end_date=end_date
-    )
+    # Obtiene listado de pesadas con limite ampliado para visualizacion completa de periodos
+    weighings = get_recent_weighings( # Consulta pesadas filtradas
+        limit=500, product=product, operation_type=operation_type, # Limite hasta 500 registros y filtros
+        search=search, start_date=start_date, end_date=end_date # Criterios de busqueda y rango de fechas
+    ) # Retorna pesadas
 
-    # Metricas resumen de balanza
-    stats = get_weighing_summary_stats(start_date=start_date, end_date=end_date)
+    # Metricas resumen de balanza sincronizadas con todos los filtros activos (fechas, operacion, producto, busqueda)
+    stats = get_weighing_summary_stats( # Consulta estadisticas reactivas a los filtros
+        start_date=start_date, end_date=end_date, # Rango de fechas
+        product=product, operation_type=operation_type, search=search # Filtros de operacion, producto y texto
+    ) # Retorna metricas
     active_shift = get_active_shift()
 
     return render_template(
@@ -54,9 +57,12 @@ def index():
 def add_weighing():
     try:
         ticket_number = request.form.get('ticket_number') # Número de ticket o comprobante de balanza
-        weigh_date = request.form.get('weigh_date') or get_plant_now_str() # Fecha general de pesada
+        weigh_date = request.form.get('weigh_date') # Fecha general de pesada
         exit_date = request.form.get('exit_date') # Fecha de egreso de báscula
         entry_date = request.form.get('entry_date') # Fecha de ingreso a báscula
+        # Si no se definio fecha general de pesada, utiliza la fecha de egreso, ingreso o fecha oficial de planta
+        if not weigh_date: # Comprueba si no vino weigh_date
+            weigh_date = exit_date or entry_date or get_plant_now_str() # Fallback a fechas ingresadas
         operation_type = request.form.get('operation_type', 'ingreso') # Tipo de operación (ingreso/egreso)
         product = request.form.get('product', 'semilla') # Producto o materia prima
         truck_plate = request.form.get('truck_plate') # Patente del chasis

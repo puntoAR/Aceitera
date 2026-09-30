@@ -30,6 +30,9 @@ from core.database import get_db_connection
 from core.timezone import get_plant_now_str
 from core.audit import record_audit_event
 from core.error_logger import log_error, log_info
+# Importa funcion de normalizacion de fechas
+from core.utils import normalize_date_str # Funcion utilitaria de fechas normalizadas
+
 
 # Analizador robusto de tablas HTML para archivos generados por balanzas industriales exportados con extension .xls
 class HTMLTableParser(HTMLParser):
@@ -184,15 +187,13 @@ def record_weighing(
     # Conversion segura a punto flotante de tara
     tare = float(tare_weight_kg or 0.0)
 
-    # Si no se paso fecha de pesada toma la hora oficial de planta
-    if not weigh_date:
-        # Obtiene hora actual de planta
-        weigh_date = get_plant_now_str()
+    # Normaliza fecha de pesada o recurre a fechas de egreso/ingreso o fecha oficial de planta
+    weigh_date = normalize_date_str(weigh_date) or normalize_date_str(exit_date) or normalize_date_str(entry_date) or get_plant_now_str() # Fecha oficial normalizada
+    # Normaliza fecha de ingreso
+    entry_date = normalize_date_str(entry_date) or (weigh_date if operation_type == 'ingreso' else weigh_date) # Fecha ingreso normalizada
+    # Normaliza fecha de egreso
+    exit_date = normalize_date_str(exit_date) or (weigh_date if operation_type == 'egreso' else weigh_date) # Fecha egreso normalizada
 
-    # Fecha de ingreso
-    entry_date = entry_date or (weigh_date if operation_type == 'ingreso' else weigh_date)
-    # Fecha de egreso
-    exit_date = exit_date or (weigh_date if operation_type == 'egreso' else weigh_date)
 
     # Procedencia o destino consolidado
     origin_destination = origin_destination or destination or origin or 'BioBalcarce'
@@ -302,94 +303,229 @@ def record_weighing(
     # Retorna ID de pesada
     return weighing_id
 
+# Expresion SQL para normalizar y comparar fechas en SQLite y Turso (soporta ISO, DD/MM/YYYY y DD-MM-YYYY)
+_SQL_WEIGH_DATE_EXPR = """
+CASE
+  WHEN COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')) LIKE '__/__/____%'
+    THEN substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 7, 4) || '-' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 4, 2) || '-' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 1, 2) ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 11)
+  WHEN COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')) LIKE '_/__/____%'
+    THEN substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 6, 4) || '-' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 3, 2) || '-0' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 1, 1) ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 10)
+  WHEN COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')) LIKE '__-__-____%'
+    THEN substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 7, 4) || '-' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 4, 2) || '-' ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 1, 2) ||
+         substr(COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, '')), 11)
+  ELSE COALESCE(NULLIF(weigh_date, ''), NULLIF(exit_date, ''), NULLIF(entry_date, ''))
+END
+"""
+
 # Obtiene la lista filtrada de pesadas de balanza para la vista web
-def get_recent_weighings(limit=200, product=None, operation_type=None, search=None, start_date=None, end_date=None):
-    query = "SELECT * FROM truck_scale_weighings WHERE 1=1"
-    params = []
+def get_recent_weighings(limit=500, product=None, operation_type=None, search=None, start_date=None, end_date=None): # Consulta pesadas con filtros completos
+    # Sentencia base de consulta
+    query = "SELECT * FROM truck_scale_weighings WHERE 1=1" # Base SQL
+    # Lista de parametros para prevenir inyecciones SQL
+    params = [] # Parametros
 
-    if product and product != 'todos':
-        query += " AND product = ?"
-        params.append(product)
+    # Filtro por producto
+    if product and product != 'todos': # Si se especifico un producto
+        # Agrega clausula de producto
+        query += " AND product = ?" # Filtro producto
+        # Agrega parametro
+        params.append(product) # Parametro producto
 
-    if operation_type and operation_type != 'todos':
-        query += " AND operation_type = ?"
-        params.append(operation_type)
+    # Filtro por operacion
+    if operation_type and operation_type != 'todos': # Si se especifico operacion
+        # Agrega clausula de operacion
+        query += " AND operation_type = ?" # Filtro operacion
+        # Agrega parametro
+        params.append(operation_type) # Parametro operacion
 
-    if search:
-        term = f"%{search.strip()}%"
-        query += " AND (truck_plate LIKE ? OR trailer_plate LIKE ? OR ticket_number LIKE ? OR driver_name LIKE ? OR transport_company LIKE ? OR notes LIKE ?)"
-        params.extend([term, term, term, term, term, term])
+    # Filtro de busqueda textual
+    if search: # Si hay texto de busqueda
+        # Formatea comodines para busqueda parcial
+        term = f"%{search.strip()}%" # Termino con comodines
+        # Agrega condiciones que cubren patentes, tickets, chofer, transportista, cliente, notas y DNI
+        query += " AND (truck_plate LIKE ? OR trailer_plate LIKE ? OR ticket_number LIKE ? OR driver_name LIKE ? OR transport_company LIKE ? OR notes LIKE ? OR client LIKE ? OR recipient LIKE ? OR origin_destination LIKE ? OR driver_dni LIKE ?)" # Cobertura de busqueda
+        # Extiende parametros con 10 repeticiones del termino
+        params.extend([term] * 10) # 10 campos buscados
 
-    if start_date:
-        query += " AND weigh_date >= ?"
-        params.append(f"{start_date} 00:00:00")
+    # Filtro de fecha inicial
+    if start_date: # Si se indico fecha desde
+        # Normaliza fecha inicial a YYYY-MM-DD
+        s_norm = normalize_date_str(start_date)[:10] if start_date else '' # Extrae primeros 10 caracteres ISO
+        # Si la fecha inicial es valida
+        if s_norm: # Fecha valida
+            # Compara subcadena normalizada de la fecha
+            query += f" AND substr(({_SQL_WEIGH_DATE_EXPR}), 1, 10) >= ?" # Condicion de fecha inicial
+            # Agrega parametro normalizado
+            params.append(s_norm) # Parametro fecha inicial
 
-    if end_date:
-        query += " AND weigh_date <= ?"
-        params.append(f"{end_date} 23:59:59")
+    # Filtro de fecha final
+    if end_date: # Si se indico fecha hasta
+        # Normaliza fecha final a YYYY-MM-DD
+        e_norm = normalize_date_str(end_date)[:10] if end_date else '' # Extrae primeros 10 caracteres ISO
+        # Si la fecha final es valida
+        if e_norm: # Fecha valida
+            # Compara subcadena normalizada de la fecha
+            query += f" AND substr(({_SQL_WEIGH_DATE_EXPR}), 1, 10) <= ?" # Condicion de fecha final
+            # Agrega parametro normalizado
+            params.append(e_norm) # Parametro fecha final
 
-    query += " ORDER BY weigh_date DESC, id DESC"
-    if limit:
-        query += " LIMIT ?"
-        params.append(limit)
+    # Orden cronologico descendente por fecha normalizada
+    query += f" ORDER BY ({_SQL_WEIGH_DATE_EXPR}) DESC, id DESC" # Ordenamiento descendente
+    # Si se especifico un limite maximo de registros
+    if limit: # Limite definido
+        # Concatena clausula LIMIT
+        query += " LIMIT ?" # Limite SQL
+        # Agrega valor de limite
+        params.append(limit) # Parametro limite
 
-    with get_db_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
-        return [dict(r) for r in rows]
+    # Abre conexion protegida
+    with get_db_connection() as conn: # Conexion
+        # Ejecuta consulta parametrizada
+        rows = conn.execute(query, params).fetchall() # Obtiene filas
+        # Retorna lista de diccionarios
+        return [dict(r) for r in rows] # Retorna resultados
 
-# Obtiene metricas agregadas para las tarjetas superiores de KPI
-def get_weighing_summary_stats(start_date=None, end_date=None):
-    query = "SELECT operation_type, product, SUM(net_weight_kg) as total_kg, COUNT(*) as count FROM truck_scale_weighings WHERE 1=1"
-    params = []
-    if start_date:
-        query += " AND weigh_date >= ?"
-        params.append(f"{start_date} 00:00:00")
-    if end_date:
-        query += " AND weigh_date <= ?"
-        params.append(f"{end_date} 23:59:59")
-    query += " GROUP BY operation_type, product"
+# Obtiene metricas agregadas para las tarjetas superiores de KPI sincronizadas con todos los filtros activos
+def get_weighing_summary_stats(start_date=None, end_date=None, product=None, operation_type=None, search=None, **kwargs): # Recibe todos los filtros aplicados
+    # Sentencia SQL agregada por tipo de operacion y producto
+    query = """
+        SELECT operation_type, product, SUM(net_weight_kg) as total_kg, COUNT(*) as count 
+        FROM truck_scale_weighings 
+        WHERE 1=1
+    """ # Consulta base agregada
+    # Lista de parametros SQL
+    params = [] # Parametros
 
-    with get_db_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
+    # Filtro opcional por producto
+    if product and product != 'todos': # Si no es comodin todos
+        # Agrega condicion de producto
+        query += " AND product = ?" # Filtro producto
+        # Agrega parametro
+        params.append(product) # Parametro producto
 
-    stats = {
-        'total_trucks': 0,
-        'total_ingreso_tons': 0.0,
-        'total_egreso_tons': 0.0,
-        'semilla_ingreso_tons': 0.0,
-        'expeller_egreso_tons': 0.0,
-        'aceite_egreso_tons': 0.0,
-        'insumos_tons': 0.0
-    }
+    # Filtro opcional por tipo de operacion
+    if operation_type and operation_type != 'todos': # Si no es comodin todos
+        # Agrega condicion de operacion
+        query += " AND operation_type = ?" # Filtro operacion
+        # Agrega parametro
+        params.append(operation_type) # Parametro operacion
 
-    for r in rows:
-        op = r['operation_type']
-        prod = r['product']
-        tons = round((r['total_kg'] or 0.0) / 1000.0, 2)
-        count = r['count'] or 0
+    # Filtro de texto de busqueda
+    if search: # Si hay termino de busqueda
+        # Formatea termino con comodines
+        term = f"%{search.strip()}%" # Termino busqueda
+        # Cobertura sobre patentes, chofer, transporte, cliente, destinatario, notas y DNI
+        query += " AND (truck_plate LIKE ? OR trailer_plate LIKE ? OR ticket_number LIKE ? OR driver_name LIKE ? OR transport_company LIKE ? OR notes LIKE ? OR client LIKE ? OR recipient LIKE ? OR origin_destination LIKE ? OR driver_dni LIKE ?)" # Filtro busqueda
+        # Extiende parametros
+        params.extend([term] * 10) # 10 campos
 
-        stats['total_trucks'] += count
-        if op == 'ingreso':
-            stats['total_ingreso_tons'] += tons
-            if prod == 'semilla':
-                stats['semilla_ingreso_tons'] += tons
-            else:
-                stats['insumos_tons'] += tons
-        elif op == 'egreso':
-            stats['total_egreso_tons'] += tons
-            if prod == 'expeller':
-                stats['expeller_egreso_tons'] += tons
-            elif prod == 'aceite':
-                stats['aceite_egreso_tons'] += tons
-            else:
-                stats['insumos_tons'] += tons
+    # Filtro por fecha inicial
+    if start_date: # Si se indico fecha desde
+        # Normaliza fecha inicial
+        s_norm = normalize_date_str(start_date)[:10] if start_date else '' # Normalizacion a YYYY-MM-DD
+        # Si la fecha inicial es valida
+        if s_norm: # Fecha inicial valida
+            # Condicion de fecha inicial
+            query += f" AND substr(({_SQL_WEIGH_DATE_EXPR}), 1, 10) >= ?" # Filtro fecha inicial
+            # Parametro fecha inicial
+            params.append(s_norm) # Parametro
+
+    # Filtro por fecha final
+    if end_date: # Si se indico fecha hasta
+        # Normaliza fecha final
+        e_norm = normalize_date_str(end_date)[:10] if end_date else '' # Normalizacion a YYYY-MM-DD
+        # Si la fecha final es valida
+        if e_norm: # Fecha final valida
+            # Condicion de fecha final
+            query += f" AND substr(({_SQL_WEIGH_DATE_EXPR}), 1, 10) <= ?" # Filtro fecha final
+            # Parametro fecha final
+            params.append(e_norm) # Parametro
+
+    # Agrupa por operacion y producto
+    query += " GROUP BY operation_type, product" # Agrupamiento SQL
+
+    # Abre conexion protegida
+    with get_db_connection() as conn: # Conexion activa
+        # Ejecuta consulta de metricas
+        rows = conn.execute(query, params).fetchall() # Obtiene filas agrupadas
+
+    # Estructura de metricas acumuladas
+    stats = { # Diccionario de estadisticas
+        'total_trucks': 0, # Total de camiones/pesadas
+        'total_ingreso_tons': 0.0, # Toneladas totales de ingreso
+        'total_egreso_tons': 0.0, # Toneladas totales de egreso
+        'semilla_ingreso_tons': 0.0, # Toneladas de semilla ingresadas
+        'expeller_egreso_tons': 0.0, # Toneladas de expeller egresadas
+        'aceite_egreso_tons': 0.0, # Toneladas de aceite egresadas
+        'insumos_tons': 0.0 # Toneladas de insumos varios
+    } # Fin estructura de estadisticas
+
+    # Itera los resultados agrupados
+    for r in rows: # Itera cada grupo
+        # Sentido de operacion
+        op = r['operation_type'] # Operacion
+        # Denominacion del producto
+        prod = r['product'] # Producto
+        # Peso total en toneladas con 2 decimales
+        tons = round((r['total_kg'] or 0.0) / 1000.0, 2) # Conversion a toneladas
+        # Cantidad de pesadas en el grupo
+        count = r['count'] or 0 # Conteo de registros
+
+        # Suma camiones totales
+        stats['total_trucks'] += count # Acumula total de pesadas
+        # Si la operacion es de ingreso
+        if op == 'ingreso': # Operacion ingreso
+            # Acumula total ingresado
+            stats['total_ingreso_tons'] += tons # Acumula toneladas
+            # Si el producto es semilla
+            if prod == 'semilla': # Semilla
+                # Acumula semilla
+                stats['semilla_ingreso_tons'] += tons # Acumula semilla
+            # Otros productos de ingreso
+            else: # Insumos
+                # Acumula insumos
+                stats['insumos_tons'] += tons # Acumula insumos
+        # Si la operacion es de egreso
+        elif op == 'egreso': # Operacion egreso
+            # Acumula total egresado
+            stats['total_egreso_tons'] += tons # Acumula toneladas
+            # Si el producto es expeller
+            if prod == 'expeller': # Expeller
+                # Acumula expeller
+                stats['expeller_egreso_tons'] += tons # Acumula expeller
+            # Si el producto es aceite
+            elif prod == 'aceite': # Aceite
+                # Acumula aceite
+                stats['aceite_egreso_tons'] += tons # Acumula aceite
+            # Otros productos de egreso
+            else: # Otros
+                # Acumula insumos
+                stats['insumos_tons'] += tons # Acumula insumos
+
+    # Redondeo de seguridad
+    stats['total_ingreso_tons'] = round(stats['total_ingreso_tons'], 2) # Redondeo ingreso
+    stats['total_egreso_tons'] = round(stats['total_egreso_tons'], 2) # Redondeo egreso
+    stats['semilla_ingreso_tons'] = round(stats['semilla_ingreso_tons'], 2) # Redondeo semilla
+    stats['expeller_egreso_tons'] = round(stats['expeller_egreso_tons'], 2) # Redondeo expeller
+    stats['aceite_egreso_tons'] = round(stats['aceite_egreso_tons'], 2) # Redondeo aceite
+    stats['insumos_tons'] = round(stats['insumos_tons'], 2) # Redondeo insumos
 
     # Aliases de compatibilidad
-    stats['seed_in_tons'] = stats['semilla_ingreso_tons']
-    stats['oil_out_tons'] = stats['aceite_egreso_tons']
-    stats['expeller_out_tons'] = stats['expeller_egreso_tons']
+    stats['seed_in_tons'] = stats['semilla_ingreso_tons'] # Alias semilla
+    stats['oil_out_tons'] = stats['aceite_egreso_tons'] # Alias aceite
+    stats['expeller_out_tons'] = stats['expeller_egreso_tons'] # Alias expeller
 
-    return stats
+    # Retorna diccionario de estadisticas
+    return stats # Retorna stats
+
 
 # Extrae renglones crudos soportando XLSX moderno, XLS binario, XLS HTML, XLS XML y CSV/TSV
 def _extract_rows_from_file(raw_bytes, filename=''):
@@ -794,9 +930,9 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
                 return default # Retorna número por omisión
 
         ticket = get_val('ticket') # Extrae número de ticket o comprobante
-        fecha_egreso = get_val('fecha_egreso') # Extrae fecha de egreso
-        fecha_ingreso = get_val('fecha_ingreso') # Extrae fecha de ingreso
-        fecha = fecha_egreso or fecha_ingreso or get_val('fecha') or get_plant_now_str() # Resuelve fecha de la pesada
+        fecha_egreso = normalize_date_str(get_val('fecha_egreso')) # Extrae fecha de egreso normalizada
+        fecha_ingreso = normalize_date_str(get_val('fecha_ingreso')) # Extrae fecha de ingreso normalizada
+        fecha = fecha_egreso or fecha_ingreso or normalize_date_str(get_val('fecha')) or get_plant_now_str() # Resuelve fecha de la pesada normalizada
         chasis = get_val('chasis') # Extrae patente de chasis
         acoplado = get_val('acoplado') # Extrae patente de acoplado
         chofer = get_val('chofer') # Extrae nombre de chofer

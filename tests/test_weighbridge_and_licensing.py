@@ -105,6 +105,138 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         delete_weighing(w_id)
         self.assertEqual(len(get_recent_weighings()), 0)
 
+    def test_date_range_filtering_with_various_formats(self): # Prueba de filtrado por rango de fechas con multiples formatos
+        """Verifica que el filtrado por rango de fechas reconozca formatos ISO y DD/MM/YYYY sin omitir pesadas""" # Docstring
+        record_weighing( # Registra pesada en formato ISO con hora
+            ticket_number="TK-SEP-01", # Numero de ticket
+            weigh_date="2026-09-05 10:00:00", # Fecha ISO
+            operation_type="ingreso", # Operacion ingreso
+            product="semilla", # Producto semilla
+            gross_weight_kg=45000, # Bruto
+            tare_weight_kg=15000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra pesada con fecha formato latino DD/MM/YYYY con hora
+            ticket_number="TK-SEP-02", # Numero de ticket
+            weigh_date="25/09/2026 14:30", # Fecha latina con minutos
+            operation_type="egreso", # Operacion egreso
+            product="expeller", # Producto expeller
+            gross_weight_kg=35000, # Bruto
+            tare_weight_kg=15000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra pesada con fecha formato latino DD/MM/YYYY sin hora
+            ticket_number="TK-SEP-03", # Numero de ticket
+            weigh_date="30/09/2026", # Fecha latina de fin de mes
+            operation_type="egreso", # Operacion egreso
+            product="aceite", # Producto aceite
+            gross_weight_kg=32000, # Bruto
+            tare_weight_kg=17000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra pesada en mes anterior (agosto)
+            ticket_number="TK-AGO-01", # Numero de ticket
+            weigh_date="2026-08-31 23:59:59", # Fecha agosto fuera de rango
+            operation_type="ingreso", # Operacion ingreso
+            product="semilla", # Producto semilla
+            gross_weight_kg=40000, # Bruto
+            tare_weight_kg=15000 # Tara
+        ) # Cierra llamada
+        record_weighing( # Registra pesada en mes posterior (octubre)
+            ticket_number="TK-OCT-01", # Numero de ticket
+            weigh_date="2026-10-01 00:00:01", # Fecha octubre fuera de rango
+            operation_type="egreso", # Operacion egreso
+            product="expeller", # Producto expeller
+            gross_weight_kg=30000, # Bruto
+            tare_weight_kg=10000 # Tara
+        ) # Cierra llamada
+
+        # Filtra por el mes completo de septiembre 2026
+        weighings = get_recent_weighings(start_date="2026-09-01", end_date="2026-09-30") # Consulta pesadas del rango
+        # Verifica que solo se hayan recuperado exactamente las 3 pesadas de septiembre
+        self.assertEqual(len(weighings), 3) # Comprueba cantidad esperada
+        # Obtiene lista de tickets encontrados
+        tickets = [w['ticket_number'] for w in weighings] # Lista de comprobantes
+        # Valida que los tres tickets de septiembre esten incluidos
+        self.assertIn("TK-SEP-01", tickets) # Valida ticket 1
+        self.assertIn("TK-SEP-02", tickets) # Valida ticket 2 (formato latino DD/MM/YYYY)
+        self.assertIn("TK-SEP-03", tickets) # Valida ticket 3 (formato latino fin de mes)
+        # Valida que los tickets fuera de rango hayan sido excluidos
+        self.assertNotIn("TK-AGO-01", tickets) # Excluye agosto
+        self.assertNotIn("TK-OCT-01", tickets) # Excluye octubre
+
+    def test_kpi_summary_stats_synchronized_with_filters(self): # Prueba de sincronizacion de metricas KPI con filtros
+        """Verifica que los indicadores superiores reflejen exactamente los datos filtrados por fecha, producto y busqueda""" # Docstring
+        record_weighing( # Registra pesada de semilla en septiembre
+            ticket_number="KPI-01", # Ticket
+            weigh_date="2026-09-10 10:00:00", # Fecha septiembre
+            truck_plate="ABC111", # Patente
+            operation_type="ingreso", # Ingreso
+            product="semilla", # Semilla
+            gross_weight_kg=45000, # 45 Tn bruto
+            tare_weight_kg=15000 # 15 Tn tara -> 30 Tn neto
+        ) # Cierra llamada
+        record_weighing( # Registra pesada de expeller en septiembre
+            ticket_number="KPI-02", # Ticket
+            weigh_date="2026-09-20 12:00:00", # Fecha septiembre
+            truck_plate="DEF222", # Patente
+            operation_type="egreso", # Egreso
+            product="expeller", # Expeller
+            gross_weight_kg=35000, # 35 Tn bruto
+            tare_weight_kg=15000 # 15 Tn tara -> 20 Tn neto
+        ) # Cierra llamada
+        record_weighing( # Registra pesada de aceite en septiembre
+            ticket_number="KPI-03", # Ticket
+            weigh_date="2026-09-28 16:00:00", # Fecha septiembre
+            truck_plate="GHI333", # Patente
+            operation_type="egreso", # Egreso
+            product="aceite", # Aceite
+            gross_weight_kg=30000, # 30 Tn bruto
+            tare_weight_kg=15000 # 15 Tn tara -> 15 Tn neto
+        ) # Cierra llamada
+        record_weighing( # Registra pesada en agosto (fuera del filtro)
+            ticket_number="KPI-04", # Ticket
+            weigh_date="2026-08-15 10:00:00", # Fecha agosto
+            truck_plate="JKL444", # Patente
+            operation_type="ingreso", # Ingreso
+            product="semilla", # Semilla
+            gross_weight_kg=50000, # 50 Tn bruto
+            tare_weight_kg=10000 # 10 Tn tara -> 40 Tn neto
+        ) # Cierra llamada
+
+        # 1. Metricas filtradas por rango de fechas de septiembre
+        stats_sep = get_weighing_summary_stats(start_date="2026-09-01", end_date="2026-09-30") # Consulta KPIs periodo
+        self.assertEqual(stats_sep['total_trucks'], 3) # 3 pesadas en septiembre
+        self.assertEqual(stats_sep['semilla_ingreso_tons'], 30.0) # 30 Tn semilla
+        self.assertEqual(stats_sep['expeller_egreso_tons'], 20.0) # 20 Tn expeller
+        self.assertEqual(stats_sep['aceite_egreso_tons'], 15.0) # 15 Tn aceite
+
+        # 2. Metricas filtradas por producto 'aceite' en septiembre
+        stats_oil = get_weighing_summary_stats(product="aceite", start_date="2026-09-01", end_date="2026-09-30") # KPIs aceite
+        self.assertEqual(stats_oil['total_trucks'], 1) # Solo 1 camion de aceite
+        self.assertEqual(stats_oil['aceite_egreso_tons'], 15.0) # 15 Tn de aceite
+        self.assertEqual(stats_oil['semilla_ingreso_tons'], 0.0) # Cero de otros productos
+
+        # 3. Metricas filtradas por termino de busqueda de patente
+        stats_search = get_weighing_summary_stats(search="DEF222") # Busqueda especifica
+        self.assertEqual(stats_search['total_trucks'], 1) # 1 pesada coincidente
+        self.assertEqual(stats_search['expeller_egreso_tons'], 20.0) # 20 Tn correspondientes
+
+    def test_migration_17_normalize_dates(self): # Prueba de migracion 17
+        """Verifica que la migracion 17 normalice fechas historicas con formato DD/MM/YYYY""" # Docstring
+        from core.migrations import backfill_normalize_weighbridge_dates # Importa callback de migracion
+        with get_db_connection() as conn: # Abre conexion de prueba
+            # Inserta registro con fecha estilo latino DD/MM/YYYY y columnas obligatorias
+            conn.execute("""
+                INSERT INTO truck_scale_weighings (ticket_number, weigh_date, entry_date, exit_date, operation_type, product)
+                VALUES ('MIG17-01', '24/09/2026 11:00', '24/09/2026', '24/09/2026 11:30', 'ingreso', 'semilla');
+            """) # Insercion protegida con operacion y producto
+            # Ejecuta la normalizacion de fechas
+            backfill_normalize_weighbridge_dates(conn) # Aplica normalizacion
+            # Consulta la fila actualizada
+            row = conn.execute("SELECT weigh_date, entry_date, exit_date FROM truck_scale_weighings WHERE ticket_number = 'MIG17-01';").fetchone() # Consulta
+            # Comprueba formato ISO normalizado
+            self.assertEqual(row['weigh_date'], '2026-09-24 11:00:00') # Valida weigh_date normalizada
+            self.assertEqual(row['entry_date'], '2026-09-24 00:00:00') # Valida entry_date normalizada
+            self.assertEqual(row['exit_date'], '2026-09-24 11:30:00') # Valida exit_date normalizada
+
     def test_export_weighings_excel_and_csv(self): # Prueba de exportación a Excel y CSV
         """Verifica la exportación de pesadas con las 27 columnas estándar de balanza""" # Docstring
         record_weighing( # Registra pesada de prueba con datos estándar
@@ -346,6 +478,49 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         r_admin = self.client.get('/weighbridge/')
         self.assertEqual(r_admin.status_code, 200)
         self.assertIn(b'Importar Planilla de Balanza', r_admin.data)
+
+    def test_weighbridge_http_get_with_date_range_filter(self): # Prueba de peticion HTTP con filtro de fechas de balanza
+        """Verifica que la ruta HTTP /weighbridge/ filtre correctamente por rango de fechas y actualice los KPIs en pantalla""" # Docstring
+        # Inicia sesion con rol administrativo
+        self.client.get('/logout') # Cierra sesion
+        self.client.post('/login', data={'username': 'admin', 'pin': '1234'}) # Autentica como admin
+
+        # Registra pesada dentro de septiembre 2026
+        record_weighing( # Registra pesada
+            ticket_number="T-WEB-SEP", # Ticket
+            weigh_date="26/09/2026 10:00", # Fecha septiembre estilo DD/MM/YYYY
+            truck_plate="WEB123", # Patente
+            operation_type="ingreso", # Ingreso
+            product="semilla", # Semilla
+            gross_weight_kg=45000, # 45 Tn bruto
+            tare_weight_kg=15000 # 15 Tn tara -> 30 Tn neto
+        ) # Cierra llamada
+
+        # Registra pesada en agosto 2026 (fuera de rango)
+        record_weighing( # Registra pesada agosto
+            ticket_number="T-WEB-AGO", # Ticket
+            weigh_date="2026-08-10 10:00:00", # Fecha agosto
+            truck_plate="OLD999", # Patente
+            operation_type="ingreso", # Ingreso
+            product="semilla", # Semilla
+            gross_weight_kg=40000, # 40 Tn bruto
+            tare_weight_kg=15000 # 15 Tn tara -> 25 Tn neto
+        ) # Cierra llamada
+
+        # Realiza peticion GET con la URL exacta enviada por el usuario
+        url = '/weighbridge/?search=&operation_type=todos&product=todos&start_date=2026-09-01&end_date=2026-09-30' # URL de consulta
+        res = self.client.get(url) # Ejecuta GET
+        self.assertEqual(res.status_code, 200) # Comprueba codigo 200 OK
+        # Comprueba que el ticket de septiembre este presente en el HTML
+        self.assertIn(b'T-WEB-SEP', res.data) # Valida inclusion de ticket septiembre
+        self.assertIn(b'WEB123', res.data) # Valida inclusion de patente septiembre
+        # Comprueba que la pesada de agosto fuera de rango NO aparezca en la tabla
+        self.assertNotIn(b'T-WEB-AGO', res.data) # Valida exclusion de ticket agosto
+        self.assertNotIn(b'OLD999', res.data) # Valida exclusion de patente agosto
+        # Comprueba que el contador de pesadas refleje 1 pesada filtrada
+        self.assertIn(b'1 pesadas filtradas', res.data) # Valida subtitulo de pesadas filtradas
+        # Comprueba que el KPI de semilla de septiembre refleje 30.0 Tn
+        self.assertIn(b'30.0', res.data) # Valida KPI reactivo a los filtros
 
     # -------------------------------------------------------------------------
     # 2. PRUEBAS DE LICENCIAMIENTO PROGRAMABLE (SERVICIO Y RESTRICCIONES)

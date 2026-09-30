@@ -481,6 +481,57 @@ REGISTERED_MIGRATIONS = [
         """,
         # Callback para retrocompatibilidad y relleno de filas existentes
         'callback': lambda conn: backfill_weighbridge_standard_columns(conn)
+    },
+    {
+        # Version 17: Normalizacion de fechas de balanza para filtros y estadisticas de pesadas
+        'version': 17,
+        # Identificador de la migracion
+        'name': 'v17_normalize_weighbridge_dates',
+        # Descripcion del ajuste
+        'description': 'Normaliza fechas de báscula en formato ISO YYYY-MM-DD HH:MM:SS para garantizar filtrado por rangos y KPIs reactivos',
+        # Script SQL para actualizar fechas con slash o guiones en SQLite y Turso
+        'sql': """
+            -- Actualiza weigh_date con formato DD/MM/YYYY a YYYY-MM-DD
+            UPDATE truck_scale_weighings
+            SET weigh_date = CASE
+                WHEN weigh_date LIKE '__/__/____%'
+                  THEN substr(weigh_date, 7, 4) || '-' || substr(weigh_date, 4, 2) || '-' || substr(weigh_date, 1, 2) || substr(weigh_date, 11)
+                WHEN weigh_date LIKE '_/__/____%'
+                  THEN substr(weigh_date, 6, 4) || '-' || substr(weigh_date, 3, 2) || '-0' || substr(weigh_date, 1, 1) || substr(weigh_date, 10)
+                WHEN weigh_date LIKE '__-__-____%'
+                  THEN substr(weigh_date, 7, 4) || '-' || substr(weigh_date, 4, 2) || '-' || substr(weigh_date, 1, 2) || substr(weigh_date, 11)
+                ELSE weigh_date
+            END
+            WHERE weigh_date LIKE '%/%' OR (weigh_date LIKE '%-%' AND substr(weigh_date, 3, 1) = '-');
+
+            -- Actualiza entry_date con formato DD/MM/YYYY a YYYY-MM-DD
+            UPDATE truck_scale_weighings
+            SET entry_date = CASE
+                WHEN entry_date LIKE '__/__/____%'
+                  THEN substr(entry_date, 7, 4) || '-' || substr(entry_date, 4, 2) || '-' || substr(entry_date, 1, 2) || substr(entry_date, 11)
+                WHEN entry_date LIKE '_/__/____%'
+                  THEN substr(entry_date, 6, 4) || '-' || substr(entry_date, 3, 2) || '-0' || substr(entry_date, 1, 1) || substr(entry_date, 10)
+                WHEN entry_date LIKE '__-__-____%'
+                  THEN substr(entry_date, 7, 4) || '-' || substr(entry_date, 4, 2) || '-' || substr(entry_date, 1, 2) || substr(entry_date, 11)
+                ELSE entry_date
+            END
+            WHERE entry_date LIKE '%/%' OR (entry_date LIKE '%-%' AND substr(entry_date, 3, 1) = '-');
+
+            -- Actualiza exit_date con formato DD/MM/YYYY a YYYY-MM-DD
+            UPDATE truck_scale_weighings
+            SET exit_date = CASE
+                WHEN exit_date LIKE '__/__/____%'
+                  THEN substr(exit_date, 7, 4) || '-' || substr(exit_date, 4, 2) || '-' || substr(exit_date, 1, 2) || substr(exit_date, 11)
+                WHEN exit_date LIKE '_/__/____%'
+                  THEN substr(exit_date, 6, 4) || '-' || substr(exit_date, 3, 2) || '-0' || substr(exit_date, 1, 1) || substr(exit_date, 10)
+                WHEN exit_date LIKE '__-__-____%'
+                  THEN substr(exit_date, 7, 4) || '-' || substr(exit_date, 4, 2) || '-' || substr(exit_date, 1, 2) || substr(exit_date, 11)
+                ELSE exit_date
+            END
+            WHERE exit_date LIKE '%/%' OR (exit_date LIKE '%-%' AND substr(exit_date, 3, 1) = '-');
+        """,
+        # Callback en Python para conversion exhaustiva de fechas y casos especiales
+        'callback': lambda conn: backfill_normalize_weighbridge_dates(conn)
     }
 ]
 
@@ -617,6 +668,45 @@ def backfill_sample_dates(conn):
     except Exception as e:
         # Registra advertencia en bitacora
         log_error('MIGRATIONS', 'Aviso al backfillear sample_date en production_weighings', e)
+
+# Funcion de normalizacion de fechas historicas en pesadas de balanza
+def backfill_normalize_weighbridge_dates(conn):
+    # Importa funcion utilitaria de normalizacion de fechas
+    from core.utils import normalize_date_str
+    # Intenta la normalizacion exhaustiva
+    try:
+        # Consulta todas las pesadas de balanza existentes
+        rows = conn.execute("SELECT id, weigh_date, entry_date, exit_date FROM truck_scale_weighings;").fetchall()
+        # Itera por cada registro de pesada
+        for r in rows:
+            # Obtiene ID de fila
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            # Obtiene fecha de pesada
+            wd = r['weigh_date'] if isinstance(r, dict) else r[1]
+            # Obtiene fecha de ingreso
+            ed = r['entry_date'] if isinstance(r, dict) else r[2]
+            # Obtiene fecha de egreso
+            xd = r['exit_date'] if isinstance(r, dict) else r[3]
+            # Normaliza fecha de pesada
+            norm_wd = normalize_date_str(wd)
+            # Normaliza fecha de ingreso
+            norm_ed = normalize_date_str(ed)
+            # Normaliza fecha de egreso
+            norm_xd = normalize_date_str(xd)
+            # Si weigh_date quedo vacio, asigna fallback a exit_date o entry_date
+            norm_wd = norm_wd or norm_xd or norm_ed
+            # Si hubo cambios en alguna fecha
+            if norm_wd != wd or norm_ed != ed or norm_xd != xd:
+                # Actualiza el registro con las fechas estandarizadas
+                conn.execute("""
+                    UPDATE truck_scale_weighings
+                    SET weigh_date = ?, entry_date = ?, exit_date = ?
+                    WHERE id = ?;
+                """, (norm_wd, norm_ed, norm_xd, rid))
+    # Captura errores en caso de fallo
+    except Exception as e:
+        # Registra advertencia en bitacora
+        log_error('MIGRATIONS', 'Aviso al normalizar fechas en truck_scale_weighings', e)
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

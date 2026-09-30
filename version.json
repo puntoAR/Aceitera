@@ -1,5 +1,5 @@
 {
-  "version": "1.2.2",
+  "version": "1.2.3",
   "release_date": "2026-09-30",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
@@ -25,6 +25,7 @@
     "v1.1.9 - Cálculo automático de eficiencia industrial según datos registrados en planta (sin carga manual obligatoria) y simulador reactivo con juego de datos ingresado: Pilar 3 del Dashboard siempre activo con telemetría en vivo, guardado oficial en un clic, cálculo reactivo en pantalla y balance másico clasificado",
     "v1.2.0 - Compatibilidad universal para importación de pesadas de balanza .xls y .xlsx: soporte nativo para planillas binarias Excel 97-2003 (BIFF8 via xlrd), tablas HTML exportadas con extensión .xls, SpreadsheetML XML y delimitados por comas/tabulaciones, eliminando la excepción BadZipFile y garantizando tolerancia a fallos ante cualquier formato de balanzas de camiones",
     "v1.2.1 - Identificación y desacople de fecha y turno de toma de muestra en Laboratorio y Producción: registro independiente de fecha física de extracción (sample_date) y turno de origen (shift_id) respecto a la fecha y hora de carga (timestamp), cálculo de promedios analíticos, velocidades horarias, conciliación de rendimiento y dashboard consolidado en base a la fecha de la muestra, con edición y auditoría completa de trazabilidad",
-    "v1.2.2 - Vista de balanza y exportaciones Excel/CSV compatibles con 27 columnas estándar de básculas industriales: ID, Fecha Egreso, Fecha Ingreso, Producto, Cliente, Transportista, Destinatario, Patente Chasis, Patente Acoplado, Procedencia/Destino, Nombre Chofer, Precintos, Observaciones, ID Usuario, Peso Egreso, Peso Ingreso, Peso Neto, Exportador, Tara Manual, Nacionalidad Chofer, Bultos, Aduana, LOT, DNI Chofer, Usuario, Pesada Unica y Destinacion, con cálculo automático en vivo de neto, migración v16 y retrocompatibilidad total"
+    "v1.2.2 - Vista de balanza y exportaciones Excel/CSV compatibles con 27 columnas estándar de básculas industriales: ID, Fecha Egreso, Fecha Ingreso, Producto, Cliente, Transportista, Destinatario, Patente Chasis, Patente Acoplado, Procedencia/Destino, Nombre Chofer, Precintos, Observaciones, ID Usuario, Peso Egreso, Peso Ingreso, Peso Neto, Exportador, Tara Manual, Nacionalidad Chofer, Bultos, Aduana, LOT, DNI Chofer, Usuario, Pesada Unica y Destinacion, con cálculo automático en vivo de neto, migración v16 y retrocompatibilidad total",
+    "v1.2.3 - Corrección del filtrado por rango de fechas en Balanza y sincronización total de indicadores KPI con filtros activos: normalización automática de formatos de fecha ISO y latinos (DD/MM/YYYY), expresión SQL universal compatible con SQLite y Turso, migración estructural v17 de datos históricos y actualización dinámica de tarjetas superiores y conteo de pesadas según criterios de búsqueda, producto y período"
   ]
 }
