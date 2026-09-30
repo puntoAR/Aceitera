@@ -105,31 +105,72 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         delete_weighing(w_id)
         self.assertEqual(len(get_recent_weighings()), 0)
 
-    def test_export_weighings_excel_and_csv(self):
-        """Verifica la exportacion de pesadas a Excel (.xlsx) y CSV"""
-        record_weighing(
-            ticket_number="TK-EXP-1",
-            truck_plate="EXP111",
-            operation_type="ingreso",
-            product="semilla",
-            gross_weight_kg=40000,
-            tare_weight_kg=15000
-        )
+    def test_export_weighings_excel_and_csv(self): # Prueba de exportación a Excel y CSV
+        """Verifica la exportación de pesadas con las 27 columnas estándar de balanza""" # Docstring
+        record_weighing( # Registra pesada de prueba con datos estándar
+            ticket_number="TK-EXP-1", # Número de ticket
+            truck_plate="EXP111", # Patente chasis
+            trailer_plate="TRA999", # Patente acoplado
+            operation_type="ingreso", # Sentido de la pesada
+            product="semilla", # Tipo de producto
+            gross_weight_kg=40000, # Peso bruto
+            tare_weight_kg=15000, # Tara
+            client="Cliente Agro SA", # Cliente
+            recipient="Planta Balcarce", # Destinatario
+            origin_destination="Necochea", # Procedencia/Destino
+            exporter="BioBalcarce Export", # Exportador
+            customs="Aduana Mar del Plata", # Aduana
+            lot="LOT-01-2026" # Lote
+        ) # Cierra llamada
         # Exporta a Excel
-        excel_bytes = export_weighings_to_excel()
-        self.assertIsInstance(excel_bytes, bytes)
-        self.assertTrue(len(excel_bytes) > 1000)
+        excel_bytes = export_weighings_to_excel() # Genera binario Excel
+        self.assertIsInstance(excel_bytes, bytes) # Comprueba que sea tipo bytes
+        self.assertTrue(len(excel_bytes) > 1000) # Comprueba tamaño mínimo de archivo
 
-        # Valida que sea un XLSX valido leyendolo con openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(excel_bytes))
-        sheet = wb.active
-        self.assertIn("Pesadas de Balanza", sheet.title)
-        wb.close()
+        # Valida que sea un XLSX válido y que posea exactamente las 27 columnas
+        wb = openpyxl.load_workbook(io.BytesIO(excel_bytes)) # Carga libro desde stream de memoria
+        sheet = wb.active # Obtiene hoja activa
+        self.assertIn("Pesadas de Balanza", sheet.title) # Valida título de la hoja
+        headers = [cell.value for cell in sheet[1]] # Extrae lista de encabezados de la fila 1
+        expected_27 = [ # Lista de las 27 columnas estándar requeridas
+            "ID", "Fecha Egreso", "Fecha Ingreso", "Producto", "Cliente", # Columnas 1 a 5
+            "Transportista", "Destinatario", "Patente Chasis", "Patente Acoplado", # Columnas 6 a 9
+            "Procedencia/Destino", "Nombre Chofer", "Precintos", "Observaciones", # Columnas 10 a 13
+            "ID Usuario", "Peso Egreso", "Peso Ingreso", "Peso Neto", # Columnas 14 a 17
+            "Exportador", "Tara Manual", "Nacionalidad Chofer", "Bultos", # Columnas 18 a 21
+            "Aduana", "LOT", "DNI Chofer", "Usuario", "Pesada Unica", "Destinacion" # Columnas 22 a 27
+        ] # Fin lista esperada
+        self.assertEqual(headers, expected_27) # Verifica coincidencia exacta de columnas
+        wb.close() # Cierra libro Excel
 
-        # Exporta a CSV
-        csv_bytes = export_weighings_to_csv()
-        self.assertIn("TK-EXP-1", csv_bytes)
-        self.assertIn("EXP111", csv_bytes)
+        # Exporta a CSV y comprueba cabeceras y contenido
+        csv_bytes = export_weighings_to_csv() # Genera texto delimitado CSV
+        self.assertIn("Patente Chasis;Patente Acoplado", csv_bytes) # Verifica cabeceras estándar
+        self.assertIn("TK-EXP-1", csv_bytes) # Verifica existencia del registro
+        self.assertIn("EXP111", csv_bytes) # Verifica patente del camión
+
+    def test_import_weighings_from_27_columns_standard(self): # Prueba de importación de las 27 columnas estándar
+        """Verifica la importación con la cabecera exacta de 27 columnas de balanza industrial""" # Docstring
+        header_line = "ID\tFecha Egreso\tFecha Ingreso\tProducto\tCliente\tTransportista\tDestinatario\tPatente Chasis\tPatente Acoplado\tProcedencia/Destino\tNombre Chofer\tPrecintos\tObservaciones\tID Usuario\tPeso Egreso\tPeso Ingreso\tPeso Neto\tExportador\tTara Manual\tNacionalidad Chofer\tBultos\tAduana\tLOT\tDNI Chofer\tUsuario\tPesada Unica\tDestinacion\n" # Cabecera tabulada
+        row_line = "901\t2026-09-30 15:00\t2026-09-30 14:15\tSemilla\tAcopio del Sur\tTransBalcarce\tBioBalcarce\tAB987CD\tEF654GH\tNecochea\tJuan Lopez\tP-901\tGrano seco\t1\t14200\t44200\t30000\tBioBalcarce SA\tNO\tArgentina\tGranel\tBalcarce\tL-2026\t30111222\toperador1\tNO\tConsumo\n" # Renglón tabulado
+        tsv_content = (header_line + row_line).encode('utf-8') # Concatena y codifica en bytes
+        result = import_weighings_from_file(tsv_content, "balanza_estandar.csv", sync_inventory=False) # Importa archivo
+        self.assertTrue(result['success']) # Verifica éxito de importación
+        self.assertEqual(result['imported_count'], 1) # Comprueba 1 fila incorporada
+        weighings = get_recent_weighings() # Consulta pesadas registradas
+        w = weighings[0] # Obtiene primer registro
+        self.assertEqual(w['truck_plate'], "AB987CD") # Comprueba patente chasis
+        self.assertEqual(w['trailer_plate'], "EF654GH") # Comprueba patente acoplado
+        self.assertEqual(w['client'], "Acopio del Sur") # Comprueba cliente
+        self.assertEqual(w['recipient'], "BioBalcarce") # Comprueba destinatario
+        self.assertEqual(w['origin_destination'], "Necochea") # Comprueba procedencia destino
+        self.assertEqual(w['entry_weight_kg'], 44200.0) # Comprueba peso ingreso
+        self.assertEqual(w['exit_weight_kg'], 14200.0) # Comprueba peso egreso
+        self.assertEqual(w['net_weight_kg'], 30000.0) # Comprueba peso neto
+        self.assertEqual(w['exporter'], "BioBalcarce SA") # Comprueba exportador
+        self.assertEqual(w['driver_nationality'], "Argentina") # Comprueba nacionalidad
+        self.assertEqual(w['customs'], "Balcarce") # Comprueba aduana
+        self.assertEqual(w['lot'], "L-2026") # Comprueba lote
 
     def test_import_weighings_from_csv(self):
         """Verifica la importacion flexible desde un archivo CSV con columnas estandar"""

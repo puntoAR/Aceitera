@@ -436,8 +436,120 @@ REGISTERED_MIGRATIONS = [
         """,
         # Callback para rellenar sample_date en datos historicos existentes
         'callback': lambda conn: backfill_sample_dates(conn)
+    },
+    {
+        # Version 16: Columnas estandar de balanza para compatibilidad y exportacion
+        'version': 16,
+        # Identificador de la migracion
+        'name': 'v16_weighbridge_standard_columns',
+        # Descripcion del ajuste
+        'description': 'Incorpora 27 columnas estandar de balanza de camiones para total compatibilidad y exportacion Excel',
+        # Sentencias SQL para agregar columnas faltantes a truck_scale_weighings
+        'sql': """
+            -- Agrega fecha de egreso
+            ALTER TABLE truck_scale_weighings ADD COLUMN exit_date TEXT DEFAULT NULL;
+            -- Agrega fecha de ingreso
+            ALTER TABLE truck_scale_weighings ADD COLUMN entry_date TEXT DEFAULT NULL;
+            -- Agrega cliente
+            ALTER TABLE truck_scale_weighings ADD COLUMN client TEXT DEFAULT NULL;
+            -- Agrega destinatario
+            ALTER TABLE truck_scale_weighings ADD COLUMN recipient TEXT DEFAULT NULL;
+            -- Agrega procedencia o destino
+            ALTER TABLE truck_scale_weighings ADD COLUMN origin_destination TEXT DEFAULT NULL;
+            -- Agrega ID de usuario
+            ALTER TABLE truck_scale_weighings ADD COLUMN user_id_code TEXT DEFAULT NULL;
+            -- Agrega peso egreso
+            ALTER TABLE truck_scale_weighings ADD COLUMN exit_weight_kg REAL DEFAULT 0.0;
+            -- Agrega peso ingreso
+            ALTER TABLE truck_scale_weighings ADD COLUMN entry_weight_kg REAL DEFAULT 0.0;
+            -- Agrega exportador
+            ALTER TABLE truck_scale_weighings ADD COLUMN exporter TEXT DEFAULT NULL;
+            -- Agrega tara manual
+            ALTER TABLE truck_scale_weighings ADD COLUMN manual_tare TEXT DEFAULT 'NO';
+            -- Agrega nacionalidad chofer
+            ALTER TABLE truck_scale_weighings ADD COLUMN driver_nationality TEXT DEFAULT 'Argentina';
+            -- Agrega bultos
+            ALTER TABLE truck_scale_weighings ADD COLUMN packages TEXT DEFAULT NULL;
+            -- Agrega aduana
+            ALTER TABLE truck_scale_weighings ADD COLUMN customs TEXT DEFAULT NULL;
+            -- Agrega LOT
+            ALTER TABLE truck_scale_weighings ADD COLUMN lot TEXT DEFAULT NULL;
+            -- Agrega pesada unica
+            ALTER TABLE truck_scale_weighings ADD COLUMN single_weighing TEXT DEFAULT 'NO';
+            -- Agrega destinacion
+            ALTER TABLE truck_scale_weighings ADD COLUMN customs_destination TEXT DEFAULT NULL;
+        """,
+        # Callback para retrocompatibilidad y relleno de filas existentes
+        'callback': lambda conn: backfill_weighbridge_standard_columns(conn)
     }
 ]
+
+# Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes
+def backfill_weighbridge_standard_columns(conn):
+    # Bloque de captura segura
+    try:
+        # Consulta pesadas existentes
+        rows = conn.execute("SELECT id, weigh_date, operation_type, gross_weight_kg, tare_weight_kg, net_weight_kg, origin, destination, operator_name FROM truck_scale_weighings;").fetchall()
+        # Itera sobre cada registro
+        for r in rows:
+            # Obtiene id
+            rid = r['id'] if isinstance(r, dict) else r[0]
+            # Obtiene fecha operativa
+            w_date = r['weigh_date'] if isinstance(r, dict) else r[1]
+            # Obtiene operacion
+            op = r['operation_type'] if isinstance(r, dict) else r[2]
+            # Obtiene peso bruto
+            gross = float((r['gross_weight_kg'] if isinstance(r, dict) else r[3]) or 0.0)
+            # Obtiene peso tara
+            tare = float((r['tare_weight_kg'] if isinstance(r, dict) else r[4]) or 0.0)
+            # Obtiene peso neto
+            net = float((r['net_weight_kg'] if isinstance(r, dict) else r[5]) or 0.0)
+            # Obtiene origen
+            orig = (r['origin'] if isinstance(r, dict) else r[6]) or ''
+            # Obtiene destino
+            dest = (r['destination'] if isinstance(r, dict) else r[7]) or ''
+            # Procedencia o destino consolidado
+            orig_dest = dest or orig or 'Planta BioBalcarce'
+            # En egreso: entra vacio (tara) y sale cargado (bruto)
+            if op == 'egreso':
+                # Peso al ingreso fue la tara
+                p_in = tare if tare > 0 else (gross - net if gross > net else 0.0)
+                # Peso al egreso fue el bruto
+                p_out = gross if gross > 0 else (p_in + net)
+                # Fecha de egreso es weigh_date
+                f_out = w_date
+                # Fecha de ingreso se asigna weigh_date
+                f_in = w_date
+            # En ingreso: entra cargado (bruto) y sale vacio (tara)
+            else:
+                # Peso al ingreso fue el bruto
+                p_in = gross if gross > 0 else net
+                # Peso al egreso fue la tara
+                p_out = tare if tare > 0 else (p_in - net if p_in > net else 0.0)
+                # Fecha de ingreso es weigh_date
+                f_in = w_date
+                # Fecha de egreso es weigh_date
+                f_out = w_date
+            # Actualiza fila con valores calculados
+            conn.execute("""
+                UPDATE truck_scale_weighings
+                SET entry_date = COALESCE(entry_date, ?),
+                    exit_date = COALESCE(exit_date, ?),
+                    entry_weight_kg = CASE WHEN entry_weight_kg IS NULL OR entry_weight_kg = 0 THEN ? ELSE entry_weight_kg END,
+                    exit_weight_kg = CASE WHEN exit_weight_kg IS NULL OR exit_weight_kg = 0 THEN ? ELSE exit_weight_kg END,
+                    client = COALESCE(client, ?),
+                    recipient = COALESCE(recipient, ?),
+                    origin_destination = COALESCE(origin_destination, ?),
+                    user_id_code = COALESCE(user_id_code, '1'),
+                    manual_tare = COALESCE(manual_tare, 'NO'),
+                    driver_nationality = COALESCE(driver_nationality, 'Argentina'),
+                    single_weighing = COALESCE(single_weighing, 'NO')
+                WHERE id = ?;
+            """, (f_in, f_out, p_in, p_out, dest, dest, orig_dest, rid))
+    # Captura errores
+    except Exception as e:
+        # Registra advertencia en bitacora
+        log_error('MIGRATIONS', 'Aviso al rellenar columnas estandar de balanza', e)
 
 # Funcion de retro-compatibilidad para calcular y rellenar time_slots en registros historicos
 def backfill_time_slots(conn):

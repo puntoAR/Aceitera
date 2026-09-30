@@ -148,124 +148,192 @@
         <button type="button" onclick="toggleSection('manual-panel')" style="background: none; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer;">&times;</button>
     </div>
 
-    <form action="{{ url_for('weighbridge.add_weighing') }}" method="POST">
-        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id if active_shift else 'TC' }}">
+    <form action="{{ url_for('weighbridge.add_weighing') }}" method="POST"> <!-- Formulario de registro de pesada manual -->
+        <input type="hidden" name="shift_id" value="{{ active_shift.shift_id if active_shift else 'TC' }}"> <!-- Identificador del turno actual -->
 
-        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;">
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">N° Ticket / Comprobante</label>
-                <input class="form-input" type="text" name="ticket_number" placeholder="ej. T-004528" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+        <!-- Grupo 1: Datos de Comprobante y Fechas -->
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;"> <!-- Grilla de datos generales -->
+            <div class="form-group"> <!-- Campo de número de ticket -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">N° Ticket / ID</label> <!-- Etiqueta ticket -->
+                <input class="form-input" type="text" name="ticket_number" placeholder="ej. T-004528" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input ticket -->
+            </div> <!-- Fin grupo ticket -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Fecha y Hora</label>
-                <input class="form-input" type="text" name="weigh_date" value="{{ g_plant_now if g_plant_now else '' }}" placeholder="YYYY-MM-DD HH:MM" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo de fecha de ingreso -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Fecha Ingreso</label> <!-- Etiqueta fecha ingreso -->
+                <input class="form-input" type="text" name="entry_date" value="{{ g_plant_now if g_plant_now else '' }}" placeholder="YYYY-MM-DD HH:MM" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input fecha ingreso -->
+            </div> <!-- Fin grupo fecha ingreso -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Operación</label>
-                <select class="form-select" name="operation_type" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-                    <option value="ingreso">Ingreso de Materia Prima (Entrada)</option>
-                    <option value="egreso">Egreso / Despacho (Salida)</option>
-                    <option value="interno">Movimiento Interno</option>
-                </select>
-            </div>
+            <div class="form-group"> <!-- Campo de fecha de egreso -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Fecha Egreso</label> <!-- Etiqueta fecha egreso -->
+                <input class="form-input" type="text" name="exit_date" placeholder="YYYY-MM-DD HH:MM" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input fecha egreso -->
+            </div> <!-- Fin grupo fecha egreso -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Material / Producto</label>
-                <select class="form-select" name="product" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-                    <option value="semilla">Semilla de Girasol</option>
-                    <option value="expeller">Expeller de Girasol</option>
-                    <option value="aceite">Aceite Crudo</option>
-                    <option value="insumos">Insumos Varios</option>
-                </select>
-            </div>
+            <div class="form-group"> <!-- Campo de selección de operación -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Operación</label> <!-- Etiqueta tipo de operación -->
+                <select class="form-select" name="operation_type" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Selector de sentido -->
+                    <option value="ingreso">Ingreso de Materia Prima (Entrada)</option> <!-- Opción ingreso -->
+                    <option value="egreso">Egreso / Despacho (Salida)</option> <!-- Opción egreso -->
+                    <option value="interno">Movimiento Interno</option> <!-- Opción movimiento interno -->
+                </select> <!-- Fin select operación -->
+            </div> <!-- Fin grupo operación -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Chasis / Camión</label>
-                <input class="form-input" type="text" name="truck_plate" placeholder="ej. AF123XY" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo de selección de producto -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Producto</label> <!-- Etiqueta producto -->
+                <select class="form-select" name="product" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Selector de producto -->
+                    <option value="semilla">Semilla de Girasol</option> <!-- Opción semilla -->
+                    <option value="expeller">Expeller de Girasol</option> <!-- Opción expeller -->
+                    <option value="aceite">Aceite Crudo</option> <!-- Opción aceite -->
+                    <option value="insumos">Insumos Varios</option> <!-- Opción insumos -->
+                </select> <!-- Fin select producto -->
+            </div> <!-- Fin grupo producto -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Acoplado / Semi</label>
-                <input class="form-input" type="text" name="trailer_plate" placeholder="ej. AE456ZZ" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo de cliente -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Cliente</label> <!-- Etiqueta cliente -->
+                <input class="form-input" type="text" name="client" placeholder="Razón Social Cliente" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input cliente -->
+            </div> <!-- Fin grupo cliente -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Empresa de Transporte</label>
-                <input class="form-input" type="text" name="transport_company" placeholder="ej. Transportes Balcarce" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo de destinatario -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Destinatario</label> <!-- Etiqueta destinatario -->
+                <input class="form-input" type="text" name="recipient" placeholder="Destinatario final" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input destinatario -->
+            </div> <!-- Fin grupo destinatario -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Chofer (Nombre y DNI)</label>
-                <div style="display: flex; gap: 0.4rem;">
-                    <input class="form-input" type="text" name="driver_name" placeholder="Nombre" style="flex: 2; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-                    <input class="form-input" type="text" name="driver_dni" placeholder="DNI" style="flex: 1; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-                </div>
-            </div>
-        </div>
+            <div class="form-group"> <!-- Campo de procedencia y destino combinados -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Procedencia/Destino</label> <!-- Etiqueta procedencia/destino -->
+                <input class="form-input" type="text" name="origin_destination" placeholder="Localidad o Planta" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input procedencia destino -->
+            </div> <!-- Fin grupo procedencia destino -->
+        </div> <!-- Fin grupo 1 -->
 
-        <!-- Fila de Pesos -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;">
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Peso Bruto (kg)</label>
-                <input class="form-input" type="number" step="1" id="m_gross" name="gross_weight_kg" placeholder="ej. 45000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;">
-            </div>
+        <!-- Grupo 2: Datos de Transporte y Conductor -->
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1rem;"> <!-- Grilla transporte -->
+            <div class="form-group"> <!-- Campo empresa transportista -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Transportista</label> <!-- Etiqueta transportista -->
+                <input class="form-input" type="text" name="transport_company" placeholder="ej. Transportes Balcarce" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input transportista -->
+            </div> <!-- Fin grupo transportista -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Tara del Camión (kg)</label>
-                <input class="form-input" type="number" step="1" id="m_tare" name="tare_weight_kg" placeholder="ej. 15000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;">
-            </div>
+            <div class="form-group"> <!-- Campo patente chasis -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Chasis</label> <!-- Etiqueta patente chasis -->
+                <input class="form-input" type="text" name="truck_plate" placeholder="ej. AF123XY" required style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input patente chasis -->
+            </div> <!-- Fin grupo patente chasis -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #0284c7;">Peso Neto Calculado (kg)</label>
-                <input class="form-input" type="number" step="1" id="m_net" name="net_weight_kg" placeholder="ej. 30000" style="width: 100%; padding: 0.55rem; border: 1.5px solid #0284c7; border-radius: 0.4rem; font-weight: 800; color: #0284c7; background: #f0f9ff;">
-            </div>
+            <div class="form-group"> <!-- Campo patente acoplado -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Patente Acoplado</label> <!-- Etiqueta patente acoplado -->
+                <input class="form-input" type="text" name="trailer_plate" placeholder="ej. AE456ZZ" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input patente acoplado -->
+            </div> <!-- Fin grupo patente acoplado -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #059669;">Neto en Toneladas (Tn)</label>
-                <input class="form-input" type="text" id="m_tons" readonly placeholder="0.00 Tn" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 800; color: #059669; background: #ecfdf5;">
-            </div>
-        </div>
+            <div class="form-group"> <!-- Campo nombre del chofer -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Nombre Chofer</label> <!-- Etiqueta chofer -->
+                <input class="form-input" type="text" name="driver_name" placeholder="Nombre y Apellido" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input nombre chofer -->
+            </div> <!-- Fin grupo chofer -->
 
-        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;">
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Procedencia / Origen</label>
-                <input class="form-input" type="text" name="origin" placeholder="ej. Acopio Necochea o Tanque 1" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo DNI del chofer -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">DNI Chofer</label> <!-- Etiqueta DNI -->
+                <input class="form-input" type="text" name="driver_dni" placeholder="Número de Documento" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input DNI chofer -->
+            </div> <!-- Fin grupo DNI -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Destino / Cliente</label>
-                <input class="form-input" type="text" name="destination" placeholder="ej. Silo 2 o Refinería" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+            <div class="form-group"> <!-- Campo nacionalidad del chofer -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Nacionalidad Chofer</label> <!-- Etiqueta nacionalidad -->
+                <input class="form-input" type="text" name="driver_nationality" value="Argentina" placeholder="País" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input nacionalidad -->
+            </div> <!-- Fin grupo nacionalidad -->
+        </div> <!-- Fin grupo 2 -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Precintos Colocados</label>
-                <input class="form-input" type="text" name="seals_numbers" placeholder="ej. P-0012, P-0013" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
+        <!-- Fila de Pesos Estandarizados de Balanza -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.85rem; margin-bottom: 1rem; background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border: 1px solid #e2e8f0;"> <!-- Panel de pesajes -->
+            <div class="form-group"> <!-- Campo de peso de ingreso -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Peso Ingreso (kg)</label> <!-- Etiqueta peso ingreso -->
+                <input class="form-input" type="number" step="1" id="m_entry_weight" name="entry_weight_kg" placeholder="ej. 45000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;"> <!-- Input peso ingreso -->
+            </div> <!-- Fin grupo peso ingreso -->
 
-            <div class="form-group">
-                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Observaciones</label>
-                <input class="form-input" type="text" name="notes" placeholder="Condiciones de entrega, humedad, etc." style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;">
-            </div>
-        </div>
+            <div class="form-group"> <!-- Campo de peso de egreso -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #1e293b;">Peso Egreso (kg)</label> <!-- Etiqueta peso egreso -->
+                <input class="form-input" type="number" step="1" id="m_exit_weight" name="exit_weight_kg" placeholder="ej. 15000" oninput="calcNeto()" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 700;"> <!-- Input peso egreso -->
+            </div> <!-- Fin grupo peso egreso -->
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 600; color: #1e293b; cursor: pointer;">
-                <input type="checkbox" name="sync_inventory" value="1" checked style="width: 16px; height: 16px;">
-                <span>Impactar automáticamente en las Existencias de Planta</span>
-            </label>
+            <div class="form-group"> <!-- Campo de peso neto -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #0284c7;">Peso Neto (kg)</label> <!-- Etiqueta peso neto -->
+                <input class="form-input" type="number" step="1" id="m_net" name="net_weight_kg" placeholder="ej. 30000" style="width: 100%; padding: 0.55rem; border: 1.5px solid #0284c7; border-radius: 0.4rem; font-weight: 800; color: #0284c7; background: #f0f9ff;"> <!-- Input peso neto -->
+            </div> <!-- Fin grupo peso neto -->
 
-            <div style="display: flex; gap: 0.5rem;">
-                <button type="submit" class="btn" style="background: #15803d; color: white; font-weight: 700; padding: 0.65rem 1.4rem; border: none; border-radius: 0.4rem; cursor: pointer;">
-                    Guardar Pesada
-                </button>
-                <button type="button" onclick="toggleSection('manual-panel')" class="btn" style="background: #e2e8f0; color: #334155; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 0.4rem; cursor: pointer;">
-                    Cerrar
-                </button>
-            </div>
-        </div>
-    </form>
+            <div class="form-group"> <!-- Campo visual de toneladas -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #059669;">Neto en Toneladas (Tn)</label> <!-- Etiqueta toneladas -->
+                <input class="form-input" type="text" id="m_tons" readonly placeholder="0.00 Tn" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem; font-weight: 800; color: #059669; background: #ecfdf5;"> <!-- Display toneladas -->
+            </div> <!-- Fin grupo toneladas -->
+
+            <div class="form-group"> <!-- Campo de tara manual -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Tara Manual</label> <!-- Etiqueta tara manual -->
+                <select class="form-select" name="manual_tare" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Selector tara manual -->
+                    <option value="NO">NO</option> <!-- Opción NO -->
+                    <option value="SI">SI</option> <!-- Opción SI -->
+                </select> <!-- Fin select tara manual -->
+            </div> <!-- Fin grupo tara manual -->
+
+            <div class="form-group"> <!-- Campo de pesada única -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Pesada Única</label> <!-- Etiqueta pesada única -->
+                <select class="form-select" name="single_weighing" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Selector pesada única -->
+                    <option value="NO">NO</option> <!-- Opción NO -->
+                    <option value="SI">SI</option> <!-- Opción SI -->
+                </select> <!-- Fin select pesada única -->
+            </div> <!-- Fin grupo pesada única -->
+        </div> <!-- Fin panel pesajes -->
+
+        <!-- Grupo 3: Datos de Despacho, Aduana y Operativos -->
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;"> <!-- Grilla aduana y lote -->
+            <div class="form-group"> <!-- Campo exportador -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Exportador</label> <!-- Etiqueta exportador -->
+                <input class="form-input" type="text" name="exporter" placeholder="ej. BioBalcarce SA" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input exportador -->
+            </div> <!-- Fin grupo exportador -->
+
+            <div class="form-group"> <!-- Campo bultos -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Bultos</label> <!-- Etiqueta bultos -->
+                <input class="form-input" type="text" name="packages" placeholder="ej. Granel o N° bultos" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input bultos -->
+            </div> <!-- Fin grupo bultos -->
+
+            <div class="form-group"> <!-- Campo aduana -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Aduana</label> <!-- Etiqueta aduana -->
+                <input class="form-input" type="text" name="customs" placeholder="ej. Mar del Plata" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input aduana -->
+            </div> <!-- Fin grupo aduana -->
+
+            <div class="form-group"> <!-- Campo lote -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">LOT / Lote</label> <!-- Etiqueta LOT -->
+                <input class="form-input" type="text" name="lot" placeholder="ej. L-2026-09" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input LOT -->
+            </div> <!-- Fin grupo lote -->
+
+            <div class="form-group"> <!-- Campo destinación aduanera -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Destinación</label> <!-- Etiqueta destinación -->
+                <input class="form-input" type="text" name="customs_destination" placeholder="ej. EC01 o Consumo" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input destinación -->
+            </div> <!-- Fin grupo destinación -->
+
+            <div class="form-group"> <!-- Campo ID Usuario balancero -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">ID Usuario</label> <!-- Etiqueta ID usuario -->
+                <input class="form-input" type="text" name="user_id_code" value="1" placeholder="Código de operador" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input ID usuario -->
+            </div> <!-- Fin grupo ID usuario -->
+
+            <div class="form-group"> <!-- Campo precintos -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Precintos</label> <!-- Etiqueta precintos -->
+                <input class="form-input" type="text" name="seals_numbers" placeholder="ej. P-0012, P-0013" style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input precintos -->
+            </div> <!-- Fin grupo precintos -->
+
+            <div class="form-group"> <!-- Campo observaciones -->
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 600;">Observaciones</label> <!-- Etiqueta observaciones -->
+                <input class="form-input" type="text" name="notes" placeholder="Condiciones de entrega, humedad, etc." style="width: 100%; padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 0.4rem;"> <!-- Input observaciones -->
+            </div> <!-- Fin grupo observaciones -->
+        </div> <!-- Fin grupo 3 -->
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;"> <!-- Barra inferior de acciones -->
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.825rem; font-weight: 600; color: #1e293b; cursor: pointer;"> <!-- Checkbox sincronización -->
+                <input type="checkbox" name="sync_inventory" value="1" checked style="width: 16px; height: 16px;"> <!-- Checkbox input -->
+                <span>Impactar automáticamente en las Existencias de Planta</span> <!-- Texto informativo -->
+            </label> <!-- Fin label sincronización -->
+
+            <div style="display: flex; gap: 0.5rem;"> <!-- Botones de acción -->
+                <button type="submit" class="btn" style="background: #15803d; color: white; font-weight: 700; padding: 0.65rem 1.4rem; border: none; border-radius: 0.4rem; cursor: pointer;"> <!-- Botón enviar -->
+                    Guardar Pesada <!-- Texto botón guardar -->
+                </button> <!-- Fin botón guardar -->
+                <button type="button" onclick="toggleSection('manual-panel')" class="btn" style="background: #e2e8f0; color: #334155; font-weight: 600; padding: 0.65rem 1rem; border: none; border-radius: 0.4rem; cursor: pointer;"> <!-- Botón cancelar -->
+                    Cerrar <!-- Texto botón cerrar -->
+                </button> <!-- Fin botón cerrar -->
+            </div> <!-- Fin botones de acción -->
+        </div> <!-- Fin barra inferior -->
+    </form> <!-- Fin formulario -->
 </div>
 
 <!-- ========================================================================= -->
@@ -339,162 +407,239 @@
 
     <div class="table-responsive" style="overflow-x: auto;">
         <table class="table" style="font-size: 0.825rem; width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background: #f1f5f9; text-align: left; border-bottom: 1.5px solid #cbd5e1;">
-                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Fecha / Hora</th>
-                    <th style="padding: 0.65rem 0.5rem;">Camión / Acoplado</th>
-                    <th style="padding: 0.65rem 0.5rem;">Chofer (DNI)</th>
-                    <th style="padding: 0.65rem 0.5rem;">Operación / Material</th>
-                    <th style="padding: 0.65rem 0.5rem;">Ticket / Precintos</th>
-                    <th style="padding: 0.65rem 0.5rem; text-align: right;">Bruto (kg)</th>
-                    <th style="padding: 0.65rem 0.5rem; text-align: right;">Tara (kg)</th>
-                    <th style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap;">Neto (Tn / kg)</th>
-                    <th style="padding: 0.65rem 0.5rem;">Origen / Destino</th>
-                    <th style="padding: 0.65rem 0.5rem;">Responsable</th>
-                    {% if g.user and g.user.role == 'admin_sistema' %}
-                    <th style="padding: 0.65rem 0.5rem; text-align: center;">Acción</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for w in weighings %}
-                <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s ease;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';">
-                    <!-- Fecha y Hora -->
-                    <td style="white-space: nowrap; padding: 0.65rem 0.5rem; color: #334155;">
-                        <strong>{{ w.weigh_date.split(' ')[0] if w.weigh_date else '-' }}</strong>
-                        <div style="font-size: 0.72rem; color: #64748b;">{{ w.weigh_date.split(' ')[1] if ' ' in w.weigh_date else '' }}</div>
-                    </td>
+            <thead> <!-- Cabecera de la tabla de balanza -->
+                <tr style="background: #0f172a; color: #ffffff; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;"> <!-- Fila de cabeceras -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">ID</th> <!-- 1. ID -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Fecha Egreso</th> <!-- 2. Fecha Egreso -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Fecha Ingreso</th> <!-- 3. Fecha Ingreso -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Producto</th> <!-- 4. Producto -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Cliente</th> <!-- 5. Cliente -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Transportista</th> <!-- 6. Transportista -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Destinatario</th> <!-- 7. Destinatario -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Patente Chasis</th> <!-- 8. Patente Chasis -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Patente Acoplado</th> <!-- 9. Patente Acoplado -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Procedencia/Destino</th> <!-- 10. Procedencia/Destino -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Nombre Chofer</th> <!-- 11. Nombre Chofer -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Precintos</th> <!-- 12. Precintos -->
+                    <th style="padding: 0.65rem 0.5rem; min-width: 140px;">Observaciones</th> <!-- 13. Observaciones -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">ID Usuario</th> <!-- 14. ID Usuario -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap;">Peso Egreso</th> <!-- 15. Peso Egreso -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap;">Peso Ingreso</th> <!-- 16. Peso Ingreso -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap;">Peso Neto</th> <!-- 17. Peso Neto -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Exportador</th> <!-- 18. Exportador -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Tara Manual</th> <!-- 19. Tara Manual -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Nacionalidad Chofer</th> <!-- 20. Nacionalidad Chofer -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Bultos</th> <!-- 21. Bultos -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Aduana</th> <!-- 22. Aduana -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">LOT</th> <!-- 23. LOT -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">DNI Chofer</th> <!-- 24. DNI Chofer -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Usuario</th> <!-- 25. Usuario -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Pesada Unica</th> <!-- 26. Pesada Unica -->
+                    <th style="padding: 0.65rem 0.5rem; white-space: nowrap;">Destinacion</th> <!-- 27. Destinacion -->
+                    {% if g.user and g.user.role == 'admin_sistema' %} <!-- Permiso de administración -->
+                    <th style="padding: 0.65rem 0.5rem; text-align: center; white-space: nowrap;">Acción</th> <!-- Columna adicional de administración -->
+                    {% endif %} <!-- Fin comprobación de rol -->
+                </tr> <!-- Fin fila encabezados -->
+            </thead> <!-- Fin thead -->
+            <tbody> <!-- Cuerpo de la tabla de pesadas -->
+                {% for w in weighings %} <!-- Itera cada pesada registrada -->
+                <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s ease; white-space: nowrap;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='transparent';"> <!-- Fila de pesada con hover -->
+                    <!-- 1. ID -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; font-weight: 700; color: #1e3a8a;"> <!-- Celda ID -->
+                        {{ w.ticket_number or w.id }} <!-- Valor ID o ticket -->
+                    </td> <!-- Fin celda ID -->
 
-                    <!-- Camion y Acoplado -->
-                    <td style="padding: 0.65rem 0.5rem;">
-                        <strong style="color: #0f172a; font-size: 0.875rem;">{{ w.truck_plate or '-' }}</strong>
-                        {% if w.trailer_plate %}
-                        <div style="font-size: 0.72rem; color: #64748b;">Ac: {{ w.trailer_plate }}</div>
-                        {% endif %}
-                        {% if w.transport_company %}
-                        <div style="font-size: 0.7rem; color: #94a3b8;">{{ w.transport_company }}</div>
-                        {% endif %}
-                    </td>
+                    <!-- 2. Fecha Egreso -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #334155;"> <!-- Celda Fecha Egreso -->
+                        {{ w.exit_date or (w.weigh_date if w.operation_type == 'egreso' else '-') }} <!-- Valor Fecha Egreso -->
+                    </td> <!-- Fin celda Fecha Egreso -->
 
-                    <!-- Chofer -->
-                    <td style="padding: 0.65rem 0.5rem; color: #334155;">
-                        {{ w.driver_name or '-' }}
-                        {% if w.driver_dni %}
-                        <div style="font-size: 0.72rem; color: #64748b;">DNI: {{ w.driver_dni }}</div>
-                        {% endif %}
-                    </td>
+                    <!-- 3. Fecha Ingreso -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #334155;"> <!-- Celda Fecha Ingreso -->
+                        {{ w.entry_date or (w.weigh_date if w.operation_type == 'ingreso' else '-') }} <!-- Valor Fecha Ingreso -->
+                    </td> <!-- Fin celda Fecha Ingreso -->
 
-                    <!-- Operacion y Material con Badges -->
-                    <td style="padding: 0.65rem 0.5rem;">
-                        <span style="font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.03em;
-                            {% if w.operation_type == 'ingreso' %}background: #dcfce7; color: #15803d;
-                            {% elif w.operation_type == 'egreso' and w.product == 'aceite' %}background: #dbeafe; color: #1e40af;
-                            {% elif w.operation_type == 'egreso' and w.product == 'expeller' %}background: #fef3c7; color: #92400e;
-                            {% else %}background: #f1f5f9; color: #475569;{% endif %}">
-                            {{ w.operation_type }}
-                        </span>
-                        <div style="font-size: 0.8rem; font-weight: 600; color: #0f172a; margin-top: 0.25rem;">
-                            {% if w.product == 'semilla' %}🌻 Semilla Girasol
-                            {% elif w.product == 'expeller' %}🌾 Expeller
-                            {% elif w.product == 'aceite' %}🛢️ Aceite Crudo
-                            {% else %}📦 {{ w.product|capitalize }}
-                            {% endif %}
-                        </div>
-                    </td>
+                    <!-- 4. Producto -->
+                    <td style="padding: 0.55rem 0.5rem; font-weight: 600; color: #0f172a;"> <!-- Celda Producto -->
+                        {% if w.product == 'semilla' %}🌻 Semilla <!-- Icono semilla -->
+                        {% elif w.product == 'expeller' %}🌾 Expeller <!-- Icono expeller -->
+                        {% elif w.product == 'aceite' %}🛢️ Aceite <!-- Icono aceite -->
+                        {% else %}{{ w.product|capitalize if w.product else '-' }} <!-- Nombre producto -->
+                        {% endif %} <!-- Fin if producto -->
+                    </td> <!-- Fin celda Producto -->
 
-                    <!-- Ticket y Precintos -->
-                    <td style="padding: 0.65rem 0.5rem; font-family: monospace; font-size: 0.8rem; color: #1e3a8a;">
-                        {% if w.ticket_number %}
-                        <strong style="color: #0284c7;">#{{ w.ticket_number }}</strong>
-                        {% else %}
-                        <span style="color: #94a3b8;">-</span>
-                        {% endif %}
-                        {% if w.seals_numbers %}
-                        <div style="font-size: 0.7rem; color: #64748b;">Prec: {{ w.seals_numbers }}</div>
-                        {% endif %}
-                    </td>
+                    <!-- 5. Cliente -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Cliente -->
+                        {{ w.client or w.destination or w.origin or '-' }} <!-- Valor Cliente -->
+                    </td> <!-- Fin celda Cliente -->
 
-                    <!-- Peso Bruto -->
-                    <td style="padding: 0.65rem 0.5rem; text-align: right; color: #475569; font-variant-numeric: tabular-nums;">
-                        {{ "{:,.0f}".format(w.gross_weight_kg) if w.gross_weight_kg else '-' }}
-                    </td>
+                    <!-- 6. Transportista -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Transportista -->
+                        {{ w.transport_company or '-' }} <!-- Valor Transportista -->
+                    </td> <!-- Fin celda Transportista -->
 
-                    <!-- Tara -->
-                    <td style="padding: 0.65rem 0.5rem; text-align: right; color: #64748b; font-variant-numeric: tabular-nums;">
-                        {{ "{:,.0f}".format(w.tare_weight_kg) if w.tare_weight_kg else '-' }}
-                    </td>
+                    <!-- 7. Destinatario -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Destinatario -->
+                        {{ w.recipient or w.destination or '-' }} <!-- Valor Destinatario -->
+                    </td> <!-- Fin celda Destinatario -->
 
-                    <!-- Peso Neto (Tn / kg) -->
-                    <td style="padding: 0.65rem 0.5rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums;">
-                        <strong style="color: #0f172a; font-size: 0.9rem;">{{ "{:,.2f}".format(w.net_weight_tons) }} Tn</strong>
-                        <div style="font-size: 0.72rem; color: #64748b;">{{ "{:,.0f}".format(w.net_weight_kg) }} kg</div>
-                    </td>
+                    <!-- 8. Patente Chasis -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; font-weight: 700; color: #0f172a;"> <!-- Celda Patente Chasis -->
+                        {{ w.truck_plate or '-' }} <!-- Valor Patente Chasis -->
+                    </td> <!-- Fin celda Patente Chasis -->
 
-                    <!-- Origen y Destino -->
-                    <td style="padding: 0.65rem 0.5rem; font-size: 0.78rem;">
-                        {% if w.origin %}
-                        <div><span style="color: #94a3b8;">De:</span> {{ w.origin }}</div>
-                        {% endif %}
-                        {% if w.destination %}
-                        <div><span style="color: #94a3b8;">A:</span> {{ w.destination }}</div>
-                        {% endif %}
-                        {% if not w.origin and not w.destination %}
-                        <span style="color: #94a3b8;">-</span>
-                        {% endif %}
-                    </td>
+                    <!-- 9. Patente Acoplado -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda Patente Acoplado -->
+                        {{ w.trailer_plate or '-' }} <!-- Valor Patente Acoplado -->
+                    </td> <!-- Fin celda Patente Acoplado -->
 
-                    <!-- Responsable -->
-                    <td style="padding: 0.65rem 0.5rem; color: #64748b; font-size: 0.78rem;">
-                        {{ w.operator_name or '-' }}
-                        {% if w.sync_inventory %}
-                        <span title="Sincronizado con existencias" style="color: #10b981; font-weight: bold;">✔</span>
-                        {% endif %}
-                    </td>
+                    <!-- 10. Procedencia/Destino -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Procedencia/Destino -->
+                        {{ w.origin_destination or w.origin or w.destination or '-' }} <!-- Valor Procedencia/Destino -->
+                    </td> <!-- Fin celda Procedencia/Destino -->
+
+                    <!-- 11. Nombre Chofer -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Nombre Chofer -->
+                        {{ w.driver_name or '-' }} <!-- Valor Nombre Chofer -->
+                    </td> <!-- Fin celda Nombre Chofer -->
+
+                    <!-- 12. Precintos -->
+                    <td style="padding: 0.55rem 0.5rem; font-family: monospace; font-size: 0.75rem; color: #0284c7;"> <!-- Celda Precintos -->
+                        {{ w.seals_numbers or '-' }} <!-- Valor Precintos -->
+                    </td> <!-- Fin celda Precintos -->
+
+                    <!-- 13. Observaciones -->
+                    <td style="padding: 0.55rem 0.5rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: #64748b;" title="{{ w.notes or '' }}"> <!-- Celda Observaciones -->
+                        {{ w.notes or '-' }} <!-- Valor Observaciones -->
+                    </td> <!-- Fin celda Observaciones -->
+
+                    <!-- 14. ID Usuario -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda ID Usuario -->
+                        {{ w.user_id_code or '1' }} <!-- Valor ID Usuario -->
+                    </td> <!-- Fin celda ID Usuario -->
+
+                    <!-- 15. Peso Egreso -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: right; color: #475569; font-variant-numeric: tabular-nums;"> <!-- Celda Peso Egreso -->
+                        {{ "{:,.0f}".format(w.exit_weight_kg) if w.exit_weight_kg is not none and w.exit_weight_kg > 0 else '-' }} <!-- Valor Peso Egreso -->
+                    </td> <!-- Fin celda Peso Egreso -->
+
+                    <!-- 16. Peso Ingreso -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: right; color: #475569; font-variant-numeric: tabular-nums;"> <!-- Celda Peso Ingreso -->
+                        {{ "{:,.0f}".format(w.entry_weight_kg) if w.entry_weight_kg is not none and w.entry_weight_kg > 0 else '-' }} <!-- Valor Peso Ingreso -->
+                    </td> <!-- Fin celda Peso Ingreso -->
+
+                    <!-- 17. Peso Neto -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: right; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; background: #f0fdf4;"> <!-- Celda Peso Neto -->
+                        {{ "{:,.0f}".format(w.net_weight_kg) if w.net_weight_kg is not none and w.net_weight_kg > 0 else '-' }} <!-- Valor Peso Neto -->
+                    </td> <!-- Fin celda Peso Neto -->
+
+                    <!-- 18. Exportador -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Exportador -->
+                        {{ w.exporter or '-' }} <!-- Valor Exportador -->
+                    </td> <!-- Fin celda Exportador -->
+
+                    <!-- 19. Tara Manual -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda Tara Manual -->
+                        {{ w.manual_tare or 'NO' }} <!-- Valor Tara Manual -->
+                    </td> <!-- Fin celda Tara Manual -->
+
+                    <!-- 20. Nacionalidad Chofer -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda Nacionalidad Chofer -->
+                        {{ w.driver_nationality or 'Argentina' }} <!-- Valor Nacionalidad Chofer -->
+                    </td> <!-- Fin celda Nacionalidad Chofer -->
+
+                    <!-- 21. Bultos -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda Bultos -->
+                        {{ w.packages or '-' }} <!-- Valor Bultos -->
+                    </td> <!-- Fin celda Bultos -->
+
+                    <!-- 22. Aduana -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Aduana -->
+                        {{ w.customs or '-' }} <!-- Valor Aduana -->
+                    </td> <!-- Fin celda Aduana -->
+
+                    <!-- 23. LOT -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda LOT -->
+                        {{ w.lot or '-' }} <!-- Valor LOT -->
+                    </td> <!-- Fin celda LOT -->
+
+                    <!-- 24. DNI Chofer -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda DNI Chofer -->
+                        {{ w.driver_dni or '-' }} <!-- Valor DNI Chofer -->
+                    </td> <!-- Fin celda DNI Chofer -->
+
+                    <!-- 25. Usuario -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Usuario -->
+                        {{ w.operator_name or '-' }} <!-- Valor Usuario -->
+                        {% if w.sync_inventory %} <!-- Si sincronizó existencias -->
+                        <span title="Sincronizado con existencias" style="color: #10b981; font-weight: bold;">✔</span> <!-- Tilde verde -->
+                        {% endif %} <!-- Fin check sincronización -->
+                    </td> <!-- Fin celda Usuario -->
+
+                    <!-- 26. Pesada Unica -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center; color: #64748b;"> <!-- Celda Pesada Unica -->
+                        {{ w.single_weighing or 'NO' }} <!-- Valor Pesada Unica -->
+                    </td> <!-- Fin celda Pesada Unica -->
+
+                    <!-- 27. Destinacion -->
+                    <td style="padding: 0.55rem 0.5rem; color: #334155;"> <!-- Celda Destinacion -->
+                        {{ w.customs_destination or '-' }} <!-- Valor Destinacion -->
+                    </td> <!-- Fin celda Destinacion -->
 
                     <!-- Accion (solo admin) -->
-                    {% if g.user and g.user.role == 'admin_sistema' %}
-                    <td style="padding: 0.65rem 0.5rem; text-align: center;">
-                        <form action="{{ url_for('weighbridge.delete_item', weighing_id=w.id) }}" method="POST" onsubmit="return confirm('¿Confirma eliminar la pesada del ticket #{{ w.ticket_number or w.id }}?');" style="margin: 0; display: inline;">
-                            <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem;" title="Eliminar pesada">
-                                🗑️
-                            </button>
-                        </form>
-                    </td>
-                    {% endif %}
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="{% if g.user and g.user.role == 'admin_sistema' %}11{% else %}10{% endif %}" style="text-align: center; color: #94a3b8; padding: 2.5rem;">
-                        No hay cargas de camiones ni pesadas registradas en el período.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+                    {% if g.user and g.user.role == 'admin_sistema' %} <!-- Comprobación de permiso -->
+                    <td style="padding: 0.55rem 0.5rem; text-align: center;"> <!-- Celda Acción -->
+                        <form action="{{ url_for('weighbridge.delete_item', weighing_id=w.id) }}" method="POST" onsubmit="return confirm('¿Confirma eliminar la pesada del ticket #{{ w.ticket_number or w.id }}?');" style="margin: 0; display: inline;"> <!-- Formulario eliminación -->
+                            <button type="submit" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem;" title="Eliminar pesada"> <!-- Botón eliminar -->
+                                🗑️ <!-- Icono tacho -->
+                            </button> <!-- Fin botón eliminar -->
+                        </form> <!-- Fin form eliminación -->
+                    </td> <!-- Fin celda Acción -->
+                    {% endif %} <!-- Fin permiso admin -->
+                </tr> <!-- Fin fila pesada -->
+                {% else %} <!-- Caso sin registros -->
+                <tr> <!-- Fila mensaje vacío -->
+                    <td colspan="{% if g.user and g.user.role == 'admin_sistema' %}28{% else %}27{% endif %}" style="text-align: center; color: #94a3b8; padding: 2.5rem;"> <!-- Celda span con todas las columnas -->
+                        No hay cargas de camiones ni pesadas registradas en el período. <!-- Mensaje vacío -->
+                    </td> <!-- Fin celda vacía -->
+                </tr> <!-- Fin fila mensaje vacío -->
+                {% endfor %} <!-- Fin bucle weighings -->
+            </tbody> <!-- Fin tbody -->
+        </table> <!-- Fin tabla -->
+    </div> <!-- Fin table-responsive -->
+</div> <!-- Fin contenedor principal -->
 
 <!-- Scripts de Interactividad de Balanza -->
-<script>
-function toggleSection(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el.style.display === 'none' || el.style.display === '') {
-        el.style.display = 'block';
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } else {
-        el.style.display = 'none';
-    }
-}
+<script> <!-- Apertura bloque scripts -->
+function toggleSection(id) { // Función para desplegar u ocultar paneles
+    const el = document.getElementById(id); // Obtiene elemento por ID
+    if (!el) return; // Si no existe sale
+    if (el.style.display === 'none' || el.style.display === '') { // Si está oculto
+        el.style.display = 'block'; // Lo hace visible
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); // Desplaza suavemente
+    } else { // Si está visible
+        el.style.display = 'none'; // Lo oculta
+    } // Fin condicional de toggle
+} // Fin toggleSection
 
-function calcNeto() {
-    const gross = parseFloat(document.getElementById('m_gross').value) || 0;
-    const tare = parseFloat(document.getElementById('m_tare').value) || 0;
-    const net = Math.max(0, gross - tare);
-    const tons = (net / 1000.0).toFixed(2);
-
-    document.getElementById('m_net').value = net > 0 ? net : '';
-    document.getElementById('m_tons').value = net > 0 ? (tons + ' Tn') : '0.00 Tn';
-}
-</script>
-{% endblock %}
+function calcNeto() { // Función para calcular el peso neto en base a báscula
+    const pIn = parseFloat(document.getElementById('m_entry_weight')?.value || 0); // Peso de ingreso
+    const pOut = parseFloat(document.getElementById('m_exit_weight')?.value || 0); // Peso de egreso
+    let net = 0; // Inicializa variable neta
+    if (pIn > 0 && pOut > 0) { // Si ambos pesos están cargados
+        net = Math.abs(pIn - pOut); // Calcula diferencia absoluta
+    } else { // Fallback para pesadas con bruto y tara
+        const gross = parseFloat(document.getElementById('m_gross')?.value || 0); // Peso bruto
+        const tare = parseFloat(document.getElementById('m_tare')?.value || 0); // Peso tara
+        net = Math.max(0, gross - tare); // Diferencia bruta
+    } // Fin condicional de cálculo
+    const tons = (net / 1000.0).toFixed(2); // Convierte a toneladas con 2 decimales
+    if (document.getElementById('m_net')) { // Si existe el elemento de neto
+        document.getElementById('m_net').value = net > 0 ? Math.round(net) : ''; // Asigna valor entero
+    } // Fin asignación neto
+    if (document.getElementById('m_tons')) { // Si existe el elemento de toneladas
+        document.getElementById('m_tons').value = net > 0 ? (tons + ' Tn') : '0.00 Tn'; // Muestra toneladas
+    } // Fin asignación toneladas
+} // Fin de función calcNeto
+</script> <!-- Cierre bloque scripts -->
+{% endblock %} <!-- Fin bloque content -->

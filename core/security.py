@@ -176,7 +176,18 @@ def register_user(full_name, dni, phone, password):
     # Registra el evento en auditoria
     record_audit_event('AUTH', 'REGISTRO_SOLICITUD', f'Nueva solicitud de usuario: {fn} (DNI {d}, Tel: {p}) pendiente de aprobacion.', user_override=username)
     # Retorna el nuevo identificador
-    return new_id
+    return new_id # Identificador de usuario creado
+
+# Crea o inserta directamente un usuario en la base de datos (utilizado en testing y aprovisionamiento)
+def create_user(username, full_name, role='usuario', dni=None, password=''): # Define función de creación directa de usuario
+    with get_db_connection() as conn: # Abre conexión con la base de datos
+        cursor = conn.execute("""
+            INSERT OR REPLACE INTO users (
+                username, full_name, role, pin, dni, approval_status, must_change_password, is_active
+            ) VALUES (?, ?, ?, ?, ?, 'aprobado', 0, 1);
+        """, (str(username).strip(), str(full_name).strip(), str(role).strip(), str(password).strip(), str(dni).strip() if dni else None)) # Inserta o reemplaza
+        conn.commit() # Confirma transacción en base de datos
+        return cursor.lastrowid # Retorna el identificador asignado
 
 # Restablece la contrasena de un usuario (por auto-recuperacion o blanqueo del admin)
 def reset_user_password(user_id, new_password, must_change=True):

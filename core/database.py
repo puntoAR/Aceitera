@@ -674,28 +674,44 @@ def init_db():
         # Crea la tabla de pesadas y movimientos de balanza de camiones
         conn.execute("""
         CREATE TABLE IF NOT EXISTS truck_scale_weighings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticket_number TEXT,
-            weigh_date TEXT NOT NULL,
-            operation_type TEXT NOT NULL,
-            product TEXT NOT NULL,
-            truck_plate TEXT,
-            trailer_plate TEXT,
-            transport_company TEXT,
-            driver_name TEXT,
-            driver_dni TEXT,
-            gross_weight_kg REAL DEFAULT 0.0,
-            tare_weight_kg REAL DEFAULT 0.0,
-            net_weight_kg REAL DEFAULT 0.0,
-            net_weight_tons REAL DEFAULT 0.0,
-            origin TEXT,
-            destination TEXT,
-            seals_numbers TEXT,
-            notes TEXT,
-            operator_name TEXT,
-            shift_id TEXT,
-            sync_inventory INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id INTEGER PRIMARY KEY AUTOINCREMENT,                     -- Identificador unico de la pesada
+            ticket_number TEXT,                                       -- Numero de ticket o comprobante
+            weigh_date TEXT NOT NULL,                                 -- Fecha y hora operativa de registro
+            operation_type TEXT NOT NULL,                             -- Tipo de operacion: ingreso o egreso
+            product TEXT NOT NULL,                                    -- Producto o material pesado
+            truck_plate TEXT,                                         -- Patente del chasis o camion
+            trailer_plate TEXT,                                       -- Patente del acoplado o remolque
+            transport_company TEXT,                                   -- Empresa transportista
+            driver_name TEXT,                                         -- Nombre y apellido del chofer
+            driver_dni TEXT,                                          -- DNI del conductor
+            gross_weight_kg REAL DEFAULT 0.0,                         -- Peso bruto en kilogramos
+            tare_weight_kg REAL DEFAULT 0.0,                          -- Tara en kilogramos
+            net_weight_kg REAL DEFAULT 0.0,                           -- Peso neto en kilogramos
+            net_weight_tons REAL DEFAULT 0.0,                         -- Peso neto en toneladas
+            origin TEXT,                                              -- Origen de la mercaderia
+            destination TEXT,                                         -- Destino de la carga
+            seals_numbers TEXT,                                       -- Numeros de precintos de seguridad
+            notes TEXT,                                               -- Observaciones operativas
+            operator_name TEXT,                                       -- Usuario o responsable de la pesada
+            shift_id TEXT,                                            -- Turno de la pesada
+            sync_inventory INTEGER DEFAULT 0,                         -- Indicador de sincronizacion con stock
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,           -- Marca de tiempo de creacion
+            exit_date TEXT,                                           -- Fecha y hora de egreso del camion
+            entry_date TEXT,                                          -- Fecha y hora de ingreso del camion
+            client TEXT,                                              -- Cliente comercial
+            recipient TEXT,                                           -- Destinatario oficial de la mercaderia
+            origin_destination TEXT,                                  -- Procedencia o destino consolidado
+            user_id_code TEXT,                                        -- Identificador de usuario de balanza
+            exit_weight_kg REAL DEFAULT 0.0,                          -- Peso en kilogramos al egreso
+            entry_weight_kg REAL DEFAULT 0.0,                         -- Peso en kilogramos al ingreso
+            exporter TEXT,                                            -- Razon social del exportador
+            manual_tare TEXT DEFAULT 'NO',                            -- Indicador o valor de tara manual
+            driver_nationality TEXT DEFAULT 'Argentina',              -- Nacionalidad del chofer
+            packages TEXT,                                            -- Cantidad o detalle de bultos
+            customs TEXT,                                             -- Jurisdiccion o aduana interviniente
+            lot TEXT,                                                 -- Numero de lote o identificador LOT
+            single_weighing TEXT DEFAULT 'NO',                        -- Indicador de pesada unica (SI/NO)
+            customs_destination TEXT                                  -- Codigo o detalle de destinacion aduanera
         );
         """)
 

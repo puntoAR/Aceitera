@@ -25,7 +25,7 @@ from modules.dashboard.service import get_dashboard_shift_comparison
 # Importa funciones de tiempo oficial de planta
 from core.timezone import get_plant_today_str, get_plant_now_str
 # Importa modelos de usuario para sesion de prueba
-from core.auth import create_user, authenticate_user
+from core.security import create_user, authenticate_user # Importa desde core.security
 
 # Clase de pruebas para desacople de fecha de toma de muestra vs fecha de carga
 class TestSampleDateShiftIdentification(unittest.TestCase):
@@ -52,24 +52,31 @@ class TestSampleDateShiftIdentification(unittest.TestCase):
             conn.commit()
 
         # Crea y autentica usuario admin_sistema para llamadas HTTP
-        try:
+        u_id = None # Inicializa variable de ID de usuario
+        try: # Bloque de creacion de usuario
             # Intenta crear el usuario de prueba
-            create_user('admin_test_sample', 'Test Admin', 'admin_sistema', '12345678', 'AdminPass123!')
+            u_id = create_user('admin_test_sample', 'Test Admin', 'admin_sistema', '12345678', 'AdminPass123!') # Crea usuario
         # Si ya existe continua
-        except Exception:
+        except Exception: # Captura excepcion si ya existia
             # Pasa si el usuario ya fue creado
-            pass
+            pass # Continua normalmente
+
+        if not u_id: # Si no se obtuvo nuevo ID
+            with get_db_connection() as conn: # Abre conexion
+                u_row = conn.execute("SELECT id FROM users WHERE username = 'admin_test_sample';").fetchone() # Busca usuario existente
+                if u_row: # Si se encontro
+                    u_id = u_row['id'] # Asigna ID real
 
         # Autentica al usuario de prueba en la sesion de Flask
-        with self.client.session_transaction() as sess:
+        with self.client.session_transaction() as sess: # Abre transaccion de sesion
             # Asigna ID de usuario
-            sess['user_id'] = 999
+            sess['user_id'] = u_id or 1 # Asigna ID real del usuario en base de datos
             # Asigna username
-            sess['username'] = 'admin_test_sample'
+            sess['username'] = 'admin_test_sample' # Asigna username
             # Asigna rol admin_sistema
-            sess['role'] = 'admin_sistema'
+            sess['role'] = 'admin_sistema' # Asigna rol admin
             # Asigna nombre completo
-            sess['full_name'] = 'Test Admin'
+            sess['full_name'] = 'Test Admin' # Asigna nombre completo
 
     # Metodo de limpieza ejecutado luego de cada prueba
     def tearDown(self):
@@ -199,7 +206,7 @@ class TestSampleDateShiftIdentification(unittest.TestCase):
             # Obtiene fila modificada
             row = conn.execute("SELECT * FROM production_weighings WHERE id = ?;", (w_id,)).fetchone()
             # Obtiene auditoria del cambio
-            audit = conn.execute("SELECT * FROM audit_logs WHERE event_type = 'EDICION_PESADA' ORDER BY timestamp DESC LIMIT 1;").fetchone()
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'EDICION_PESADA' ORDER BY timestamp DESC LIMIT 1;").fetchone() # Consulta auditoria por columna action
 
         # Verifica que la fecha de muestra sea la nueva
         self.assertEqual(row['sample_date'], '2026-09-15')

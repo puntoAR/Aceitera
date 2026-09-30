@@ -19,11 +19,27 @@ from core.timezone import get_plant_now_str, determine_time_slot, get_plant_toda
 from core.utils import safe_float, safe_int
 
 # Registra una determinacion analitica de laboratorio con calculo de parametros o ingreso directo
-def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data, notes='', press_number=None, sample_date=None):
+def record_analysis(sample_code, product, sampling_point, shift_id, operator_name, raw_data=None, notes='', press_number=None, sample_date=None, **kwargs): # Admite raw_data y parametros nombrados
+    if raw_data is None: # Si raw_data no fue provisto
+        raw_data = {} # Inicializa diccionario vacio
+    elif not isinstance(raw_data, dict): # Si vino otro tipo
+        try: # Intenta conversion a dict
+            raw_data = dict(raw_data) # Convierte
+        except Exception: # En caso de error
+            raw_data = {} # Asigna diccionario vacio
+    if 'moisture_pct' in kwargs: # Si se paso moisture_pct como keyword arg
+        raw_data['direct_moisture_pct'] = kwargs.pop('moisture_pct') # Asigna como porcentaje directo
+    if 'fat_pct' in kwargs: # Si se paso fat_pct como keyword arg
+        raw_data['direct_fat_pct'] = kwargs.pop('fat_pct') # Asigna como porcentaje directo
+    if 'acidity_pct' in kwargs: # Si se paso acidity_pct como keyword arg
+        raw_data['direct_acidity_pct'] = kwargs.pop('acidity_pct') # Asigna como porcentaje directo
+    if 'foreign_matter_pct' in kwargs: # Si se paso foreign_matter_pct como keyword arg
+        raw_data['direct_fm_pct'] = kwargs.pop('foreign_matter_pct') # Asigna como porcentaje directo
+    raw_data.update(kwargs) # Incorpora argumentos adicionales
     # Inicializa las variables de resultados
-    moisture_pct = None
+    moisture_pct = None # Humedad calculada
     # Materia grasa
-    fat_pct = None
+    fat_pct = None # Grasa calculada
     # Materia extrana
     foreign_matter_pct = None
     # Acidez libre
@@ -332,38 +348,41 @@ def get_recent_analyses(product=None, limit=50):
         return [dict(row) for row in rows]
 
 # Obtiene los parametros analiticos promedio de calidad para un turno y fecha de muestra
-def get_shift_lab_averages(shift_id=None, target_date=None):
+def get_shift_lab_averages(shift_id=None, target_date=None): # Obtiene promedios de laboratorio
     # Normaliza la fecha de muestra objetivo o usa la fecha actual de planta
-    clean_target_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str()
+    clean_target_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str() # Fecha de muestra limpia
+    is_date_filtered = bool(target_date and str(target_date).strip()) # Flag si se especificó fecha objetivo
     # Abre conexion a base de datos
-    with get_db_connection() as conn:
+    with get_db_connection() as conn: # Contexto de base de datos
         # Inicializa filas de consulta
-        seed_row = None
+        seed_row = None # Inicializa fila semilla
         # Fila Prensa 2 turno
-        exp_p2_shift_row = None
+        exp_p2_shift_row = None # Inicializa fila Prensa 2
         # Fila Prensa 1 turno
-        exp_p1_shift_row = None
+        exp_p1_shift_row = None # Inicializa fila Prensa 1
         # Fila aceite turno
-        oil_row = None
+        oil_row = None # Inicializa fila aceite
+        exp_p2_latest = None # Inicializa último Prensa 2
+        exp_p1_latest = None # Inicializa último Prensa 1
 
         # Si se paso un turno en particular, calcula las muestras de esa fecha y turno
-        if shift_id:
+        if shift_id: # Si se pasó turno
             # Consulta semilla para la fecha de muestra y turno especificados
             seed_row = conn.execute("""
                 SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
                 FROM lab_analyses
                 WHERE shift_id = ? AND product = 'semilla'
                   AND COALESCE(sample_date, date(timestamp)) = ?;
-            """, (shift_id, clean_target_date)).fetchone()
+            """, (shift_id, clean_target_date)).fetchone() # Ejecuta consulta semilla en fecha
 
-            # Si no hubo muestras en esa fecha de muestra, busca promedio global del turno
-            if not seed_row or seed_row['avg_fat'] is None:
+            # Si no hubo muestras en esa fecha de muestra, busca promedio global solo si no hay filtro de fecha
+            if (not seed_row or seed_row['avg_fat'] is None) and not is_date_filtered: # Fallback condicional
                 # Consulta promedio del turno sin filtrar fecha
                 seed_row = conn.execute("""
                     SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist, AVG(foreign_matter_pct) as avg_fm
                     FROM lab_analyses
                     WHERE shift_id = ? AND product = 'semilla';
-                """, (shift_id,)).fetchone()
+                """, (shift_id,)).fetchone() # Ejecuta consulta global semilla
 
             # Prensa 2 (Relevante / Producto Final): busca muestras de la fecha y turno
             exp_p2_shift_row = conn.execute("""
@@ -372,17 +391,17 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                 WHERE shift_id = ? AND product = 'expeller'
                   AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
                   AND COALESCE(sample_date, date(timestamp)) = ?;
-            """, (shift_id, clean_target_date)).fetchone()
+            """, (shift_id, clean_target_date)).fetchone() # Ejecuta consulta Prensa 2 en fecha
 
-            # Fallback a muestras globales del turno para Prensa 2 si no hay en la fecha
-            if not exp_p2_shift_row or exp_p2_shift_row['avg_fat'] is None:
+            # Fallback a muestras globales del turno para Prensa 2 solo si no hay fecha filtrada
+            if (not exp_p2_shift_row or exp_p2_shift_row['avg_fat'] is None) and not is_date_filtered: # Fallback condicional
                 # Consulta turno global
                 exp_p2_shift_row = conn.execute("""
                     SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
                     FROM lab_analyses
                     WHERE shift_id = ? AND product = 'expeller'
                       AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'));
-                """, (shift_id,)).fetchone()
+                """, (shift_id,)).fetchone() # Ejecuta consulta global Prensa 2
 
             # Prensa 1 (Indicativo preliminar) en la fecha y turno
             exp_p1_shift_row = conn.execute("""
@@ -391,17 +410,17 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                 WHERE shift_id = ? AND product = 'expeller'
                   AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')))
                   AND COALESCE(sample_date, date(timestamp)) = ?;
-            """, (shift_id, clean_target_date)).fetchone()
+            """, (shift_id, clean_target_date)).fetchone() # Ejecuta consulta Prensa 1 en fecha
 
-            # Fallback Prensa 1 al turno global
-            if not exp_p1_shift_row or exp_p1_shift_row['avg_fat'] is None:
+            # Fallback Prensa 1 al turno global solo si no hay fecha filtrada
+            if (not exp_p1_shift_row or exp_p1_shift_row['avg_fat'] is None) and not is_date_filtered: # Fallback condicional
                 # Consulta turno global Prensa 1
                 exp_p1_shift_row = conn.execute("""
                     SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
                     FROM lab_analyses
                     WHERE shift_id = ? AND product = 'expeller'
                       AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')));
-                """, (shift_id,)).fetchone()
+                """, (shift_id,)).fetchone() # Ejecuta consulta global Prensa 1
 
             # Aceite en la fecha y turno
             oil_row = conn.execute("""
@@ -409,54 +428,56 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                 FROM lab_analyses
                 WHERE shift_id = ? AND product = 'aceite'
                   AND COALESCE(sample_date, date(timestamp)) = ?;
-            """, (shift_id, clean_target_date)).fetchone()
+            """, (shift_id, clean_target_date)).fetchone() # Ejecuta consulta aceite en fecha
 
-            # Fallback aceite al turno global
-            if not oil_row or oil_row['avg_acidity'] is None:
+            # Fallback aceite al turno global solo si no hay fecha filtrada
+            if (not oil_row or oil_row['avg_acidity'] is None) and not is_date_filtered: # Fallback condicional
                 # Consulta turno global aceite
                 oil_row = conn.execute("""
                     SELECT AVG(acidity_pct) as avg_acidity, AVG(moisture_pct) as avg_moist
                     FROM lab_analyses
                     WHERE shift_id = ? AND product = 'aceite';
-                """, (shift_id,)).fetchone()
+                """, (shift_id,)).fetchone() # Ejecuta consulta global aceite
 
-        # Fallbacks si en ese turno no hubo muestras del producto
-        if not seed_row or seed_row['avg_fat'] is None:
+        # Fallbacks si en ese turno no hubo muestras del producto (solo sin fecha filtrada)
+        if (not seed_row or seed_row['avg_fat'] is None) and not is_date_filtered: # Fallback global semilla
             # Ultimo registro de semilla en planta
             seed_row = conn.execute("""
                 SELECT fat_pct as avg_fat, moisture_pct as avg_moist, foreign_matter_pct as avg_fm
                 FROM lab_analyses
                 WHERE product = 'semilla'
                 ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
-            """).fetchone()
+            """).fetchone() # Obtiene última semilla
 
-        # Fallback Prensa 2: ultimo registro de Prensa 2 en planta
-        exp_p2_latest = conn.execute("""
-            SELECT fat_pct as avg_fat, moisture_pct as avg_moist
-            FROM lab_analyses
-            WHERE product = 'expeller'
-              AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
-            ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
-        """).fetchone()
+        # Fallback Prensa 2: ultimo registro de Prensa 2 en planta solo si no hay fecha filtrada
+        if not is_date_filtered: # Condición sin fecha filtrada
+            exp_p2_latest = conn.execute("""
+                SELECT fat_pct as avg_fat, moisture_pct as avg_moist
+                FROM lab_analyses
+                WHERE product = 'expeller'
+                  AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
+            """).fetchone() # Obtiene último Prensa 2
 
-        # Fallback Prensa 1: ultimo registro de Prensa 1 en planta
-        exp_p1_latest = conn.execute("""
-            SELECT fat_pct as avg_fat, moisture_pct as avg_moist
-            FROM lab_analyses
-            WHERE product = 'expeller'
-              AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')))
-            ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
-        """).fetchone()
+        # Fallback Prensa 1: ultimo registro de Prensa 1 en planta solo si no hay fecha filtrada
+        if not is_date_filtered: # Condición sin fecha filtrada
+            exp_p1_latest = conn.execute("""
+                SELECT fat_pct as avg_fat, moisture_pct as avg_moist
+                FROM lab_analyses
+                WHERE product = 'expeller'
+                  AND (press_number = 1 OR (press_number IS NULL AND (LOWER(sampling_point) LIKE '%prensa 1%' OR LOWER(sampling_point) LIKE '%prensa1%' OR LOWER(sampling_point) LIKE '%p1%')))
+                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
+            """).fetchone() # Obtiene último Prensa 1
 
-        # Fallback aceite: ultimo registro de aceite en planta
-        if not oil_row or oil_row['avg_acidity'] is None:
+        # Fallback aceite: ultimo registro de aceite en planta solo si no hay fecha filtrada
+        if (not oil_row or oil_row['avg_acidity'] is None) and not is_date_filtered: # Fallback condicional aceite
             # Consulta ultimo analisis de aceite
             oil_row = conn.execute("""
                 SELECT acidity_pct as avg_acidity, moisture_pct as avg_moist
                 FROM lab_analyses
                 WHERE product = 'aceite'
                 ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
-            """).fetchone()
+            """).fetchone() # Obtiene último aceite
 
         # Promedio del dia para Prensa 2 basado en la fecha de la muestra objetivo
         day_p2_row = conn.execute("""
@@ -465,10 +486,10 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
             WHERE product = 'expeller'
               AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
               AND COALESCE(sample_date, date(timestamp)) = ?;
-        """, (clean_target_date,)).fetchone()
+        """, (clean_target_date,)).fetchone() # Consulta Prensa 2 del día
 
-        # Si en la fecha de muestra objetivo no hay muestras, fallback al dia del ultimo registro con muestras de Prensa 2
-        if not day_p2_row or day_p2_row['avg_fat'] is None:
+        # Si en la fecha de muestra objetivo no hay muestras, fallback solo si no hay fecha filtrada
+        if (not day_p2_row or day_p2_row['avg_fat'] is None) and not is_date_filtered: # Fallback condicional día
             # Consulta dia mas reciente con datos de Prensa 2
             day_p2_row = conn.execute("""
                 SELECT AVG(fat_pct) as avg_fat, AVG(moisture_pct) as avg_moist
@@ -480,12 +501,12 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                       WHERE product = 'expeller' AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
                       ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1
                   );
-            """).fetchone()
+            """).fetchone() # Obtiene día con datos
 
         # Valores de Prensa 2 para cada uno de los 3 turnos de planta (TM, TT, TN) en la fecha objetivo
-        shifts_p2 = {'TM': None, 'TT': None, 'TN': None}
+        shifts_p2 = {'TM': None, 'TT': None, 'TN': None} # Diccionario por turno
         # Itera por los turnos oficiales
-        for s_code in ['TM', 'TT', 'TN']:
+        for s_code in ['TM', 'TT', 'TN']: # Recorre turnos
             # Consulta promedio de grasa para ese turno en la fecha de muestra
             s_row = conn.execute("""
                 SELECT AVG(fat_pct) as avg_fat
@@ -494,10 +515,10 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                   AND shift_id = ?
                   AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
                   AND COALESCE(sample_date, date(timestamp)) = ?;
-            """, (s_code, clean_target_date)).fetchone()
+            """, (s_code, clean_target_date)).fetchone() # Consulta turno específico
 
-            # Si no hubo muestras en esa fecha, busca el ultimo registro historico de ese turno
-            if not s_row or s_row['avg_fat'] is None:
+            # Si no hubo muestras en esa fecha, busca el ultimo registro solo si no hay fecha filtrada
+            if (not s_row or s_row['avg_fat'] is None) and not is_date_filtered: # Fallback condicional
                 # Consulta el ultimo disponible
                 s_row = conn.execute("""
                     SELECT fat_pct as avg_fat
@@ -506,12 +527,12 @@ def get_shift_lab_averages(shift_id=None, target_date=None):
                       AND shift_id = ?
                       AND (press_number = 2 OR (press_number IS NULL AND LOWER(sampling_point) NOT LIKE '%prensa 1%' AND LOWER(sampling_point) NOT LIKE '%prensa1%' AND LOWER(sampling_point) NOT LIKE '%p1%'))
                     ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC LIMIT 1;
-                """, (s_code,)).fetchone()
+                """, (s_code,)).fetchone() # Obtiene último del turno
 
             # Si se obtuvo dato numerico
-            if s_row and s_row['avg_fat'] is not None:
+            if s_row and s_row['avg_fat'] is not None: # Si hay promedio numérico
                 # Redondea y almacena en diccionario
-                shifts_p2[s_code] = round(float(s_row['avg_fat']), 2)
+                shifts_p2[s_code] = round(float(s_row['avg_fat']), 2) # Guarda valor redondeado
 
         # Calculo final de valores de Prensa 2 (Turno)
         if exp_p2_shift_row and exp_p2_shift_row['avg_fat'] is not None:

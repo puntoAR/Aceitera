@@ -89,49 +89,78 @@ class HTMLTableParser(HTMLParser):
 
 # Normaliza texto para comparacion insensible a acentos, espacios y mayusculas
 def _clean_header(h):
+    # Si viene vacio o nulo
     if not h:
+        # Retorna cadena vacia
         return ''
+    # Convierte a texto en minusculas sin espacios extremos
     h = str(h).strip().lower()
+    # Reemplaza vocales acentuadas
     h = h.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
-    h = h.replace('_', ' ').replace('-', ' ').replace('.', '')
+    # Reemplaza signos de puntuacion, guiones y barras por espacios
+    h = h.replace('_', ' ').replace('-', ' ').replace('.', '').replace('/', ' ')
+    # Retorna texto limpio con espacios unificados
     return ' '.join(h.split())
 
 # Determina el tipo de operacion y producto estandarizado a partir de texto libre
 def _normalize_operation_and_product(raw_op, raw_prod):
+    # Limpia tipo de operacion
     op = (raw_op or '').strip().lower()
+    # Limpia tipo de producto
     prod = (raw_prod or '').strip().lower()
 
     # Normalizacion de operacion
     if any(k in op for k in ['egreso', 'salida', 'despacho', 'venta', 'embarque']):
+        # Asigna operacion de egreso
         operation_type = 'egreso'
+    # Si indica ingreso
     elif any(k in op for k in ['ingreso', 'entrada', 'compra', 'recepcion', 'descarga']):
+        # Asigna operacion de ingreso
         operation_type = 'ingreso'
+    # Si es movimiento interno
     elif any(k in op for k in ['interno', 'trasvase', 'recirculacion']):
+        # Asigna operacion interna
         operation_type = 'interno'
+    # Deduccion segun el producto si la operacion no esta explicita
     else:
-        # Deduccion segun el producto si la operacion no esta explicita
+        # Si es semilla de girasol
         if 'semilla' in prod or 'girasol' in prod:
+            # Asigna ingreso
             operation_type = 'ingreso'
+        # Si es producto terminado (aceite o expeller)
         elif 'aceite' in prod or 'expeller' in prod:
+            # Asigna egreso
             operation_type = 'egreso'
+        # Fallback general
         else:
+            # Por defecto ingreso
             operation_type = 'ingreso'
 
     # Normalizacion de producto
     if 'semilla' in prod or 'grano' in prod or 'girasol' in prod:
+        # Semilla
         product_norm = 'semilla'
+    # Aceite crudo
     elif 'aceite' in prod:
+        # Aceite
         product_norm = 'aceite'
+    # Expeller
     elif 'expeller' in prod or 'pellet' in prod or 'harina' in prod:
+        # Expeller
         product_norm = 'expeller'
+    # Insumos
     elif 'insumo' in prod or 'repuesto' in prod or 'quimico' in prod or 'solvente' in prod or 'lena' in prod or 'gas' in prod:
+        # Insumos
         product_norm = 'insumos'
+    # Otros productos
     else:
+        # Conserva nombre o insumos
         product_norm = prod or 'insumos'
 
+    # Retorna tupla de operacion y producto
     return operation_type, product_norm
 
-# Registra una pesada de balanza de camion en la base de datos
+# Registra una pesada de balanza de camion en la base de datos con las 27 columnas estandar
 def record_weighing(
     ticket_number=None, weigh_date=None, operation_type='ingreso', product='semilla',
     truck_plate=None, trailer_plate=None, transport_company=None,
@@ -139,25 +168,76 @@ def record_weighing(
     gross_weight_kg=0.0, tare_weight_kg=0.0, net_weight_kg=None,
     origin=None, destination=None, origin_name=None, destination_name=None,
     seals_numbers=None, notes=None,
-    operator_name='Balanza', shift_id='TC', sync_inventory=False
+    operator_name='Balanza', shift_id='TC', sync_inventory=False,
+    exit_date=None, entry_date=None, client=None, recipient=None,
+    origin_destination=None, user_id_code='1', exit_weight_kg=None,
+    entry_weight_kg=None, exporter=None, manual_tare='NO',
+    driver_nationality='Argentina', packages=None, customs=None,
+    lot=None, single_weighing='NO', customs_destination=None
 ):
-    origin = origin or origin_name
-    destination = destination or destination_name
+    # Asigna origen de la carga
+    origin = origin or origin_name or ''
+    # Asigna destino de la carga
+    destination = destination or destination_name or ''
+    # Conversion segura a punto flotante de peso bruto
     gross = float(gross_weight_kg or 0.0)
+    # Conversion segura a punto flotante de tara
     tare = float(tare_weight_kg or 0.0)
+
+    # Si no se paso fecha de pesada toma la hora oficial de planta
+    if not weigh_date:
+        # Obtiene hora actual de planta
+        weigh_date = get_plant_now_str()
+
+    # Fecha de ingreso
+    entry_date = entry_date or (weigh_date if operation_type == 'ingreso' else weigh_date)
+    # Fecha de egreso
+    exit_date = exit_date or (weigh_date if operation_type == 'egreso' else weigh_date)
+
+    # Procedencia o destino consolidado
+    origin_destination = origin_destination or destination or origin or 'BioBalcarce'
+    # Cliente
+    client = client or destination or ''
+    # Destinatario
+    recipient = recipient or destination or ''
+
+    # Peso en ingreso
+    if entry_weight_kg is not None and float(entry_weight_kg or 0.0) > 0:
+        # Usa valor explicitamente enviado
+        p_ingreso = float(entry_weight_kg)
+    # Si no vino
+    else:
+        # En egreso entra vacio (tara), en ingreso entra cargado (bruto)
+        p_ingreso = tare if operation_type == 'egreso' and tare > 0 else (gross if gross > 0 else 0.0)
+
+    # Peso en egreso
+    if exit_weight_kg is not None and float(exit_weight_kg or 0.0) > 0:
+        # Usa valor explicitamente enviado
+        p_egreso = float(exit_weight_kg)
+    # Si no vino
+    else:
+        # En egreso sale cargado (bruto), en ingreso sale vacio (tara)
+        p_egreso = gross if operation_type == 'egreso' and gross > 0 else (tare if tare > 0 else 0.0)
 
     # Si no se envio neto explicito, se calcula por diferencia
     if net_weight_kg is not None and float(net_weight_kg) > 0:
+        # Asigna peso neto recibido
         net = float(net_weight_kg)
+    # Si hay pesos de ingreso y egreso
+    elif p_ingreso > 0 and p_egreso > 0:
+        # Neto es la diferencia absoluta
+        net = abs(p_ingreso - p_egreso)
+    # Fallback por bruto y tara
     else:
+        # Diferencia de bruto menos tara
         net = max(0.0, gross - tare)
 
+    # Convierte neto a toneladas
     net_tons = round(net / 1000.0, 3)
 
-    if not weigh_date:
-        weigh_date = get_plant_now_str()
-
+    # Abre conexion para insertar el registro
     with get_db_connection() as conn:
+        # Inserta la pesada completa con las 27 columnas estandar
         cursor = conn.execute("""
             INSERT INTO truck_scale_weighings (
                 ticket_number, weigh_date, operation_type, product,
@@ -165,26 +245,41 @@ def record_weighing(
                 driver_name, driver_dni,
                 gross_weight_kg, tare_weight_kg, net_weight_kg, net_weight_tons,
                 origin, destination, seals_numbers, notes,
-                operator_name, shift_id, sync_inventory
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                operator_name, shift_id, sync_inventory,
+                exit_date, entry_date, client, recipient, origin_destination,
+                user_id_code, exit_weight_kg, entry_weight_kg, exporter,
+                manual_tare, driver_nationality, packages, customs,
+                lot, single_weighing, customs_destination
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (
             ticket_number, weigh_date, operation_type, product,
             (truck_plate or '').upper(), (trailer_plate or '').upper() if trailer_plate else None,
             transport_company, driver_name, driver_dni,
             gross, tare, net, net_tons,
             origin, destination, seals_numbers, notes,
-            operator_name, shift_id, 1 if sync_inventory else 0
+            operator_name, shift_id, 1 if sync_inventory else 0,
+            exit_date, entry_date, client, recipient, origin_destination,
+            str(user_id_code or '1'), p_egreso, p_ingreso, exporter,
+            manual_tare or 'NO', driver_nationality or 'Argentina', packages, customs,
+            lot, single_weighing or 'NO', customs_destination
         ))
+        # Obtiene ID asignado a la fila
         weighing_id = cursor.lastrowid
 
         # Si se solicita sincronizar con existencias de inventario
         if sync_inventory and net > 0:
+            # Importa servicio de movimientos de inventario
             from modules.inventory.service import record_inventory_movement
+            # Captura posibles excepciones sin abortar pesada
             try:
                 # El movimiento de inventario impacta en el stock general
                 inv_mov_type = 'ingreso' if operation_type == 'ingreso' else 'despacho'
+                # Normaliza producto para silos y tanques
                 inv_prod = product if product in ['semilla', 'aceite', 'expeller'] else 'semilla'
+                # Detalle del comprobante
                 inv_notes = f"Balanza Ticket {ticket_number or weighing_id} - Camión {truck_plate or '-'}"
+                # Registra el movimiento
                 record_inventory_movement(
                     product=inv_prod,
                     movement_type=inv_mov_type,
@@ -196,11 +291,15 @@ def record_weighing(
                     operator_name=operator_name,
                     notes=inv_notes
                 )
+            # Manejo de error de sincronizacion
             except Exception as e:
+                # Registra en bitacora
                 log_error('WEIGHBRIDGE_SERVICE', f"No se pudo sincronizar inventario para pesada {weighing_id}", e)
 
+        # Confirma transaccion en base de datos
         conn.commit()
 
+    # Retorna ID de pesada
     return weighing_id
 
 # Obtiene la lista filtrada de pesadas de balanza para la vista web
@@ -585,286 +684,464 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
         # Fallback al primer renglon si no se detectaron encabezados tipicos
         header_idx = 0
 
-    header_row = raw_rows[header_idx]
-    for c_idx, cell in enumerate(header_row):
-        norm = _clean_header(cell)
-        if not norm:
-            continue
+    header_row = raw_rows[header_idx] # Fila detectada que contiene las cabeceras
+    for c_idx, cell in enumerate(header_row): # Itera cada celda de encabezado
+        norm = _clean_header(cell) # Limpia y normaliza texto del encabezado
+        if not norm: # Si la celda está vacía continúa
+            continue # Salta a siguiente columna
 
-        # Mapeo de columnas
-        if any(k in norm for k in ['ticket', 'comprobante', 'remito', 'boleta', 'nro']):
-            col_map['ticket'] = c_idx
-        elif any(k in norm for k in ['fecha', 'hora', 'date', 'timestamp']):
-            if 'fecha' not in col_map: # Prioriza primer campo fecha
-                col_map['fecha'] = c_idx
-        elif any(k in norm for k in ['chasis', 'patente camion', 'dominio chasis', 'camion', 'patente']):
-            if 'chasis' not in col_map:
-                col_map['chasis'] = c_idx
-        elif any(k in norm for k in ['acoplado', 'semi', 'trailer', 'patente acoplado', 'dominio acoplado']):
-            col_map['acoplado'] = c_idx
-        elif any(k in norm for k in ['chofer', 'conductor', 'transportista']):
-            col_map['chofer'] = c_idx
-        elif any(k in norm for k in ['dni', 'cuit', 'documento']):
-            col_map['dni'] = c_idx
-        elif any(k in norm for k in ['empresa', 'transporte', 'razon social']):
-            col_map['transporte'] = c_idx
-        elif any(k in norm for k in ['bruto', 'peso bruto', 'kg bruto', 'pesada 1']):
-            col_map['bruto'] = c_idx
-        elif any(k in norm for k in ['tara', 'peso tara', 'kg tara', 'pesada 2']):
-            col_map['tara'] = c_idx
-        elif any(k in norm for k in ['neto', 'peso neto', 'kg neto']):
-            col_map['neto'] = c_idx
-        elif any(k in norm for k in ['producto', 'material', 'cereal', 'mercaderia']):
-            col_map['producto'] = c_idx
-        elif any(k in norm for k in ['operacion', 'movimiento', 'sentido', 'tipo']):
-            col_map['operacion'] = c_idx
-        elif any(k in norm for k in ['origen', 'procedencia', 'proveedor']):
-            col_map['origen'] = c_idx
-        elif any(k in norm for k in ['destino', 'cliente', 'destinatario']):
-            col_map['destino'] = c_idx
-        elif any(k in norm for k in ['precinto', 'precintos', 'seals']):
-            col_map['precintos'] = c_idx
-        elif any(k in norm for k in ['observacion', 'observaciones', 'notas', 'obs']):
-            col_map['notas'] = c_idx
+        # Mapeo de columnas estándar de balanza
+        if 'fecha egreso' in norm or ('salida' in norm and 'fecha' in norm): # Cabecera de fecha de egreso
+            col_map['fecha_egreso'] = c_idx # Guarda índice de fecha egreso
+        elif 'fecha ingreso' in norm or ('entrada' in norm and 'fecha' in norm): # Cabecera de fecha de ingreso
+            col_map['fecha_ingreso'] = c_idx # Guarda índice de fecha ingreso
+        elif any(k in norm for k in ['fecha', 'hora', 'date', 'timestamp']): # Cabecera genérica de fecha
+            if 'fecha' not in col_map: # Prioriza primer campo fecha detectado
+                col_map['fecha'] = c_idx # Guarda índice general de fecha
+        elif 'peso egreso' in norm or ('salida' in norm and 'peso' in norm): # Cabecera de peso de egreso
+            col_map['peso_egreso'] = c_idx # Guarda índice de peso egreso
+        elif 'peso ingreso' in norm or ('entrada' in norm and 'peso' in norm): # Cabecera de peso de ingreso
+            col_map['peso_ingreso'] = c_idx # Guarda índice de peso ingreso
+        elif 'peso neto' in norm or norm == 'neto' or 'kg neto' in norm: # Cabecera de peso neto
+            col_map['neto'] = c_idx # Guarda índice de peso neto
+        elif 'peso bruto' in norm or norm == 'bruto' or 'kg bruto' in norm or 'pesada 1' in norm: # Cabecera de peso bruto
+            col_map['bruto'] = c_idx # Guarda índice de peso bruto
+        elif 'tara manual' in norm or norm == 'tara_manual': # Cabecera de tara manual
+            col_map['tara_manual'] = c_idx # Guarda índice de tara manual
+        elif 'peso tara' in norm or norm == 'tara' or 'kg tara' in norm or 'pesada 2' in norm: # Cabecera de peso tara estándar
+            col_map['tara'] = c_idx # Guarda índice de peso tara
+        elif 'id usuario' in norm or norm == 'id_usuario' or 'cod usuario' in norm: # Cabecera de código ID de usuario
+            col_map['id_usuario'] = c_idx # Guarda índice de ID usuario
+        elif norm == 'usuario' or norm == 'operador' or 'user' in norm: # Cabecera de nombre de usuario/operador
+            col_map['usuario'] = c_idx # Guarda índice de usuario
+        elif norm == 'id' or any(k in norm for k in ['ticket', 'comprobante', 'remito', 'boleta', 'nro']): # Cabecera identificadora de pesada/ticket
+            if 'ticket' not in col_map: # Asigna si no fue mapeado previamente
+                col_map['ticket'] = c_idx # Guarda índice de ticket o ID
+        elif 'cliente' in norm: # Cabecera de cliente
+            col_map['cliente'] = c_idx # Guarda índice de cliente
+        elif 'destinatario' in norm: # Cabecera de destinatario
+            col_map['destinatario'] = c_idx # Guarda índice de destinatario
+        elif any(k in norm for k in ['transportista', 'transporte', 'empresa', 'razon social']): # Cabecera de empresa transportista
+            col_map['transporte'] = c_idx # Guarda índice de transporte
+        elif 'acoplado' in norm or 'semi' in norm or 'trailer' in norm: # Cabecera de patente de acoplado
+            col_map['acoplado'] = c_idx # Guarda índice de acoplado
+        elif 'chasis' in norm or 'camion' in norm or 'patente' in norm or 'dominio' in norm: # Cabecera de patente de chasis
+            if 'chasis' not in col_map: # Si no se ha asignado patente de chasis
+                col_map['chasis'] = c_idx # Guarda índice de chasis
+        elif 'procedencia' in norm and 'destino' in norm: # Cabecera combinada Procedencia/Destino
+            col_map['procedencia_destino'] = c_idx # Guarda índice de procedencia/destino
+        elif any(k in norm for k in ['origen', 'procedencia', 'proveedor']): # Cabecera de origen o procedencia
+            col_map['origen'] = c_idx # Guarda índice de origen
+        elif any(k in norm for k in ['destino']): # Cabecera de destino
+            col_map['destino'] = c_idx # Guarda índice de destino
+        elif any(k in norm for k in ['chofer', 'conductor']): # Cabecera de nombre de chofer
+            col_map['chofer'] = c_idx # Guarda índice de chofer
+        elif any(k in norm for k in ['dni', 'cuit', 'documento']): # Cabecera de documento del chofer
+            col_map['dni'] = c_idx # Guarda índice de DNI chofer
+        elif 'nacionalidad' in norm: # Cabecera de nacionalidad del chofer
+            col_map['nacionalidad'] = c_idx # Guarda índice de nacionalidad
+        elif 'exportador' in norm: # Cabecera de exportador
+            col_map['exportador'] = c_idx # Guarda índice de exportador
+        elif any(k in norm for k in ['bulto', 'bultos', 'paquete', 'paquetes']): # Cabecera de cantidad de bultos
+            col_map['bultos'] = c_idx # Guarda índice de bultos
+        elif 'aduana' in norm: # Cabecera de aduana
+            col_map['aduana'] = c_idx # Guarda índice de aduana
+        elif norm == 'lot' or 'lote' in norm: # Cabecera de lote o LOT
+            col_map['lot'] = c_idx # Guarda índice de LOT
+        elif 'pesada unica' in norm or norm == 'pesada_unica': # Cabecera de pesada única
+            col_map['pesada_unica'] = c_idx # Guarda índice de pesada única
+        elif 'destinacion' in norm or 'destinacion aduanera' in norm: # Cabecera de destinación aduanera
+            col_map['destinacion'] = c_idx # Guarda índice de destinación
+        elif any(k in norm for k in ['producto', 'material', 'cereal', 'mercaderia']): # Cabecera de producto o material
+            col_map['producto'] = c_idx # Guarda índice de producto
+        elif any(k in norm for k in ['operacion', 'movimiento', 'sentido', 'tipo']): # Cabecera de tipo de operación
+            col_map['operacion'] = c_idx # Guarda índice de tipo de operación
+        elif any(k in norm for k in ['precinto', 'precintos', 'seals']): # Cabecera de precintos
+            col_map['precintos'] = c_idx # Guarda índice de precintos
+        elif any(k in norm for k in ['observacion', 'observaciones', 'notas', 'obs']): # Cabecera de observaciones
+            col_map['notas'] = c_idx # Guarda índice de observaciones
 
-    imported_count = 0
-    skipped_count = 0
-    errors = []
+    imported_count = 0 # Inicializa contador de importados exitosos
+    skipped_count = 0 # Inicializa contador de registros ignorados
+    errors = [] # Lista de errores detectados en la importación
 
     # Procesa cada fila de datos a partir de header_idx + 1
-    for r_idx, row in enumerate(raw_rows[header_idx + 1:], start=header_idx + 2):
-        if not row or all(c is None or str(c).strip() == '' for c in row):
-            continue
+    for r_idx, row in enumerate(raw_rows[header_idx + 1:], start=header_idx + 2): # Itera filas de datos
+        if not row or all(c is None or str(c).strip() == '' for c in row): # Verifica si la fila está en blanco
+            continue # Ignora fila vacía
 
-        def get_val(key, default=''):
-            if key in col_map and col_map[key] < len(row):
-                v = row[col_map[key]]
-                if v is None:
-                    return default
-                if isinstance(v, datetime.datetime):
-                    return v.strftime('%Y-%m-%d %H:%M:%S')
-                if isinstance(v, datetime.date):
-                    return v.strftime('%Y-%m-%d')
-                return str(v).strip()
-            return default
+        def get_val(key, default=''): # Función auxiliar para obtener cadena de texto
+            if key in col_map and col_map[key] < len(row): # Si la clave está en el mapa
+                v = row[col_map[key]] # Obtiene valor de celda
+                if v is None: # Si es None
+                    return default # Retorna valor por omisión
+                if isinstance(v, datetime.datetime): # Si es tipo datetime
+                    return v.strftime('%Y-%m-%d %H:%M:%S') # Formatea a texto con hora
+                if isinstance(v, datetime.date): # Si es tipo date
+                    return v.strftime('%Y-%m-%d') # Formatea a texto solo fecha
+                return str(v).strip() # Retorna cadena sin espacios laterales
+            return default # Retorna valor por omisión si no existe la columna
 
-        def get_float(key, default=0.0):
-            val_str = get_val(key)
-            if not val_str:
-                return default
-            try:
+        def get_float(key, default=0.0): # Función auxiliar para obtener número de punto flotante
+            val_str = get_val(key) # Obtiene valor en texto
+            if not val_str: # Si está vacío
+                return default # Retorna número por omisión
+            try: # Intenta conversión numérica
                 # Normaliza separadores de miles y decimales
-                val_str = val_str.replace('.', '').replace(',', '.') if ',' in val_str and '.' in val_str else val_str.replace(',', '.')
-                return float(val_str)
-            except ValueError:
-                return default
+                val_str = val_str.replace('.', '').replace(',', '.') if ',' in val_str and '.' in val_str else val_str.replace(',', '.') # Conversión de formato
+                return float(val_str) # Retorna valor flotante convertido
+            except ValueError: # Si falla la conversión
+                return default # Retorna número por omisión
 
-        ticket = get_val('ticket')
-        fecha = get_val('fecha') or get_plant_now_str()
-        chasis = get_val('chasis')
-        acoplado = get_val('acoplado')
-        chofer = get_val('chofer')
-        dni = get_val('dni')
-        transporte = get_val('transporte')
-        raw_prod = get_val('producto')
-        raw_op = get_val('operacion')
-        bruto = get_float('bruto')
-        tara = get_float('tara')
-        neto = get_float('neto')
-        origen = get_val('origen')
-        destino = get_val('destino')
-        precintos = get_val('precintos')
-        notas = get_val('notas')
+        ticket = get_val('ticket') # Extrae número de ticket o comprobante
+        fecha_egreso = get_val('fecha_egreso') # Extrae fecha de egreso
+        fecha_ingreso = get_val('fecha_ingreso') # Extrae fecha de ingreso
+        fecha = fecha_egreso or fecha_ingreso or get_val('fecha') or get_plant_now_str() # Resuelve fecha de la pesada
+        chasis = get_val('chasis') # Extrae patente de chasis
+        acoplado = get_val('acoplado') # Extrae patente de acoplado
+        chofer = get_val('chofer') # Extrae nombre de chofer
+        dni = get_val('dni') # Extrae DNI de chofer
+        transporte = get_val('transporte') # Extrae empresa transportista
+        raw_prod = get_val('producto') # Extrae denominación de producto
+        raw_op = get_val('operacion') # Extrae operación original
+        peso_egreso = get_float('peso_egreso') # Extrae peso de egreso en kg
+        peso_ingreso = get_float('peso_ingreso') # Extrae peso de ingreso en kg
+        bruto = get_float('bruto') # Extrae peso bruto en kg
+        tara = get_float('tara') # Extrae tara en kg
+        neto = get_float('neto') # Extrae peso neto en kg
+        cliente = get_val('cliente') # Extrae cliente
+        destinatario = get_val('destinatario') # Extrae destinatario
+        origen_destino = get_val('procedencia_destino') # Extrae texto combinado procedencia/destino
+        origen = get_val('origen') or origen_destino # Extrae origen o fallback a procedencia/destino
+        destino = get_val('destino') or destinatario or cliente # Extrae destino o fallback
+        precintos = get_val('precintos') # Extrae precintos
+        notas = get_val('notas') # Extrae observaciones
+        id_usuario = get_val('id_usuario') or '1' # Extrae ID de usuario balancero
+        usuario = get_val('usuario') # Extrae nombre de usuario
+        exportador = get_val('exportador') # Extrae exportador
+        tara_manual = get_val('tara_manual') or 'NO' # Extrae indicador de tara manual
+        nacionalidad = get_val('nacionalidad') or 'Argentina' # Extrae nacionalidad de chofer
+        bultos = get_val('bultos') # Extrae bultos
+        aduana = get_val('aduana') # Extrae aduana
+        lot = get_val('lot') # Extrae LOT
+        pesada_unica = get_val('pesada_unica') or 'NO' # Extrae indicador de pesada única
+        destinacion = get_val('destinacion') # Extrae destinación
 
-        # Si no hay chasis ni ticket ni peso, saltea la linea
-        if not chasis and not ticket and bruto == 0.0 and neto == 0.0:
-            skipped_count += 1
-            continue
+        # Si no hay chasis ni ticket ni pesos, saltea fila vacía
+        if not chasis and not ticket and bruto == 0.0 and neto == 0.0 and peso_egreso == 0.0 and peso_ingreso == 0.0: # Condición de fila vacía
+            skipped_count += 1 # Incrementa contador de omitidos
+            continue # Salta al siguiente renglón
 
-        # Si el neto es 0 pero hay bruto y tara, calcula
-        if neto <= 0.0 and bruto > 0.0 and tara > 0.0:
-            neto = max(0.0, bruto - tara)
+        # Deducir pesos si solo vienen peso_egreso y peso_ingreso
+        if peso_egreso > 0.0 and peso_ingreso > 0.0: # Si ambos pesos de báscula están presentes
+            if peso_egreso > peso_ingreso: # Si peso de egreso es mayor es una salida de producto cargado
+                if not raw_op: # Si no se especificó la operación
+                    raw_op = 'egreso' # Asigna egreso como tipo de operación
+                if bruto <= 0.0: # Si no había peso bruto explícito
+                    bruto = peso_egreso # El peso de egreso corresponde al bruto
+                if tara <= 0.0: # Si no había tara explícita
+                    tara = peso_ingreso # El peso de ingreso corresponde a la tara
+            elif peso_ingreso > peso_egreso: # Si peso de ingreso es mayor es una entrada de materia prima
+                if not raw_op: # Si no se especificó la operación
+                    raw_op = 'ingreso' # Asigna ingreso como tipo de operación
+                if bruto <= 0.0: # Si no había peso bruto explícito
+                    bruto = peso_ingreso # El peso de ingreso corresponde al bruto
+                if tara <= 0.0: # Si no había tara explícita
+                    tara = peso_egreso # El peso de egreso corresponde a la tara
+            if neto <= 0.0: # Si el peso neto no vino informado
+                neto = abs(peso_egreso - peso_ingreso) # Calcula neto como diferencia absoluta
+        elif peso_egreso > 0.0 and peso_ingreso == 0.0: # Si solo vino peso de egreso
+            if not raw_op: # Si no se especificó la operación
+                raw_op = 'egreso' # Asigna operación de egreso
+            if bruto <= 0.0: # Si bruto no está definido
+                bruto = peso_egreso # Toma peso de egreso como bruto
+        elif peso_ingreso > 0.0 and peso_egreso == 0.0: # Si solo vino peso de ingreso
+            if not raw_op: # Si no se especificó la operación
+                raw_op = 'ingreso' # Asigna operación de ingreso
+            if bruto <= 0.0: # Si bruto no está definido
+                bruto = peso_ingreso # Toma peso de ingreso como bruto
 
-        # Si el valor de los pesos vino en toneladas (ej. 28.5 en vez de 28500 kg)
-        if 0 < neto < 150: # Evidente carga en toneladas
-            neto = neto * 1000.0
-            bruto = bruto * 1000.0 if bruto < 150 else bruto
-            tara = tara * 1000.0 if tara < 150 else tara
+        # Si el neto es 0 pero hay bruto y tara, calcula neto por diferencia
+        if neto <= 0.0 and bruto > 0.0 and tara > 0.0: # Comprueba si se puede derivar el neto
+            neto = max(0.0, abs(bruto - tara)) # Deriva neto positivo
 
-        op_type, prod_norm = _normalize_operation_and_product(raw_op, raw_prod)
+        # Normaliza unidades si los pesos vinieron en toneladas
+        if 0 < neto < 150: # Detección de magnitud menor a 150 (toneladas)
+            neto = neto * 1000.0 # Convierte neto a kilogramos
+            bruto = bruto * 1000.0 if bruto < 150 else bruto # Convierte bruto a kilogramos
+            tara = tara * 1000.0 if tara < 150 else tara # Convierte tara a kilogramos
+            peso_egreso = peso_egreso * 1000.0 if 0 < peso_egreso < 150 else peso_egreso # Convierte peso egreso a kg
+            peso_ingreso = peso_ingreso * 1000.0 if 0 < peso_ingreso < 150 else peso_ingreso # Convierte peso ingreso a kg
 
-        try:
-            record_weighing(
-                ticket_number=ticket,
-                weigh_date=fecha,
-                operation_type=op_type,
-                product=prod_norm,
-                truck_plate=chasis,
-                trailer_plate=acoplado,
-                transport_company=transporte,
-                driver_name=chofer,
-                driver_dni=dni,
-                gross_weight_kg=bruto,
-                tare_weight_kg=tara,
-                net_weight_kg=neto,
-                origin=origen,
-                destination=destino,
-                seals_numbers=precintos,
-                notes=notas,
-                operator_name=operator_name,
-                shift_id=shift_id,
-                sync_inventory=sync_inventory
-            )
-            imported_count += 1
-        except Exception as e:
-            errors.append(f"Fila {r_idx}: {str(e)}")
-            skipped_count += 1
+        # Normaliza tipo de operación y producto
+        op_type, prod_norm = _normalize_operation_and_product(raw_op, raw_prod) # Invoca normalizador
+        # Infiere sentido de operación según producto si no vino definido
+        if not raw_op: # Si no vino operación en el archivo
+            if prod_norm == 'semilla': # Si es semilla normalmente es recepción
+                op_type = 'ingreso' # Asigna ingreso
+            elif prod_norm in ['expeller', 'aceite']: # Si es aceite o expeller normalmente es despacho
+                op_type = 'egreso' # Asigna egreso
 
-    record_audit_event('BALANZA', 'IMPORTACION_EXCEL', f"Importación de balanza: {imported_count} registros incorporados, {skipped_count} omitidos.")
-    return {
-        'success': True,
-        'imported_count': imported_count,
-        'skipped_count': skipped_count,
-        'errors': errors
-    }
+        # Asegura valores para peso egreso y peso ingreso si no vinieron explícitos
+        if peso_egreso == 0.0 and peso_ingreso == 0.0: # Si no estaban seteados
+            if op_type == 'egreso': # Para despachos
+                peso_egreso = bruto if bruto > 0.0 else neto # Egreso con carga
+                peso_ingreso = tara # Ingreso vacío
+            else: # Para ingresos de materia prima
+                peso_ingreso = bruto if bruto > 0.0 else neto # Ingreso con carga
+                peso_egreso = tara # Egreso vacío
 
-# Exporta los registros a un archivo Excel (.xlsx) estructurado
-def export_weighings_to_excel(weighings=None, as_stream=False):
+        try: # Intenta registrar la pesada en la base de datos
+            record_weighing( # Invoca servicio de registro con todas las columnas estándar
+                ticket_number=ticket, # Número de ticket
+                weigh_date=fecha, # Fecha general de pesada
+                operation_type=op_type, # Tipo de operación (ingreso/egreso)
+                product=prod_norm, # Producto estandarizado
+                truck_plate=chasis, # Patente de chasis
+                trailer_plate=acoplado, # Patente de acoplado
+                transport_company=transporte, # Empresa transportista
+                driver_name=chofer, # Nombre de conductor
+                driver_dni=dni, # Documento de conductor
+                gross_weight_kg=bruto, # Peso bruto en kg
+                tare_weight_kg=tara, # Peso tara en kg
+                net_weight_kg=neto, # Peso neto en kg
+                origin=origen, # Origen de carga
+                destination=destino, # Destino de carga
+                seals_numbers=precintos, # Números de precinto
+                notes=notas, # Observaciones adicionales
+                operator_name=usuario or operator_name, # Nombre del operador
+                shift_id=shift_id, # Turno asignado
+                sync_inventory=sync_inventory, # Flag de sincronización con existencias
+                exit_date=fecha_egreso, # Fecha de egreso de balanza
+                entry_date=fecha_ingreso, # Fecha de ingreso de balanza
+                client=cliente, # Cliente
+                recipient=destinatario, # Destinatario
+                origin_destination=origen_destino, # Procedencia/Destino
+                user_id_code=id_usuario, # ID numérico del usuario de balanza
+                exit_weight_kg=peso_egreso, # Peso al egreso de balanza
+                entry_weight_kg=peso_ingreso, # Peso al ingreso de balanza
+                exporter=exportador, # Razón social del exportador
+                manual_tare=tara_manual, # Indicador de tara manual
+                driver_nationality=nacionalidad, # Nacionalidad del chofer
+                packages=bultos, # Cantidad de bultos
+                customs=aduana, # Nombre o código de aduana
+                lot=lot, # Número o código de LOT
+                single_weighing=pesada_unica, # Indicador de pesada única
+                customs_destination=destinacion # Destinación aduanera
+            ) # Fin de llamada a record_weighing
+            imported_count += 1 # Incrementa contador de pesadas importadas
+        except Exception as e: # Captura excepción en procesamiento de fila
+            errors.append(f"Fila {r_idx}: {str(e)}") # Almacena mensaje descriptivo de error
+            skipped_count += 1 # Incrementa contador de omitidos
+
+    record_audit_event('BALANZA', 'IMPORTACION_EXCEL', f"Importación de balanza: {imported_count} registros incorporados, {skipped_count} omitidos.") # Auditoría
+    return { # Retorno estructurado de resultado
+        'success': True, # Indicador de éxito
+        'imported_count': imported_count, # Total importados
+        'skipped_count': skipped_count, # Total omitidos
+        'errors': errors # Detalle de errores
+    } # Fin de retorno
+
+# Exporta los registros a un archivo Excel (.xlsx) estructurado con las 27 columnas estándar
+def export_weighings_to_excel(weighings=None, as_stream=False): # Función de exportación a Excel
     # Verifica la disponibilidad de la libreria openpyxl
-    if openpyxl is None:
+    if openpyxl is None: # Si openpyxl no está instalado
         # Lanza excepcion descriptiva si no se encuentra instalada
-        raise RuntimeError("La exportación a formato Excel requiere la librería openpyxl instalada.")
-    if weighings is None:
-        weighings = get_recent_weighings(limit=5000)
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Pesadas de Balanza"
+        raise RuntimeError("La exportación a formato Excel requiere la librería openpyxl instalada.") # Error
+    if weighings is None: # Si no se suministraron registros
+        weighings = get_recent_weighings(limit=5000) # Consulta registros recientes
+    wb = openpyxl.Workbook() # Crea nuevo libro Excel
+    ws = wb.active # Obtiene hoja activa
+    ws.title = "Pesadas de Balanza" # Establece título de pestaña
 
     # Estilos corporativos de BioBalcarce
-    header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid") # Slate 900
-    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
-    data_font = Font(name="Arial", size=9)
-    bold_font = Font(name="Arial", size=9, bold=True)
-    center_align = Alignment(horizontal="center", vertical="center")
-    left_align = Alignment(horizontal="left", vertical="center")
-    right_align = Alignment(horizontal="right", vertical="center")
-    thin_border = Border(
-        left=Side(style='thin', color='E2E8F0'),
-        right=Side(style='thin', color='E2E8F0'),
-        top=Side(style='thin', color='E2E8F0'),
-        bottom=Side(style='thin', color='E2E8F0')
-    )
+    header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid") # Fondo oscuro slate 900
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF") # Fuente blanca en negrita
+    data_font = Font(name="Arial", size=9) # Fuente regular para datos
+    bold_font = Font(name="Arial", size=9, bold=True) # Fuente en negrita para totales y netos
+    center_align = Alignment(horizontal="center", vertical="center") # Alineación centrada
+    left_align = Alignment(horizontal="left", vertical="center") # Alineación a la izquierda
+    right_align = Alignment(horizontal="right", vertical="center") # Alineación a la derecha
+    thin_border = Border( # Borde fino para celdas
+        left=Side(style='thin', color='E2E8F0'), # Borde izquierdo
+        right=Side(style='thin', color='E2E8F0'), # Borde derecho
+        top=Side(style='thin', color='E2E8F0'), # Borde superior
+        bottom=Side(style='thin', color='E2E8F0') # Borde inferior
+    ) # Fin de configuración de bordes
 
-    headers = [
-        "ID", "Fecha / Hora", "N° Ticket", "Operación", "Producto",
-        "Chasis", "Acoplado", "Transporte", "Chofer", "DNI",
-        "Bruto (kg)", "Tara (kg)", "Neto (kg)", "Neto (Tn)",
-        "Origen", "Destino", "Precintos", "Observaciones", "Operador"
-    ]
+    # Encabezados con las 27 columnas estándar requeridas para báscula
+    headers = [ # Lista ordenada de títulos de columnas
+        "ID", # 1. ID de pesada
+        "Fecha Egreso", # 2. Fecha y hora de egreso
+        "Fecha Ingreso", # 3. Fecha y hora de ingreso
+        "Producto", # 4. Tipo de producto / grano
+        "Cliente", # 5. Nombre o razón social del cliente
+        "Transportista", # 6. Empresa de transporte
+        "Destinatario", # 7. Destinatario de la mercadería
+        "Patente Chasis", # 8. Dominio del camión tractor
+        "Patente Acoplado", # 9. Dominio del acoplado o semi
+        "Procedencia/Destino", # 10. Localidad o planta origen/destino
+        "Nombre Chofer", # 11. Nombre y apellido del transportista
+        "Precintos", # 12. Identificación de precintos de seguridad
+        "Observaciones", # 13. Notas y comentarios operativos
+        "ID Usuario", # 14. Código identificador del usuario balancero
+        "Peso Egreso", # 15. Peso registrado en salida en kg
+        "Peso Ingreso", # 16. Peso registrado en entrada en kg
+        "Peso Neto", # 17. Peso neto resultante en kg
+        "Exportador", # 18. Razón social del exportador
+        "Tara Manual", # 19. Indicador si la tara fue manual (SI/NO)
+        "Nacionalidad Chofer", # 20. País de procedencia del chofer
+        "Bultos", # 21. Número de bultos o contenedores
+        "Aduana", # 22. Aduana interviniente
+        "LOT", # 23. Código o número de lote
+        "DNI Chofer", # 24. Documento nacional del conductor
+        "Usuario", # 25. Nombre de usuario del operador
+        "Pesada Unica", # 26. Indicador de pesada única (SI/NO)
+        "Destinacion" # 27. Destinación aduanera
+    ] # Fin de lista de encabezados
 
-    ws.append(headers)
-    for col_num in range(1, len(headers) + 1):
-        cell = ws.cell(row=1, column=col_num)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = center_align
+    ws.append(headers) # Agrega cabecera a la hoja
+    for col_num in range(1, len(headers) + 1): # Estiliza cada encabezado
+        cell = ws.cell(row=1, column=col_num) # Accede a celda de título
+        cell.fill = header_fill # Aplica relleno corporativo
+        cell.font = header_font # Aplica fuente de encabezado
+        cell.alignment = center_align # Centra el texto del encabezado
 
-    ws.row_dimensions[1].height = 26
+    ws.row_dimensions[1].height = 26 # Altura generosa para la cabecera
 
-    for r_idx, w in enumerate(weighings, start=2):
-        row_data = [
-            w.get('id'),
-            w.get('weigh_date'),
-            w.get('ticket_number') or '-',
-            (w.get('operation_type') or '').upper(),
-            (w.get('product') or '').capitalize(),
-            w.get('truck_plate') or '-',
-            w.get('trailer_plate') or '-',
-            w.get('transport_company') or '-',
-            w.get('driver_name') or '-',
-            w.get('driver_dni') or '-',
-            float(w.get('gross_weight_kg') or 0.0),
-            float(w.get('tare_weight_kg') or 0.0),
-            float(w.get('net_weight_kg') or 0.0),
-            float(w.get('net_weight_tons') or 0.0),
-            w.get('origin') or '-',
-            w.get('destination') or '-',
-            w.get('seals_numbers') or '-',
-            w.get('notes') or '-',
-            w.get('operator_name') or '-'
-        ]
-        ws.append(row_data)
-        ws.row_dimensions[r_idx].height = 20
+    for r_idx, w in enumerate(weighings, start=2): # Recorre cada registro de pesada
+        # Construye la fila de 27 columnas respetando la secuencia exacta
+        row_data = [ # Inicio de lista de celdas por fila
+            w.get('ticket_number') or w.get('id'), # 1. ID de pesada o ticket registrado
+            w.get('exit_date') or (w.get('weigh_date') if w.get('operation_type') == 'egreso' else '-'), # 2. Fecha Egreso
+            w.get('entry_date') or (w.get('weigh_date') if w.get('operation_type') == 'ingreso' else '-'), # 3. Fecha Ingreso
+            (w.get('product') or '').capitalize(), # 4. Producto capitalizado
+            w.get('client') or w.get('destination') or w.get('origin') or '-', # 5. Cliente
+            w.get('transport_company') or '-', # 6. Transportista
+            w.get('recipient') or w.get('destination') or '-', # 7. Destinatario
+            w.get('truck_plate') or '-', # 8. Patente Chasis
+            w.get('trailer_plate') or '-', # 9. Patente Acoplado
+            w.get('origin_destination') or w.get('origin') or w.get('destination') or '-', # 10. Procedencia/Destino
+            w.get('driver_name') or '-', # 11. Nombre Chofer
+            w.get('seals_numbers') or '-', # 12. Precintos
+            w.get('notes') or '-', # 13. Observaciones
+            w.get('user_id_code') or '1', # 14. ID Usuario
+            float(w.get('exit_weight_kg') or 0.0), # 15. Peso Egreso (kg)
+            float(w.get('entry_weight_kg') or 0.0), # 16. Peso Ingreso (kg)
+            float(w.get('net_weight_kg') or 0.0), # 17. Peso Neto (kg)
+            w.get('exporter') or '-', # 18. Exportador
+            w.get('manual_tare') or 'NO', # 19. Tara Manual
+            w.get('driver_nationality') or 'Argentina', # 20. Nacionalidad Chofer
+            w.get('packages') or '-', # 21. Bultos
+            w.get('customs') or '-', # 22. Aduana
+            w.get('lot') or '-', # 23. LOT
+            w.get('driver_dni') or '-', # 24. DNI Chofer
+            w.get('operator_name') or '-', # 25. Usuario operador
+            w.get('single_weighing') or 'NO', # 26. Pesada Unica
+            w.get('customs_destination') or '-' # 27. Destinacion
+        ] # Fin de lista de datos
+        ws.append(row_data) # Añade fila a la hoja de cálculo
+        ws.row_dimensions[r_idx].height = 20 # Ajusta altura de fila
 
-        for col_idx in range(1, len(row_data) + 1):
-            c = ws.cell(row=r_idx, column=col_idx)
-            c.font = data_font
-            c.border = thin_border
-            if col_idx in [11, 12, 13]: # Pesos kg
-                c.number_format = '#,##0'
-                c.alignment = right_align
-            elif col_idx == 14: # Tn
-                c.number_format = '#,##0.00'
-                c.font = bold_font
-                c.alignment = right_align
-            elif col_idx in [1, 2, 4, 6, 7, 10]:
-                c.alignment = center_align
-            else:
-                c.alignment = left_align
+        for col_idx in range(1, len(row_data) + 1): # Aplica estilos celda por celda
+            c = ws.cell(row=r_idx, column=col_idx) # Obtiene objeto celda
+            c.font = data_font # Aplica fuente de datos
+            c.border = thin_border # Aplica borde fino
+            if col_idx in [15, 16, 17]: # Columnas numéricas de pesos en kg
+                c.number_format = '#,##0' # Formato numérico entero con separador de miles
+                c.alignment = right_align # Alineación a la derecha
+                if col_idx == 17: # Peso neto destacado
+                    c.font = bold_font # Aplica tipografía en negrita
+            elif col_idx in [1, 2, 3, 8, 9, 14, 19, 20, 23, 24, 26]: # Columnas cortas o códigos
+                c.alignment = center_align # Alineación centrada
+            else: # Resto de columnas de texto
+                c.alignment = left_align # Alineación a la izquierda
 
     # Autoajuste de anchos de columna
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
+    for col in ws.columns: # Recorre columnas
+        max_len = max(len(str(cell.value or '')) for cell in col) # Determina longitud máxima
+        col_letter = openpyxl.utils.get_column_letter(col[0].column) # Convierte índice a letra
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 11) # Asigna ancho suficiente
 
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    if as_stream:
-        return output
-    return output.getvalue()
+    output = io.BytesIO() # Flujo en memoria de bytes
+    wb.save(output) # Guarda libro en memoria
+    output.seek(0) # Rebobina puntero
+    if as_stream: # Si se pide como flujo
+        return output # Retorna stream
+    return output.getvalue() # Retorna bytes binarios
 
-# Exporta los registros a formato CSV
-def export_weighings_to_csv(weighings=None):
-    if weighings is None:
-        weighings = get_recent_weighings(limit=5000)
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=';')
+# Exporta los registros a formato CSV estructurado con las 27 columnas estándar
+def export_weighings_to_csv(weighings=None): # Función de exportación CSV
+    if weighings is None: # Si no se suministraron registros
+        weighings = get_recent_weighings(limit=5000) # Obtiene pesadas
+    output = io.StringIO() # Flujo de texto en memoria
+    writer = csv.writer(output, delimiter=';') # Crea escritor CSV delimitado por punto y coma
 
-    headers = [
-        "ID", "Fecha_Hora", "Ticket", "Operacion", "Producto",
-        "Chasis", "Acoplado", "Transporte", "Chofer", "DNI",
-        "Bruto_kg", "Tara_kg", "Neto_kg", "Neto_Tn",
-        "Origen", "Destino", "Precintos", "Observaciones", "Operador"
-    ]
-    writer.writerow(headers)
+    # Encabezados de las 27 columnas estándar para exportación CSV
+    headers = [ # Lista de encabezados CSV
+        "ID", # 1. ID
+        "Fecha Egreso", # 2. Fecha Egreso
+        "Fecha Ingreso", # 3. Fecha Ingreso
+        "Producto", # 4. Producto
+        "Cliente", # 5. Cliente
+        "Transportista", # 6. Transportista
+        "Destinatario", # 7. Destinatario
+        "Patente Chasis", # 8. Patente Chasis
+        "Patente Acoplado", # 9. Patente Acoplado
+        "Procedencia/Destino", # 10. Procedencia/Destino
+        "Nombre Chofer", # 11. Nombre Chofer
+        "Precintos", # 12. Precintos
+        "Observaciones", # 13. Observaciones
+        "ID Usuario", # 14. ID Usuario
+        "Peso Egreso", # 15. Peso Egreso
+        "Peso Ingreso", # 16. Peso Ingreso
+        "Peso Neto", # 17. Peso Neto
+        "Exportador", # 18. Exportador
+        "Tara Manual", # 19. Tara Manual
+        "Nacionalidad Chofer", # 20. Nacionalidad Chofer
+        "Bultos", # 21. Bultos
+        "Aduana", # 22. Aduana
+        "LOT", # 23. LOT
+        "DNI Chofer", # 24. DNI Chofer
+        "Usuario", # 25. Usuario
+        "Pesada Unica", # 26. Pesada Unica
+        "Destinacion" # 27. Destinacion
+    ] # Fin de lista de cabeceras
+    writer.writerow(headers) # Escribe fila de cabeceras en el stream CSV
 
-    for w in weighings:
-        writer.writerow([
-            w.get('id'),
-            w.get('weigh_date'),
-            w.get('ticket_number') or '',
-            w.get('operation_type') or '',
-            w.get('product') or '',
-            w.get('truck_plate') or '',
-            w.get('trailer_plate') or '',
-            w.get('transport_company') or '',
-            w.get('driver_name') or '',
-            w.get('driver_dni') or '',
-            w.get('gross_weight_kg') or 0.0,
-            w.get('tare_weight_kg') or 0.0,
-            w.get('net_weight_kg') or 0.0,
-            w.get('net_weight_tons') or 0.0,
-            w.get('origin') or '',
-            w.get('destination') or '',
-            w.get('seals_numbers') or '',
-            w.get('notes') or '',
-            w.get('operator_name') or ''
-        ])
+    for w in weighings: # Itera sobre las pesadas
+        writer.writerow([ # Escribe fila de datos con las 27 columnas
+            w.get('ticket_number') or w.get('id'), # 1. ID de pesada o ticket registrado
+            w.get('exit_date') or (w.get('weigh_date') if w.get('operation_type') == 'egreso' else ''), # 2. Fecha Egreso
+            w.get('entry_date') or (w.get('weigh_date') if w.get('operation_type') == 'ingreso' else ''), # 3. Fecha Ingreso
+            w.get('product') or '', # 4. Producto
+            w.get('client') or w.get('destination') or w.get('origin') or '', # 5. Cliente
+            w.get('transport_company') or '', # 6. Transportista
+            w.get('recipient') or w.get('destination') or '', # 7. Destinatario
+            w.get('truck_plate') or '', # 8. Patente Chasis
+            w.get('trailer_plate') or '', # 9. Patente Acoplado
+            w.get('origin_destination') or w.get('origin') or w.get('destination') or '', # 10. Procedencia/Destino
+            w.get('driver_name') or '', # 11. Nombre Chofer
+            w.get('seals_numbers') or '', # 12. Precintos
+            w.get('notes') or '', # 13. Observaciones
+            w.get('user_id_code') or '1', # 14. ID Usuario
+            w.get('exit_weight_kg') or 0.0, # 15. Peso Egreso
+            w.get('entry_weight_kg') or 0.0, # 16. Peso Ingreso
+            w.get('net_weight_kg') or 0.0, # 17. Peso Neto
+            w.get('exporter') or '', # 18. Exportador
+            w.get('manual_tare') or 'NO', # 19. Tara Manual
+            w.get('driver_nationality') or 'Argentina', # 20. Nacionalidad Chofer
+            w.get('packages') or '', # 21. Bultos
+            w.get('customs') or '', # 22. Aduana
+            w.get('lot') or '', # 23. LOT
+            w.get('driver_dni') or '', # 24. DNI Chofer
+            w.get('operator_name') or '', # 25. Usuario
+            w.get('single_weighing') or 'NO', # 26. Pesada Unica
+            w.get('customs_destination') or '' # 27. Destinacion
+        ]) # Fin de fila de pesada
 
-    output.seek(0)
-    return output.getvalue()
+    output.seek(0) # Rebobina puntero del stream
+    return output.getvalue() # Retorna texto CSV generado
 
 # Elimina una pesada (solo admin)
 def delete_weighing(weighing_id, admin_user='admin_sistema'):

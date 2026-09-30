@@ -278,9 +278,10 @@ def get_shift_and_daily_performance(target_date=None, selected_shifts=None):
         'oil_estimated_shift_kg': cons_oil_estimated_shift_kg
     }
 
-    return {
-        'operational_date': active_op_date,
-        'current_shift_id': current_shift_id,
+    return { # Retorna diccionario de desempeño de turnos
+        'operational_date': active_op_date, # Fecha operativa calculada
+        'active_op_date': active_op_date, # Fecha operativa activa para compatibilidad
+        'current_shift_id': current_shift_id, # Turno actual
         'current_time_slot': current_slot['time_slot'],
         'current_shift': current_shift_data,
         'shifts_comparison': shifts_comparison,
@@ -385,6 +386,9 @@ def get_executive_dashboard_data(selected_shifts=None):
         'efficiency_kpi': efficiency_kpi,
         # Historial de balances de masa y rendimiento
         'yield_history': yield_history,
-        'all_recent_weighings': all_recent_weighings,
-        'maintenance_kpis': maintenance_kpis
-    }
+        'all_recent_weighings': all_recent_weighings, # Historial de pesadas
+        'maintenance_kpis': maintenance_kpis # KPIs de mantenimiento
+    } # Fin del diccionario de dashboard
+
+# Alias retrocompatible para comparativo de turnos en el dashboard
+get_dashboard_shift_comparison = get_shift_and_daily_performance # Asigna función para compatibilidad con pruebas unitarias

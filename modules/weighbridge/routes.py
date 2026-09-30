@@ -53,48 +53,80 @@ def index():
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def add_weighing():
     try:
-        ticket_number = request.form.get('ticket_number')
-        weigh_date = request.form.get('weigh_date') or get_plant_now_str()
-        operation_type = request.form.get('operation_type', 'ingreso')
-        product = request.form.get('product', 'semilla')
-        truck_plate = request.form.get('truck_plate')
-        trailer_plate = request.form.get('trailer_plate')
-        transport_company = request.form.get('transport_company')
-        driver_name = request.form.get('driver_name')
-        driver_dni = request.form.get('driver_dni')
-        gross_weight = safe_float(request.form.get('gross_weight_kg'), 0.0)
-        tare_weight = safe_float(request.form.get('tare_weight_kg'), 0.0)
-        net_weight = safe_float(request.form.get('net_weight_kg'), default=None)
-        origin = request.form.get('origin')
-        destination = request.form.get('destination')
-        seals_numbers = request.form.get('seals_numbers')
-        notes = request.form.get('notes')
-        sync_inv = bool(request.form.get('sync_inventory'))
-        operator_name = g.user.get('full_name') if g.user else 'Balanza'
-        shift_id = request.form.get('shift_id', 'TC')
+        ticket_number = request.form.get('ticket_number') # Número de ticket o comprobante de balanza
+        weigh_date = request.form.get('weigh_date') or get_plant_now_str() # Fecha general de pesada
+        exit_date = request.form.get('exit_date') # Fecha de egreso de báscula
+        entry_date = request.form.get('entry_date') # Fecha de ingreso a báscula
+        operation_type = request.form.get('operation_type', 'ingreso') # Tipo de operación (ingreso/egreso)
+        product = request.form.get('product', 'semilla') # Producto o materia prima
+        truck_plate = request.form.get('truck_plate') # Patente del chasis
+        trailer_plate = request.form.get('trailer_plate') # Patente del acoplado o semi
+        transport_company = request.form.get('transport_company') # Nombre de la empresa transportista
+        client = request.form.get('client') # Razón social del cliente
+        recipient = request.form.get('recipient') # Destinatario final de la carga
+        origin_destination = request.form.get('origin_destination') # Texto combinado de procedencia/destino
+        driver_name = request.form.get('driver_name') # Nombre y apellido del chofer
+        driver_dni = request.form.get('driver_dni') # DNI o documento del conductor
+        driver_nationality = request.form.get('driver_nationality', 'Argentina') # Nacionalidad del chofer
+        gross_weight = safe_float(request.form.get('gross_weight_kg'), 0.0) # Peso bruto ingresado
+        tare_weight = safe_float(request.form.get('tare_weight_kg'), 0.0) # Tara ingresada
+        entry_weight = safe_float(request.form.get('entry_weight_kg'), default=None) # Peso al ingreso del camión
+        exit_weight = safe_float(request.form.get('exit_weight_kg'), default=None) # Peso al egreso del camión
+        net_weight = safe_float(request.form.get('net_weight_kg'), default=None) # Peso neto calculado o manual
+        manual_tare = request.form.get('manual_tare', 'NO') # Indicador de tara manual (SI/NO)
+        single_weighing = request.form.get('single_weighing', 'NO') # Indicador de pesada única (SI/NO)
+        exporter = request.form.get('exporter') # Razón social del exportador
+        packages = request.form.get('packages') # Cantidad o identificación de bultos
+        customs = request.form.get('customs') # Aduana interviniente
+        lot = request.form.get('lot') # Código de lote o LOT
+        customs_destination = request.form.get('customs_destination') # Destinación aduanera
+        user_id_code = request.form.get('user_id_code', '1') # Código numérico del usuario balancero
+        origin = request.form.get('origin') # Procedencia / Origen de carga
+        destination = request.form.get('destination') # Destino de carga
+        seals_numbers = request.form.get('seals_numbers') # Números de precintos
+        notes = request.form.get('notes') # Observaciones adicionales
+        sync_inv = bool(request.form.get('sync_inventory')) # Flag de sincronización de inventario
+        operator_name = g.user.get('full_name') if g.user else 'Balanza' # Nombre del operador en sesión
+        shift_id = request.form.get('shift_id', 'TC') # Turno operativo
 
-        w_id = record_weighing(
-            ticket_number=ticket_number,
-            weigh_date=weigh_date,
-            operation_type=operation_type,
-            product=product,
-            truck_plate=truck_plate,
-            trailer_plate=trailer_plate,
-            transport_company=transport_company,
-            driver_name=driver_name,
-            driver_dni=driver_dni,
-            gross_weight_kg=gross_weight,
-            tare_weight_kg=tare_weight,
-            net_weight_kg=net_weight,
-            origin=origin,
-            destination=destination,
-            seals_numbers=seals_numbers,
-            notes=notes,
-            operator_name=operator_name,
-            shift_id=shift_id,
-            sync_inventory=sync_inv
-        )
-        flash(f'Pesada de balanza registrada con éxito (Ticket #{ticket_number or w_id}).', 'success')
+        w_id = record_weighing( # Invoca el servicio de registro de pesada
+            ticket_number=ticket_number, # Pasa el número de ticket
+            weigh_date=weigh_date, # Pasa la fecha de pesada
+            operation_type=operation_type, # Pasa la operación
+            product=product, # Pasa el producto
+            truck_plate=truck_plate, # Pasa la patente chasis
+            trailer_plate=trailer_plate, # Pasa la patente acoplado
+            transport_company=transport_company, # Pasa la empresa transportista
+            driver_name=driver_name, # Pasa el nombre del chofer
+            driver_dni=driver_dni, # Pasa el DNI del chofer
+            gross_weight_kg=gross_weight, # Pasa el peso bruto
+            tare_weight_kg=tare_weight, # Pasa la tara
+            net_weight_kg=net_weight, # Pasa el peso neto
+            origin=origin, # Pasa el origen
+            destination=destination, # Pasa el destino
+            seals_numbers=seals_numbers, # Pasa los precintos
+            notes=notes, # Pasa las observaciones
+            operator_name=operator_name, # Pasa el operador
+            shift_id=shift_id, # Pasa el turno
+            sync_inventory=sync_inv, # Pasa la sincronización
+            exit_date=exit_date, # Pasa la fecha de egreso
+            entry_date=entry_date, # Pasa la fecha de ingreso
+            client=client, # Pasa el cliente
+            recipient=recipient, # Pasa el destinatario
+            origin_destination=origin_destination, # Pasa procedencia/destino
+            user_id_code=user_id_code, # Pasa el ID de usuario
+            exit_weight_kg=exit_weight, # Pasa el peso de egreso
+            entry_weight_kg=entry_weight, # Pasa el peso de ingreso
+            exporter=exporter, # Pasa el exportador
+            manual_tare=manual_tare, # Pasa la tara manual
+            driver_nationality=driver_nationality, # Pasa la nacionalidad
+            packages=packages, # Pasa los bultos
+            customs=customs, # Pasa la aduana
+            lot=lot, # Pasa el lote
+            single_weighing=single_weighing, # Pasa pesada única
+            customs_destination=customs_destination # Pasa destinación
+        ) # Cierra llamada a record_weighing
+        flash(f'Pesada de balanza registrada con éxito (Ticket #{ticket_number or w_id}).', 'success') # Mensaje flash de confirmación
     except Exception as e:
         log_error('WEIGHBRIDGE_ROUTE', 'Error al registrar pesada manual', e)
         flash(f'Error al registrar pesada: {str(e)}', 'danger')
