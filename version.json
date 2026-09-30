@@ -1,6 +1,6 @@
 {
-  "version": "1.1.8",
-  "release_date": "2026-09-28",
+  "version": "1.1.9",
+  "release_date": "2026-09-30",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
     "v1.0.0 - Base modular inicial",
@@ -21,6 +21,7 @@
     "v1.1.5 - Dashboard: optimizacion de maquetado e interfaz flex en vista principal",
     "v1.1.6 - Diagnostico interactivo de errores y excepciones: tarjetas cliqueables para inspeccionar archivo y linea de origen exactos en codigo fuente, visualizacion de instrucciones causantes, boton de copiado de traza tecnica, correccion de insercion de movimientos de inventario y registro de marcas de resolucion",
     "v1.1.7 - Correccion de arranque serverless en Vercel: definicion de carpetas de actualizacion en /tmp, emulador DB-API cursor() para Turso Cloud SQLite y arranque protegido tolerante a fallos",
-    "v1.1.8 - Gestion avanzada de usuarios y credenciales: edicion completa de perfiles (nombre de usuario login, nombre completo, DNI, telefono, rol), blanqueo interactivo con clave personalizada o autogenerada, notificacion destacada de credenciales con copiado para WhatsApp, autenticacion inteligente tolerante a mayusculas/minusculas, DNI puntuado y resolucion automatica de alias por nombre y apellido"
+    "v1.1.8 - Gestion avanzada de usuarios y credenciales: edicion completa de perfiles (nombre de usuario login, nombre completo, DNI, telefono, rol), blanqueo interactivo con clave personalizada o autogenerada, notificacion destacada de credenciales con copiado para WhatsApp, autenticacion inteligente tolerante a mayusculas/minusculas, DNI puntuado y resolucion automatica de alias por nombre y apellido",
+    "v1.1.9 - Cálculo automático de eficiencia industrial según datos registrados en planta (sin carga manual obligatoria) y simulador reactivo con juego de datos ingresado: Pilar 3 del Dashboard siempre activo con telemetría en vivo, guardado oficial en un clic, cálculo reactivo en pantalla y balance másico clasificado"
   ]
 }

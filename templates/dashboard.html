@@ -668,54 +668,70 @@
 
         <!-- PILAR 3: EFICIENCIA Y RENDIMIENTO INDUSTRIAL -->
         <div class="cockpit-kpi-card cockpit-card-yield">
-            <!-- Contenido principal de rendimiento -->
+            <!-- Contenedor del contenido principal de rendimiento -->
             <div>
-                <!-- Encabezado del bloque -->
+                <!-- Encabezado del bloque de KPI -->
                 <div class="cockpit-kpi-header">
-                    <!-- Titulo -->
+                    <!-- Titulo del pilar 3 -->
                     <span class="cockpit-kpi-title">3. Eficiencia y Rendimiento</span>
-                    <!-- Indicador -->
+                    <!-- Verificacion si existe KPI de eficiencia disponible -->
+                    {% if data.efficiency_kpi %}
+                    <!-- Insignia dinamica que indica si el calculo es automatico de planta o balance conciliado -->
+                    <span style="font-size: 0.72rem; color: {{ data.efficiency_kpi.badge_color }}; font-weight: 700; background: {{ data.efficiency_kpi.badge_bg }}; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        <!-- Texto del badge (Automatico o Conciliado) -->
+                        {{ data.efficiency_kpi.badge_text }}
+                    </span>
+                    <!-- Cierre de condicion si existe efficiency_kpi -->
+                    {% else %}
+                    <!-- Insignia estandar de balance de masa por defecto -->
                     <span style="font-size: 0.72rem; color: #166534; font-weight: 700; background: #dcfce7; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        <!-- Texto por defecto -->
                         Balance de Masa
                     </span>
+                    <!-- Cierre del bloque condicional del badge -->
+                    {% endif %}
                 </div>
 
-                {% if data.latest_yield %}
+                <!-- Evaluacion si tenemos datos de eficiencia calculados o guardados -->
+                {% if data.efficiency_kpi %}
                 <!-- Grid con dos indicadores de rendimiento clave -->
                 <div class="yield-hero-grid">
                     <!-- Rendimiento de extraccion de aceite -->
                     <div style="background-color: #f0fdf4; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bbf7d0;">
-                        <!-- Etiqueta -->
+                        <!-- Etiqueta del rendimiento de aceite -->
                         <div style="font-size: 0.68rem; text-transform: uppercase; color: #166534; font-weight: 700;">Rend. Aceite (Extr.)</div>
-                        <!-- Valor porcentual -->
+                        <!-- Valor porcentual de rendimiento de aceite -->
                         <div style="font-size: 1.45rem; font-weight: 900; color: #15803d; line-height: 1.1;">
-                            {{ data.latest_yield.oil_yield_pct }}%
+                            <!-- Valor numerico con signo de porcentaje -->
+                            {{ data.efficiency_kpi.oil_yield_pct }}%
                         </div>
-                        <!-- Subtexto (oculto en celulares para mantener foco en el KPI principal) -->
+                        <!-- Subtexto explicativo del indicador -->
                         <div class="mobile-hidden" style="font-size: 0.68rem; color: #166534;">% de masa procesada</div>
                     </div>
                     <!-- Eficiencia de recuperacion de grasa disponible -->
                     <div style="background-color: #eff6ff; padding: 0.5rem 0.65rem; border-radius: 0.375rem; border: 1px solid #bfdbfe;">
-                        <!-- Etiqueta -->
+                        <!-- Etiqueta de eficiencia de recuperacion -->
                         <div style="font-size: 0.68rem; text-transform: uppercase; color: #1e40af; font-weight: 700;">Recup. Disponible</div>
-                        <!-- Valor porcentual -->
+                        <!-- Valor porcentual de recuperacion -->
                         <div style="font-size: 1.45rem; font-weight: 900; color: #1d4ed8; line-height: 1.1;">
-                            {{ data.latest_yield.oil_recovery_pct }}%
+                            <!-- Valor numerico de recuperacion con porcentaje -->
+                            {{ data.efficiency_kpi.oil_recovery_pct }}%
                         </div>
-                        <!-- Subtexto (oculto en celulares) -->
+                        <!-- Subtexto descriptivo del calculo analitico -->
                         <div class="mobile-hidden" style="font-size: 0.68rem; color: #1e40af;">Eficiencia vs grasa semilla</div>
                     </div>
                 </div>
 
                 <!-- Sub-datos de expeller y balance de masa -->
                 <div class="yield-sub-bar">
-                    <!-- Rendimiento expeller -->
-                    <span>Rend. Expeller: <strong>{{ data.latest_yield.expeller_yield_pct }}%</strong></span>
-                    <!-- Diferencia de balance -->
-                    <span>Dif. Balance: <strong>{{ data.latest_yield.mass_diff_pct }}%</strong></span>
+                    <!-- Rendimiento expeller calculado o registrado -->
+                    <span>Rend. Expeller: <strong>{{ data.efficiency_kpi.expeller_yield_pct }}%</strong></span>
+                    <!-- Diferencia de balance masico -->
+                    <span>Dif. Balance: <strong>{{ data.efficiency_kpi.mass_diff_pct }}%</strong></span>
                 </div>
+                <!-- Rama alternativa en caso de no haber datos calculados -->
                 {% else %}
-                <!-- Mensaje cuando aun no hay conciliacion previa -->
+                <!-- Mensaje cuando aun no hay datos disponibles -->
                 <div style="padding: 0.75rem 1rem; text-align: center; color: #64748b; background-color: #f8fafc; border-radius: 0.375rem; margin-top: 0.5rem;">
                     <!-- Texto de aviso informativo -->
                     <p style="font-size: 0.8rem; margin-bottom: 0.4rem;">Sin conciliación registrada en este turno.</p>
@@ -723,29 +739,32 @@
                     {% if g.user and g.user.role == 'admin_sistema' %}
                     <!-- Boton de calculo exclusivo para Administrador -->
                     <a href="{{ url_for('yield.index') }}" class="btn btn-success" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Calcular Eficiencia</a>
+                    <!-- Alternativa para perfiles que no son administradores -->
                     {% else %}
                     <!-- Boton para ver historial en modal sin recargar pantalla para Gerente -->
                     <button type="button" onclick="openYieldHistoryModal()" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Ver Historial de Balances</button>
+                    <!-- Fin de comprobacion de rol de usuario -->
                     {% endif %}
                 </div>
+                <!-- Fin de bloque de evaluacion de datos de eficiencia -->
                 {% endif %}
             </div>
             <!-- Pie de tarjeta con turno evaluado y accesos rapidos a historial -->
             <div class="cockpit-kpi-footer">
-                <!-- Turno de ultima conciliacion registrada -->
-                <span>Último balance: <strong>{{ data.latest_yield.date_shift if data.latest_yield else 'Pendiente' }}</strong></span>
-                <!-- Acciones combinadas de modal directo e informe completo -->
+                <!-- Turno de evaluacion o balance -->
+                <span>Fuente: <strong>{{ data.efficiency_kpi.date_shift if data.efficiency_kpi else 'Pendiente' }}</strong></span>
+                <!-- Acciones combinadas de simulador, modal directo e informe completo -->
                 <div style="display: flex; gap: 0.45rem; align-items: center;">
+                    <!-- Enlace directo al simulador y conciliador de eficiencia -->
+                    <a href="{{ url_for('yield.index') }}" style="color: #059669; font-weight: 700; text-decoration: none; font-size: 0.72rem;" title="Abrir cálculo automático y simulador">
+                        <!-- Texto del enlace con rayo -->
+                        ⚡ Calcular / Simular &rarr;
+                    </a>
                     <!-- Boton interactivo para abrir historial completo en modal emergente -->
                     <button type="button" onclick="openYieldHistoryModal()" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; font-size: 0.72rem;">
-                        📋 Ver Historial &rarr;
+                        <!-- Texto del boton de historial -->
+                        📋 Historial
                     </button>
-                    <!-- Enlace a pagina de rendimiento (autorizada para Gerente en solo lectura y Admin) -->
-                    {% if g.user and g.user.role in ['administrador', 'gerencia', 'admin_sistema'] %}
-                    <a class="mobile-hidden" href="{{ url_for('yield.index') }}" style="color: #64748b; text-decoration: none; font-size: 0.68rem;" title="Abrir informe completo de balance">
-                        (Informe)
-                    </a>
-                    {% endif %}
                 </div>
             </div>
         </div>

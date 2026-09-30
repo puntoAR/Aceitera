@@ -2,8 +2,8 @@
 from modules.inventory.service import get_total_plant_stocks
 from modules.production.service import get_shift_speed_summary, get_recent_weighings
 from modules.configuration.service import get_active_shift
-# Importa get_latest_reconciliation y get_recent_reconciliations para el historial de balances
-from modules.yield_balance.service import get_latest_reconciliation, get_recent_reconciliations
+# Importa get_latest_reconciliation, get_recent_reconciliations y get_auto_efficiency_data para el balance de masa
+from modules.yield_balance.service import get_latest_reconciliation, get_recent_reconciliations, get_auto_efficiency_data
 # Importa el servicio de KPIs de mantenimiento para el cockpit ejecutivo
 from modules.maintenance.service import get_maintenance_dashboard_kpis
 # Importa la conexion a la base de datos
@@ -307,6 +307,46 @@ def get_executive_dashboard_data(selected_shifts=None):
             expeller_chart_data.append({'time': time_part, 'speed': w['speed_kg_h']})
 
     latest_yield = get_latest_reconciliation()
+    # Genera el dato de eficiencia y rendimiento en forma automatica a partir de la informacion registrada en el sistema
+    auto_efficiency = get_auto_efficiency_data(active_shift['shift_id'])
+    # Determina el KPI de eficiencia principal a exhibir en el panel de mando
+    # Si el turno cuenta con pesadas o registros operativos, prioriza la eficiencia automatica en tiempo real
+    if auto_efficiency.get('has_records', False):
+        # Asigna la eficiencia automatica calculada
+        efficiency_kpi = auto_efficiency
+    # Si no hay pesadas del turno pero hay conciliacion cerrada registrada previamente
+    elif latest_yield:
+        # Convierte a diccionario la conciliacion guardada
+        efficiency_kpi = dict(latest_yield)
+        # Marca que no es calculo automatico sino conciliacion formal
+        efficiency_kpi['is_automatic'] = False
+        # Asigna estado de conciliacion
+        efficiency_kpi['status'] = 'Balance Registrado'
+        # Color verde para estado guardado
+        efficiency_kpi['status_color'] = '#15803d'
+        # Insignia de balance conciliado
+        efficiency_kpi['badge_text'] = '📋 Balance Conciliado'
+        # Color de texto de la insignia
+        efficiency_kpi['badge_color'] = '#166534'
+        # Fondo de la insignia
+        efficiency_kpi['badge_bg'] = '#dcfce7'
+        # Origen textual
+        efficiency_kpi['source_text'] = 'Conciliación Guardada'
+    # En caso contrario utiliza la proyeccion automatica nominal
+    else:
+        # Asigna la eficiencia calculada
+        efficiency_kpi = dict(auto_efficiency)
+        # Asegura insignia automatica si no fue definida
+        if 'badge_text' not in efficiency_kpi:
+            # Texto por defecto de calculo automatico
+            efficiency_kpi['badge_text'] = '⚡ Automático (Registros)'
+            # Color del texto del badge
+            efficiency_kpi['badge_color'] = '#166534'
+            # Fondo del badge
+            efficiency_kpi['badge_bg'] = '#dcfce7'
+        # Asigna texto descriptivo del origen
+        efficiency_kpi['source_text'] = 'Telemetría y Pesadas'
+    # Obtiene el historial completo de conciliaciones de rendimiento y balance de masa
     yield_history = get_recent_reconciliations(limit=50)
     all_recent_weighings = get_recent_weighings(limit=50)
     maintenance_kpis = get_maintenance_dashboard_kpis()
@@ -321,6 +361,11 @@ def get_executive_dashboard_data(selected_shifts=None):
         'expeller_chart_data': expeller_chart_data,
         'recent_weighings': recent_weighings[:8],
         'latest_yield': latest_yield,
+        # Eficiencia automatica calculada en tiempo real
+        'auto_efficiency': auto_efficiency,
+        # KPI principal de eficiencia consolidada
+        'efficiency_kpi': efficiency_kpi,
+        # Historial de balances de masa y rendimiento
         'yield_history': yield_history,
         'all_recent_weighings': all_recent_weighings,
         'maintenance_kpis': maintenance_kpis

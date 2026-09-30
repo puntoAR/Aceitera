@@ -1,266 +1,851 @@
 {% extends "base.html" %}
-<!-- Extiende plantilla base -->
+<!-- Extiende la plantilla base del sistema con la navegacion principal -->
 
 {% block title %}Rendimiento y Balance de Masa - BioBalcarce{% endblock %}
+<!-- Titulo de la pestana del navegador web -->
 
 {% block content %}
+<!-- Bloque principal de contenido dinamico de la vista -->
 <div class="page-header">
+    <!-- Encabezado de la pagina con titulos y subtitulos descriptivos -->
     <div>
+        <!-- Titulo principal del modulo de rendimiento y balance -->
         <h1 class="page-title">Rendimiento Industrial y Balance de Masa</h1>
+        <!-- Descripcion del modulo que explica los dos modos de operacion -->
         <p style="color: #64748b;">
-            Conciliación de materia prima consumida, extracción de aceite, grasa residual y pérdidas de proceso.
+            <!-- Explicacion de calculo automatico segun telemetria y simulador con juego de datos -->
+            Cálculo automático de eficiencia según pesadas y registros del turno, y simulador / conciliador con juego de datos ingresado.
+        <!-- Cierre de parrafo de descripcion -->
         </p>
+    <!-- Cierre de contenedor de titulos -->
     </div>
+<!-- Cierre de contenedor del encabezado de la pagina -->
 </div>
 
-<div class="kpi-grid" style="margin-bottom: 1.25rem;">
-    <!-- Rendimiento Expeller Linea -->
-    <div class="metric-card card-expeller">
-        <div class="metric-title">Rendimiento Expeller Línea</div>
-        <div class="metric-value" style="color: #b45309;">{{ line_yield_info.expeller_yield_pct }}%</div>
-        <div class="metric-subtitle">
-            Caudal Expeller / Caudal Semilla
-        </div>
-    </div>
-
-    <!-- Eficiencia Extraccion Grasa -->
-    <div class="metric-card card-yield">
-        <div class="metric-title">Extracción Grasa Línea</div>
-        <div class="metric-value" style="color: #15803d;">{{ line_yield_info.oil_extraction_efficiency_pct }}%</div>
-        <div class="metric-subtitle">
-            Cruce Caudales vs Lab (MG Semilla {{ lab_averages.seed_fat_pct }}%)
-        </div>
-    </div>
-
-    <!-- Caudal Semilla Promedio -->
-    <div class="metric-card card-seed">
-        <div class="metric-title">Caudal Semilla (Turno)</div>
-        <div class="metric-value">{{ "{:,.0f}".format(prod_summary.seed_avg_speed).replace(",", ".") }} <span style="font-size: 0.9rem;">kg/h</span></div>
-        <div class="metric-subtitle">
-            Estimado: <strong>{{ "{:,.0f}".format(prod_summary.seed_estimated).replace(",", ".") }} kg</strong> ({{ prod_summary.effective_hours }}h)
-        </div>
-    </div>
-
-    <!-- Caudal Aceite Bruto Estimado -->
-    <div class="metric-card card-oil">
-        <div class="metric-title">Aceite Estimado Línea</div>
-        <div class="metric-value" style="color: #1d4ed8;">{{ "{:,.0f}".format(line_yield_info.theoretical_oil_speed_kg_h).replace(",", ".") }} <span style="font-size: 0.9rem;">kg/h</span></div>
-        <div class="metric-subtitle">
-            Diferencial Caudales (Semilla - Expeller)
-        </div>
-    </div>
-</div>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-    <!-- ===================================================================== -->
-    <!-- FORMULARIO DE CONCILIACION DE TURNO                                   -->
-    <!-- ===================================================================== -->
-    <!-- Condicion: Solo el Administrador del Sistema puede cargar conciliaciones; Gerente visualiza en modo solo lectura -->
-    {% if g.user and g.user.role == 'admin_sistema' %}
-    <!-- Tarjeta del formulario de balance masico -->
-    <div class="form-card" style="margin-bottom: 0;">
-        <!-- Titulo del formulario con identificador de guardia -->
-        <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e3a8a; margin-bottom: 1rem;">
-            Conciliar Turno Actual ({{ active_shift.shift_id }})
+<!-- Verificacion si el usuario actual es de perfil gerencial o solo lectura -->
+{% if g.user and g.user.role != 'admin_sistema' %}
+<!-- Panel informativo de solo lectura para el perfil Gerencia / Administrador General -->
+<div class="form-card" style="margin-bottom: 1.25rem; background: #f8fafc; border-left: 4px solid #3b82f6;">
+    <!-- Cabecera del panel informativo -->
+    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <!-- Icono de ojo indicando solo lectura -->
+        <span style="font-size: 1.25rem;">👁️</span>
+        <!-- Titulo de la vista ejecutiva requerida por auditoria y tests -->
+        <h3 style="font-size: 1.1rem; font-weight: 700; color: #1e3a8a; margin: 0;">
+            <!-- Texto exacto requerido por pruebas de rol -->
+            Vista Ejecutiva de Rendimiento (Solo Lectura)
+        <!-- Cierre del titulo -->
         </h3>
-        <!-- Formulario POST para computar el balance de masa -->
-        <form action="{{ url_for('yield.add_reconciliation') }}" method="POST">
+    <!-- Cierre del encabezado -->
+    </div>
+    <!-- Descripcion explicativa de los permisos ejecutivos -->
+    <p style="font-size: 0.85rem; color: #475569; margin: 0; line-height: 1.5;">
+        <!-- Explicacion de facultades de consulta y analisis -->
+        Como perfil directivo, dispone de acceso al monitoreo automático de eficiencia, simulación interactiva e historial de conciliaciones sin permisos de carga de datos oficiales.
+    <!-- Cierre de parrafo -->
+    </p>
+<!-- Cierre de tarjeta de solo lectura -->
+</div>
+<!-- Fin de condicion de solo lectura -->
+{% endif %}
+
+<!-- ========================================================================= -->
+<!-- MODO 1: EFICIENCIA AUTOMATICA BASADA EN REGISTROS DE PLANTA               -->
+<!-- ========================================================================= -->
+<div class="form-card" style="margin-bottom: 1.5rem; border-left: 4px solid #10b981; background: #ffffff;">
+    <!-- Encabezado de la seccion del Modo 1 -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+        <!-- Titulo y subtitulo del calculo automatico -->
+        <div>
+            <!-- Titulo con icono de rayo indicando telemetria en vivo -->
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #065f46; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <!-- Icono de rayo -->
+                <span>⚡</span>
+                <!-- Texto del titulo del Modo 1 -->
+                <span>Modo 1: Eficiencia Automática por Registros del Turno</span>
+            <!-- Cierre del titulo h2 -->
+            </h2>
+            <!-- Subtitulo con la base de datos utilizada -->
+            <p style="font-size: 0.825rem; color: #475569; margin: 0.25rem 0 0 0;">
+                <!-- Origen de los datos de pesadas y laboratorio -->
+                {{ auto_efficiency.basis_description }} (Guardia: <strong>{{ auto_efficiency.shift_name }}</strong>)
+            <!-- Cierre del parrafo de subtitulo -->
+            </p>
+        <!-- Cierre del contenedor de titulo -->
+        </div>
+        <!-- Insignia del estado automatico -->
+        <span style="font-size: 0.75rem; font-weight: 700; color: #065f46; background: #d1fae5; border: 1px solid #a7f3d0; padding: 0.3rem 0.65rem; border-radius: 9999px;">
+            <!-- Texto de la insignia de calculo automatico sin carga manual -->
+            100% Automático sin carga manual
+        <!-- Cierre de la insignia -->
+        </span>
+    <!-- Cierre del encabezado de seccion -->
+    </div>
+
+    <!-- Grilla de indicadores KPI de eficiencia calculados automaticamente -->
+    <div class="kpi-grid" style="margin-bottom: 1.25rem;">
+        <!-- Tarjeta de Eficiencia de Recuperacion de Grasa Disponible -->
+        <div class="metric-card card-yield" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+            <!-- Titulo del indicador de recuperacion -->
+            <div class="metric-title" style="color: #166534;">Recuperación Grasa Disponible</div>
+            <!-- Valor porcentual de eficiencia de recuperacion -->
+            <div class="metric-value" style="color: #15803d;">{{ auto_efficiency.calculated_kpis.oil_recovery_pct }}%</div>
+            <!-- Subtitulo de la tarjeta explicando la formula analitica -->
+            <div class="metric-subtitle" style="color: #166534;">Aceite extraído vs Grasa disponible en semilla</div>
+        <!-- Cierre de tarjeta de recuperacion -->
+        </div>
+
+        <!-- Tarjeta de Rendimiento Másico de Extracción de Aceite -->
+        <div class="metric-card card-oil" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+            <!-- Titulo del rendimiento de aceite -->
+            <div class="metric-title" style="color: #1e40af;">Rendimiento Aceite (Extracción)</div>
+            <!-- Valor porcentual de rendimiento de aceite -->
+            <div class="metric-value" style="color: #1d4ed8;">{{ auto_efficiency.calculated_kpis.oil_yield_pct }}%</div>
+            <!-- Subtitulo con la relacion masica directa -->
+            <div class="metric-subtitle" style="color: #1e40af;">% de masa de semilla convertida en aceite</div>
+        <!-- Cierre de tarjeta de aceite -->
+        </div>
+
+        <!-- Tarjeta de Rendimiento de Expeller -->
+        <div class="metric-card card-expeller" style="background: #fffbeb; border: 1px solid #fde68a;">
+            <!-- Titulo del rendimiento de expeller -->
+            <div class="metric-title" style="color: #92400e;">Rendimiento Expeller</div>
+            <!-- Valor porcentual de expeller -->
+            <div class="metric-value" style="color: #b45309;">{{ auto_efficiency.calculated_kpis.expeller_yield_pct }}%</div>
+            <!-- Subtitulo con la proporcion masica de expeller -->
+            <div class="metric-subtitle" style="color: #92400e;">% de masa obtenida como expeller</div>
+        <!-- Cierre de tarjeta de expeller -->
+        </div>
+
+        <!-- Tarjeta de Conciliacion de Masa y Diferencia -->
+        <div class="metric-card" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+            <!-- Titulo de diferencia de balance -->
+            <div class="metric-title" style="color: #475569;">Diferencia de Masa</div>
+            <!-- Valor porcentual de la diferencia masica -->
+            <div class="metric-value" style="color: {{ '#dc2626' if auto_efficiency.calculated_kpis.mass_diff_pct > 5 else '#059669' }};">
+                <!-- Porcentaje de desvio masico -->
+                {{ auto_efficiency.calculated_kpis.mass_diff_pct }}%
+            <!-- Cierre de metric-value -->
+            </div>
+            <!-- Subtitulo con kilos de diferencia de balance -->
+            <div class="metric-subtitle" style="color: #64748b;">
+                <!-- Kilos netos de desvio -->
+                Desvío: {{ "{:,.0f}".format(auto_efficiency.calculated_kpis.mass_difference_kg).replace(",", ".") }} kg
+            <!-- Cierre de subtitulo -->
+            </div>
+        <!-- Cierre de tarjeta de diferencia de masa -->
+        </div>
+    <!-- Cierre de grilla de KPIs automaticos -->
+    </div>
+
+    <!-- Desglose de los datos registrados de planta que alimentaron el calculo -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.85rem; margin-bottom: 1.25rem;">
+        <!-- Titulo del bloque de datos de entrada registrados -->
+        <div style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700; color: #475569; margin-bottom: 0.6rem;">
+            <!-- Texto del encabezado -->
+            Datos Registrados en Planta Utilizados para este Cálculo
+        <!-- Cierre de titulo -->
+        </div>
+        <!-- Grilla de detalle de parametros de telemetria -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
+            <!-- Parametro: Semilla procesada -->
+            <div>
+                <!-- Etiqueta del parametro -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">Semilla Procesada:</span>
+                <!-- Valor formateado en kilogramos -->
+                <strong style="color: #0f172a;">{{ "{:,.0f}".format(auto_efficiency.seed_processed_kg).replace(",", ".") }} kg</strong>
+                <!-- Horas de marcha que respaldan la cantidad -->
+                <span style="font-size: 0.75rem; color: #64748b;"> ({{ auto_efficiency.effective_hours }}h efectivas)</span>
+            <!-- Cierre de parametro -->
+            </div>
+            <!-- Parametro: Expeller producido -->
+            <div>
+                <!-- Etiqueta del parametro -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">Expeller Obtenido:</span>
+                <!-- Valor formateado de expeller -->
+                <strong style="color: #0f172a;">{{ "{:,.0f}".format(auto_efficiency.expeller_produced_kg).replace(",", ".") }} kg</strong>
+            <!-- Cierre de parametro -->
+            </div>
+            <!-- Parametro: Aceite obtenido -->
+            <div>
+                <!-- Etiqueta del parametro -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">Aceite Estimado:</span>
+                <!-- Valor formateado de aceite -->
+                <strong style="color: #1d4ed8;">{{ "{:,.0f}".format(auto_efficiency.oil_produced_kg).replace(",", ".") }} kg</strong>
+            <!-- Cierre de parametro -->
+            </div>
+            <!-- Parametro: MG Semilla de Laboratorio -->
+            <div>
+                <!-- Etiqueta de MG Semilla -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">MG Semilla (Lab):</span>
+                <!-- Porcentaje de materia grasa en semilla -->
+                <strong style="color: #0f172a;">{{ auto_efficiency.seed_fat_pct }}%</strong>
+            <!-- Cierre de parametro -->
+            </div>
+            <!-- Parametro: MG Expeller de Laboratorio -->
+            <div>
+                <!-- Etiqueta de MG Expeller -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">MG Expeller (Lab):</span>
+                <!-- Porcentaje de materia grasa en expeller -->
+                <strong style="color: #0f172a;">{{ auto_efficiency.expeller_fat_pct }}%</strong>
+            <!-- Cierre de parametro -->
+            </div>
+            <!-- Parametro: Grasa residual retenida en expeller -->
+            <div>
+                <!-- Etiqueta de grasa residual -->
+                <span style="color: #64748b; font-size: 0.75rem; display: block;">Grasa Residual Expeller:</span>
+                <!-- Kilos de grasa que quedaron en el expeller -->
+                <strong style="color: #b45309;">{{ "{:,.0f}".format(auto_efficiency.calculated_kpis.residual_fat_kg).replace(",", ".") }} kg</strong>
+            <!-- Cierre de parametro -->
+            </div>
+        <!-- Cierre de grilla de parametros de telemetria -->
+        </div>
+    <!-- Cierre de contenedor de desglose -->
+    </div>
+
+    <!-- Barra de acciones del calculo automatico -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <!-- Boton interactivo para clonar datos hacia el simulador interactivo -->
+        <button type="button" onclick="loadAutoDataIntoSimulator()" class="btn btn-secondary" style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
+            <!-- Icono de rayo -->
+            <span>⚡</span>
+            <!-- Texto de accion -->
+            <span>Cargar estos datos en el Simulador (Modo 2) ↓</span>
+        <!-- Cierre de boton -->
+        </button>
+
+        <!-- Accion de guardado para perfil con permiso administrativo -->
+        {% if g.user and g.user.role == 'admin_sistema' %}
+        <!-- Formulario POST para guardar la conciliacion automatica directamente -->
+        <form action="{{ url_for('yield.save_auto_route') }}" method="POST" style="margin: 0; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <!-- Campo oculto del turno activo -->
-            <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
-
-            <!-- Grupo de entrada para semilla procesada -->
-            <div class="form-group" style="margin-bottom: 0.85rem;">
-                <!-- Etiqueta de semilla procesada -->
-                <label class="form-label" for="seed_processed_kg">Semilla Procesada (kg)</label>
-                <!-- Input numerico de semilla -->
-                <input class="form-input" type="number" step="1" id="seed_processed_kg" name="seed_processed_kg"
-                       value="{{ prod_summary.seed_estimated }}" placeholder="ej. 15000" required>
-                <!-- Texto explicativo de la estimacion -->
-                <span style="font-size: 0.75rem; color: #64748b;">Sugerido según velocidad horaria y horas efectivas ({{ prod_summary.effective_hours }}h)</span>
-            </div>
-
-            <!-- Grupo de entrada para expeller obtenido -->
-            <div class="form-group" style="margin-bottom: 0.85rem;">
-                <!-- Etiqueta de expeller -->
-                <label class="form-label" for="expeller_produced_kg">Expeller Obtenido (kg)</label>
-                <!-- Input numerico de expeller -->
-                <input class="form-input" type="number" step="1" id="expeller_produced_kg" name="expeller_produced_kg"
-                       value="{{ prod_summary.expeller_estimated }}" placeholder="ej. 8500" required>
-            </div>
-
-            <!-- Grupo de entrada para aceite obtenido -->
-            <div class="form-group" style="margin-bottom: 0.85rem;">
-                <!-- Etiqueta de aceite producido -->
-                <label class="form-label" for="oil_produced_kg">Aceite Obtenido en Turno (kg)</label>
-                <!-- Input de aceite -->
-                <input class="form-input" type="number" step="1" id="oil_produced_kg" name="oil_produced_kg"
-                       placeholder="ej. 5800 (según aumento de tanques)" required>
-            </div>
-
-            <!-- Grilla para parametros analiticos de materia grasa -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
-                <!-- Materia grasa en semilla -->
-                <div class="form-group">
-                    <!-- Etiqueta MG semilla -->
-                    <label class="form-label" for="seed_fat_pct">MG Semilla (%)</label>
-                    <!-- Input MG semilla -->
-                    <input class="form-input" type="number" step="0.1" id="seed_fat_pct" name="seed_fat_pct"
-                           value="{{ lab_averages.seed_fat_pct }}" required>
-                </div>
-                <!-- Materia grasa en expeller -->
-                <div class="form-group">
-                    <!-- Etiqueta MG expeller -->
-                    <label class="form-label" for="expeller_fat_pct">MG Expeller (%)</label>
-                    <!-- Input MG expeller -->
-                    <input class="form-input" type="number" step="0.1" id="expeller_fat_pct" name="expeller_fat_pct"
-                           value="{{ lab_averages.expeller_fat_pct }}" required>
-                </div>
-            </div>
-
-            <!-- Grilla para mermas y residuos del proceso -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
-                <!-- Residuos y cascara -->
-                <div class="form-group">
-                    <!-- Etiqueta de residuos -->
-                    <label class="form-label" for="identified_waste_kg">Residuos / Cáscara (kg)</label>
-                    <!-- Input de residuos -->
-                    <input class="form-input" type="number" step="1" id="identified_waste_kg" name="identified_waste_kg" value="0">
-                </div>
-                <!-- Perdida por evaporacion -->
-                <div class="form-group">
-                    <!-- Etiqueta de evaporacion -->
-                    <label class="form-label" for="moisture_loss_kg">Agua Evaporada (kg)</label>
-                    <!-- Input de agua evaporada -->
-                    <input class="form-input" type="number" step="1" id="moisture_loss_kg" name="moisture_loss_kg" value="0">
-                </div>
-            </div>
-
-            <!-- Campo de observaciones operativas -->
-            <div class="form-group" style="margin-bottom: 1.25rem;">
-                <!-- Etiqueta de observaciones -->
-                <label class="form-label" for="notes">Observaciones del Turno</label>
-                <!-- Input de notas -->
-                <input class="form-input" type="text" id="notes" name="notes" placeholder="ej. Buena molienda, humedad controlada">
-            </div>
-
-            <!-- Boton de envio de balance de masa -->
-            <button type="submit" class="btn btn-success" style="width: 100%;">
-                Calcular y Conciliar Balance de Masa
+            <input type="hidden" name="shift_id" value="{{ auto_efficiency.shift_id or '' }}">
+            <!-- Campo de notas opcionales para la conciliacion -->
+            <input type="text" name="notes" class="form-input" style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 260px;" placeholder="Observaciones automáticas (opcional)">
+            <!-- Boton de envio del formulario automatico -->
+            <button type="submit" class="btn btn-success" style="font-size: 0.85rem;">
+                <!-- Texto del boton -->
+                💾 Guardar Balance del Turno con estos Datos
+            <!-- Cierre del boton de guardado -->
             </button>
+        <!-- Cierre de formulario de guardado automatico -->
         </form>
+        <!-- Cierre de comprobacion de permisos administrativos -->
+        {% endif %}
+    <!-- Cierre de barra de acciones -->
     </div>
-    {% else %}
-    <!-- Panel informativo de solo lectura para el perfil Gerencia -->
-    <div class="form-card" style="margin-bottom: 0; background: #f8fafc; border-left: 4px solid #3b82f6;">
-        <!-- Cabecera del panel informativo -->
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <!-- Icono visual -->
-            <span style="font-size: 1.25rem;">👁️</span>
-            <!-- Titulo de solo lectura -->
-            <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e3a8a; margin: 0;">
-                Vista Ejecutiva de Rendimiento (Solo Lectura)
-            </h3>
-        </div>
-        <!-- Descripcion de permisos ejecutivos -->
-        <p style="font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem; line-height: 1.5;">
-            Como perfil de Gerencia, dispone de acceso al historial cronológico de balances y a los criterios industriales de eficiencia sin permisos de carga de datos.
-        </p>
-        <!-- Detalle de guardia en curso -->
-        <div style="padding: 0.6rem; background: white; border-radius: 0.375rem; border: 1px solid #e2e8f0; font-size: 0.825rem; color: #334155;">
-            <!-- Guardia -->
-            <p style="margin: 0.2rem 0;"><strong>Guardia evaluada:</strong> {{ active_shift.shift_name }} ({{ active_shift.shift_id }})</p>
-            <!-- Operador -->
-            <p style="margin: 0.2rem 0;"><strong>Responsable en planta:</strong> {{ active_shift.operator_name }}</p>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- ===================================================================== -->
-    <!-- GUIA DE INTERPRETACION DE FORMULAS Y EFICIENCIA                       -->
-    <!-- Oculto en celulares para priorizar informacion clave en pantalla      -->
-    <!-- ===================================================================== -->
-    <div class="form-card mobile-hidden" style="margin-bottom: 0; background-color: #f8fafc;">
-        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
-            Criterios Industriales de Cálculo
-        </h3>
-        <div style="font-size: 0.875rem; color: #334155; display: flex; flex-direction: column; gap: 0.85rem;">
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #16a34a;">
-                <strong>1. Rendimiento Másico de Aceite (% Extracción):</strong>
-                <p>Relación directa entre los kilos de aceite extraído y los kilos de semilla molida.</p>
-                <code style="color: #15803d;">(Aceite_kg / Semilla_kg) * 100</code>
-            </div>
-
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #d97706;">
-                <strong>2. Rendimiento de Expeller en Línea (% Caudales):</strong>
-                <p>Relación entre el caudal horario de expeller y el caudal de semilla.</p>
-                <code style="color: #b45309;">(Promedio Expeller / Promedio Semilla) * 100</code>
-            </div>
-
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #2563eb;">
-                <strong>3. Recuperación de Aceite Disponible (% Eficiencia Real):</strong>
-                <p>Evalúa qué proporción del aceite contenido en la semilla se logró extraer efectivamente.</p>
-                <code style="color: #1d4ed8;">(Aceite_kg / (Semilla_kg * %MG_semilla / 100)) * 100</code>
-            </div>
-
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #f59e0b;">
-                <strong>4. Grasa Residual en Expeller:</strong>
-                <p>Kilos de materia grasa que permanecieron en el subproducto.</p>
-                <code style="color: #b45309;">Expeller_kg * (%MG_expeller / 100)</code>
-            </div>
-
-            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #dc2626;">
-                <strong>5. Conciliación y Diferencia de Balance:</strong>
-                <p>Diferencia no atribuible a productos o evaporación.</p>
-                <code style="color: #991b1b;">Semilla - (Aceite + Expeller + Residuos + Humedad_evap)</code>
-            </div>
-        </div>
-    </div>
+<!-- Cierre de tarjeta del Modo 1 -->
 </div>
 
 <!-- ========================================================================= -->
-<!-- HISTORIAL DE CONCILIACIONES Y REPORTES                                    -->
+<!-- MODO 2: CALCULO Y SIMULACION CON JUEGO DE DATOS INGRESADO                 -->
+<!-- ========================================================================= -->
+<div id="simulator-section" class="form-card" style="margin-bottom: 1.5rem; border-left: 4px solid #3b82f6;">
+    <!-- Encabezado de la seccion del Modo 2 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+        <!-- Titulo y subtitulo del simulador y conciliador con datos manuales -->
+        <div>
+            <!-- Titulo h2 del Modo 2 -->
+            <h2 style="font-size: 1.25rem; font-weight: 800; color: #1e3a8a; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <!-- Icono de calculadora -->
+                <span>🔢</span>
+                <!-- Texto del titulo -->
+                <span>Modo 2: Cálculo con Juego de Datos Ingresado / Simulador</span>
+            <!-- Cierre de titulo h2 -->
+            </h2>
+            <!-- Descripcion del modo 2 -->
+            <p style="font-size: 0.825rem; color: #475569; margin: 0.25rem 0 0 0;">
+                <!-- Explicacion de simulacion reactiva y conciliacion -->
+                Ingrese o modifique cualquier valor para evaluar la eficiencia en tiempo real y, opcionalmente, registrar la conciliación oficial.
+            <!-- Cierre de parrafo -->
+            </p>
+        <!-- Cierre de contenedor de titulo -->
+        </div>
+        <!-- Boton de restauracion rapida de datos registrados -->
+        <button type="button" onclick="loadAutoDataIntoSimulator()" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.6rem;">
+            <!-- Icono de recarga -->
+            🔄 Reestablecer a Datos Registrados
+        <!-- Cierre de boton -->
+        </button>
+    <!-- Cierre de encabezado del modo 2 -->
+    </div>
+
+    <!-- Grilla de dos columnas: Formulario de entrada (Izq) y Resultados reactivos (Der) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        <!-- Columna Izquierda: Formulario de Carga y Parametros -->
+        <div>
+            <!-- Formulario para computar y opcionalmente guardar conciliacion -->
+            <form id="custom-yield-form" action="{{ url_for('yield.add_reconciliation') }}" method="POST">
+                <!-- Campo oculto para el turno a conciliar -->
+                <input type="hidden" name="shift_id" id="sim_shift_id" value="{{ auto_efficiency.shift_id or (active_shift.shift_id if active_shift else '') }}">
+
+                <!-- Campo: Semilla Procesada -->
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <!-- Etiqueta de semilla procesada -->
+                    <label class="form-label" for="sim_seed_processed_kg">Semilla Procesada (kg)</label>
+                    <!-- Input de semilla procesada con evento reactivo al tipear -->
+                    <input class="form-input" type="number" step="1" id="sim_seed_processed_kg" name="seed_processed_kg"
+                           value="{{ auto_efficiency.seed_processed_kg }}" oninput="recalculateCustomEfficiency()" required>
+                    <!-- Subtexto informativo -->
+                    <span style="font-size: 0.72rem; color: #64748b;">Kilos totales de semilla ingresados a molienda</span>
+                <!-- Cierre del form-group de semilla -->
+                </div>
+
+                <!-- Campo: Expeller Obtenido -->
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <!-- Etiqueta de expeller producido -->
+                    <label class="form-label" for="sim_expeller_produced_kg">Expeller Obtenido (kg)</label>
+                    <!-- Input de expeller con evento reactivo al tipear -->
+                    <input class="form-input" type="number" step="1" id="sim_expeller_produced_kg" name="expeller_produced_kg"
+                           value="{{ auto_efficiency.expeller_produced_kg }}" oninput="recalculateCustomEfficiency()" required>
+                    <!-- Subtexto informativo -->
+                    <span style="font-size: 0.72rem; color: #64748b;">Kilos totales de subproducto expeller pesado o cubicado</span>
+                <!-- Cierre del form-group de expeller -->
+                </div>
+
+                <!-- Campo: Aceite Obtenido -->
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <!-- Cabecera de etiqueta con boton para estimar por balance si se desconoce -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <!-- Etiqueta del input de aceite -->
+                        <label class="form-label" for="sim_oil_produced_kg" style="margin-bottom: 0;">Aceite Obtenido (kg)</label>
+                        <!-- Enlace rapido para estimar aceite por diferencial -->
+                        <button type="button" onclick="autoEstimateOilInSimulator()" style="background: none; border: none; color: #2563eb; font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 0;">
+                            <!-- Texto de la accion de autollenado -->
+                            📐 Estimar por Diferencial
+                        <!-- Cierre del boton de estimacion -->
+                        </button>
+                    <!-- Cierre del contenedor de la cabecera -->
+                    </div>
+                    <!-- Input numerico de aceite con evento reactivo -->
+                    <input class="form-input" type="number" step="1" id="sim_oil_produced_kg" name="oil_produced_kg"
+                           value="{{ auto_efficiency.oil_produced_kg }}" oninput="recalculateCustomEfficiency()" required>
+                    <!-- Subtexto explicativo del aceite -->
+                    <span style="font-size: 0.72rem; color: #64748b;">Kilos de aceite pesado o determinado por diferencial</span>
+                <!-- Cierre del form-group de aceite -->
+                </div>
+
+                <!-- Grilla para porcentajes de materia grasa de laboratorio -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+                    <!-- Campo MG Semilla -->
+                    <div class="form-group">
+                        <!-- Etiqueta MG semilla -->
+                        <label class="form-label" for="sim_seed_fat_pct">MG Semilla (%)</label>
+                        <!-- Input de porcentaje de grasa en semilla -->
+                        <input class="form-input" type="number" step="0.1" id="sim_seed_fat_pct" name="seed_fat_pct"
+                               value="{{ auto_efficiency.seed_fat_pct }}" oninput="recalculateCustomEfficiency()" required>
+                    <!-- Cierre de form-group MG semilla -->
+                    </div>
+                    <!-- Campo MG Expeller -->
+                    <div class="form-group">
+                        <!-- Etiqueta MG expeller -->
+                        <label class="form-label" for="sim_expeller_fat_pct">MG Expeller (%)</label>
+                        <!-- Input de porcentaje de grasa en expeller -->
+                        <input class="form-input" type="number" step="0.1" id="sim_expeller_fat_pct" name="expeller_fat_pct"
+                               value="{{ auto_efficiency.expeller_fat_pct }}" oninput="recalculateCustomEfficiency()" required>
+                    <!-- Cierre de form-group MG expeller -->
+                    </div>
+                <!-- Cierre de grilla de materia grasa -->
+                </div>
+
+                <!-- Grilla para residuos y perdidas por evaporacion -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.85rem;">
+                    <!-- Campo de residuos y cascaras -->
+                    <div class="form-group">
+                        <!-- Etiqueta de residuos -->
+                        <label class="form-label" for="sim_identified_waste_kg">Residuos / Cáscara (kg)</label>
+                        <!-- Input de residuos -->
+                        <input class="form-input" type="number" step="1" id="sim_identified_waste_kg" name="identified_waste_kg"
+                               value="{{ auto_efficiency.waste_kg }}" oninput="recalculateCustomEfficiency()">
+                    <!-- Cierre de form-group de residuos -->
+                    </div>
+                    <!-- Campo de merma por evaporacion -->
+                    <div class="form-group">
+                        <!-- Etiqueta de evaporacion -->
+                        <label class="form-label" for="sim_moisture_loss_kg">Agua Evaporada (kg)</label>
+                        <!-- Input de evaporacion -->
+                        <input class="form-input" type="number" step="1" id="sim_moisture_loss_kg" name="moisture_loss_kg"
+                               value="{{ auto_efficiency.moisture_loss_kg }}" oninput="recalculateCustomEfficiency()">
+                    <!-- Cierre de form-group de evaporacion -->
+                    </div>
+                <!-- Cierre de grilla de residuos y evaporacion -->
+                </div>
+
+                <!-- Campo de notas u observaciones de la corrida -->
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                    <!-- Etiqueta de notas -->
+                    <label class="form-label" for="sim_notes">Observaciones del Juego de Datos</label>
+                    <!-- Input de observaciones -->
+                    <input class="form-input" type="text" id="sim_notes" name="notes" placeholder="ej. Simulación lote húmedo o ajuste de prensa">
+                <!-- Cierre de form-group de notas -->
+                </div>
+
+                <!-- Botones de accion segun perfil -->
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <!-- Boton para forzar recalculo reactivo -->
+                    <button type="button" onclick="recalculateCustomEfficiency()" class="btn btn-primary" style="flex: 1;">
+                        <!-- Texto del boton de recalculo -->
+                        🔍 Calcular Eficiencia
+                    <!-- Cierre de boton de recalculo -->
+                    </button>
+                    <!-- Permiso administrativo para guardar la conciliacion en base de datos -->
+                    {% if g.user and g.user.role == 'admin_sistema' %}
+                    <!-- Boton submit para registrar formalmente en el historico -->
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <!-- Texto del boton de guardado definitivo -->
+                        💾 Guardar Conciliación Oficial
+                    <!-- Cierre de boton de envio -->
+                    </button>
+                    <!-- Cierre de condicion de permisos administrativos -->
+                    {% endif %}
+                <!-- Cierre de contenedor de botones de accion -->
+                </div>
+            <!-- Cierre de formulario -->
+            </form>
+        <!-- Cierre de columna izquierda -->
+        </div>
+
+        <!-- Columna Derecha: Tarjeta de Resultados Reactivos del Juego de Datos -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <!-- Contenedor superior con resultados calculados -->
+            <div>
+                <!-- Titulo de la tarjeta de resultados -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                    <!-- Titulo -->
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: #0f172a; margin: 0;">
+                        <!-- Texto del titulo -->
+                        Resultados del Juego de Datos Ingresado
+                    <!-- Cierre de titulo h3 -->
+                    </h3>
+                    <!-- Estado de actualizacion -->
+                    <span id="sim-status-badge" style="font-size: 0.7rem; font-weight: 700; color: #166534; background: #dcfce7; padding: 0.2rem 0.5rem; border-radius: 9999px;">
+                        <!-- Texto dinamico -->
+                        En Vivo
+                    <!-- Cierre del badge de estado -->
+                    </span>
+                <!-- Cierre de cabecera de resultados -->
+                </div>
+
+                <!-- Grid de resultados en tarjetas compactas -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                    <!-- Resultado: Recuperacion Disponible -->
+                    <div style="background: white; border: 1px solid #bbf7d0; border-radius: 0.375rem; padding: 0.75rem;">
+                        <!-- Etiqueta del KPI -->
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: #166534; font-weight: 700;">Recup. Disponible</div>
+                        <!-- Valor reactivo de recuperacion de aceite disponible -->
+                        <div id="res_oil_recovery_pct" style="font-size: 1.5rem; font-weight: 900; color: #15803d; line-height: 1.2;">
+                            <!-- Valor inicial tomado del objeto de eficiencia -->
+                            {{ auto_efficiency.calculated_kpis.oil_recovery_pct }}%
+                        <!-- Cierre del contenedor de valor -->
+                        </div>
+                        <!-- Subtexto analitico -->
+                        <div style="font-size: 0.68rem; color: #64748b;">% Grasa disponible extraída</div>
+                    <!-- Cierre de tarjeta de recuperacion -->
+                    </div>
+
+                    <!-- Resultado: Rendimiento Aceite -->
+                    <div style="background: white; border: 1px solid #bfdbfe; border-radius: 0.375rem; padding: 0.75rem;">
+                        <!-- Etiqueta del KPI -->
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: #1e40af; font-weight: 700;">Rend. Aceite (Extr.)</div>
+                        <!-- Valor reactivo del rendimiento de aceite -->
+                        <div id="res_oil_yield_pct" style="font-size: 1.5rem; font-weight: 900; color: #1d4ed8; line-height: 1.2;">
+                            <!-- Valor inicial de rendimiento de aceite -->
+                            {{ auto_efficiency.calculated_kpis.oil_yield_pct }}%
+                        <!-- Cierre del contenedor de valor -->
+                        </div>
+                        <!-- Subtexto de rendimiento -->
+                        <div style="font-size: 0.68rem; color: #64748b;">% Masa procesada</div>
+                    <!-- Cierre de tarjeta de rendimiento de aceite -->
+                    </div>
+
+                    <!-- Resultado: Rendimiento Expeller -->
+                    <div style="background: white; border: 1px solid #fde68a; border-radius: 0.375rem; padding: 0.75rem;">
+                        <!-- Etiqueta del KPI -->
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: #92400e; font-weight: 700;">Rend. Expeller</div>
+                        <!-- Valor reactivo del rendimiento de expeller -->
+                        <div id="res_expeller_yield_pct" style="font-size: 1.5rem; font-weight: 900; color: #b45309; line-height: 1.2;">
+                            <!-- Valor inicial de expeller -->
+                            {{ auto_efficiency.calculated_kpis.expeller_yield_pct }}%
+                        <!-- Cierre del contenedor de valor -->
+                        </div>
+                        <!-- Subtexto de expeller -->
+                        <div style="font-size: 0.68rem; color: #64748b;">% Masa en subproducto</div>
+                    <!-- Cierre de tarjeta de rendimiento expeller -->
+                    </div>
+
+                    <!-- Resultado: Grasa Residual en Expeller -->
+                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 0.375rem; padding: 0.75rem;">
+                        <!-- Etiqueta del KPI -->
+                        <div style="font-size: 0.7rem; text-transform: uppercase; color: #475569; font-weight: 700;">Grasa Residual</div>
+                        <!-- Valor reactivo de grasa residual en kg -->
+                        <div id="res_residual_fat_kg" style="font-size: 1.35rem; font-weight: 900; color: #475569; line-height: 1.2;">
+                            <!-- Valor inicial formateado -->
+                            {{ "{:,.0f}".format(auto_efficiency.calculated_kpis.residual_fat_kg).replace(",", ".") }} kg
+                        <!-- Cierre de contenedor de grasa residual -->
+                        </div>
+                        <!-- Subtexto de grasa residual -->
+                        <div style="font-size: 0.68rem; color: #64748b;">Materia grasa en expeller</div>
+                    <!-- Cierre de tarjeta de grasa residual -->
+                    </div>
+                <!-- Cierre de grid de KPIs reactivos -->
+                </div>
+
+                <!-- Detalle de Balance Masico de los Datos Ingresados -->
+                <div style="background: white; border: 1px solid #e2e8f0; border-radius: 0.375rem; padding: 0.85rem; font-size: 0.825rem;">
+                    <!-- Fila: Masa de Entrada -->
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                        <!-- Etiqueta de masa entrante -->
+                        <span style="color: #64748b;">Semilla Ingresada:</span>
+                        <!-- Kilos de entrada reactivos -->
+                        <strong id="res_seed_kg">{{ "{:,.0f}".format(auto_efficiency.seed_processed_kg).replace(",", ".") }} kg</strong>
+                    <!-- Cierre de fila de entrada -->
+                    </div>
+                    <!-- Fila: Masa de Salida Sumada -->
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                        <!-- Etiqueta de masa saliente -->
+                        <span style="color: #64748b;">Salida Total (Aceite + Expeller + Mermas):</span>
+                        <!-- Kilos de salida reactivos -->
+                        <strong id="res_total_output_kg">{{ "{:,.0f}".format(auto_efficiency.calculated_kpis.total_output_kg).replace(",", ".") }} kg</strong>
+                    <!-- Cierre de fila de salida -->
+                    </div>
+                    <!-- Fila: Aceite Disponible en Semilla -->
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                        <!-- Etiqueta de aceite teorico disponible -->
+                        <span style="color: #64748b;">Grasa Total Teórica en Semilla:</span>
+                        <!-- Kilos teoricos reactivos -->
+                        <strong id="res_available_fat_kg">{{ "{:,.0f}".format(auto_efficiency.calculated_kpis.available_fat_kg).replace(",", ".") }} kg</strong>
+                    <!-- Cierre de fila teorica -->
+                    </div>
+                    <!-- Fila: Desvio de Balance -->
+                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 0.4rem;">
+                        <!-- Etiqueta de diferencia de masa -->
+                        <span style="font-weight: 700; color: #334155;">Diferencia de Balance:</span>
+                        <!-- Valor porcentual y absoluto de la diferencia reactiva -->
+                        <strong id="res_mass_diff" style="color: {{ '#dc2626' if auto_efficiency.calculated_kpis.mass_diff_pct > 5 else '#059669' }};">
+                            <!-- Texto de balance -->
+                            {{ auto_efficiency.calculated_kpis.mass_diff_pct }}% ({{ "{:,.0f}".format(auto_efficiency.calculated_kpis.mass_difference_kg).replace(",", ".") }} kg)
+                        <!-- Cierre de contenedor del desvio -->
+                        </strong>
+                    <!-- Cierre de fila de desvio -->
+                    </div>
+                <!-- Cierre de detalle de balance masico -->
+                </div>
+            <!-- Cierre de contenedor superior -->
+            </div>
+
+            <!-- Caja informativa de ayuda al pie de los resultados -->
+            <div style="margin-top: 1rem; padding: 0.65rem; background: #eff6ff; border-radius: 0.375rem; border: 1px solid #bfdbfe; font-size: 0.75rem; color: #1e40af;">
+                <!-- Texto explicativo de la evaluacion reactiva -->
+                ℹ️ Los cálculos se actualizan instantáneamente en su pantalla al modificar cualquier valor. Puede probar escenarios hipotéticos sin alterar los registros históricos a menos que presione "Guardar Conciliación".
+            <!-- Cierre de caja informativa -->
+            </div>
+        <!-- Cierre de columna derecha -->
+        </div>
+    <!-- Cierre de grilla de dos columnas -->
+    </div>
+<!-- Cierre de seccion del Modo 2 -->
+</div>
+
+<!-- ========================================================================= -->
+<!-- GUIA DE CRITERIOS INDUSTRIALES DE CALCULO                                 -->
+<!-- ========================================================================= -->
+<div class="form-card mobile-hidden" style="margin-bottom: 1.5rem; background-color: #f8fafc;">
+    <!-- Titulo de la guia de formulas -->
+    <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Criterios Industriales de Cálculo
+    </h3>
+    <!-- Contenedor con las formulas industriales explicadas -->
+    <div style="font-size: 0.875rem; color: #334155; display: flex; flex-direction: column; gap: 0.85rem;">
+        <!-- Criterio 1: Rendimiento Masico de Aceite -->
+        <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #16a34a;">
+            <!-- Nombre de formula -->
+            <strong>1. Rendimiento Másico de Aceite (% Extracción):</strong>
+            <!-- Descripcion -->
+            <p>Relación directa entre los kilos de aceite extraído y los kilos de semilla molida.</p>
+            <!-- Formula matematica -->
+            <code style="color: #15803d;">(Aceite_kg / Semilla_kg) * 100</code>
+        <!-- Cierre de criterio 1 -->
+        </div>
+
+        <!-- Criterio 2: Rendimiento de Expeller -->
+        <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #d97706;">
+            <!-- Nombre de formula -->
+            <strong>2. Rendimiento Másico de Expeller (% Subproducto):</strong>
+            <!-- Descripcion -->
+            <p>Relación entre los kilos de expeller producido y la semilla consumida.</p>
+            <!-- Formula matematica -->
+            <code style="color: #b45309;">(Expeller_kg / Semilla_kg) * 100</code>
+        <!-- Cierre de criterio 2 -->
+        </div>
+
+        <!-- Criterio 3: Eficiencia de Recuperacion de Grasa -->
+        <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #2563eb;">
+            <!-- Nombre de formula -->
+            <strong>3. Recuperación de Aceite Disponible (% Eficiencia Real):</strong>
+            <!-- Descripcion -->
+            <p>Evalúa qué proporción del aceite contenido en la semilla se logró extraer efectivamente.</p>
+            <!-- Formula matematica -->
+            <code style="color: #1d4ed8;">(Aceite_kg / (Semilla_kg * %MG_semilla / 100)) * 100</code>
+        <!-- Cierre de criterio 3 -->
+        </div>
+
+        <!-- Criterio 4: Grasa Residual en Expeller -->
+        <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #f59e0b;">
+            <!-- Nombre de formula -->
+            <strong>4. Grasa Residual en Expeller:</strong>
+            <!-- Descripcion -->
+            <p>Kilos de materia grasa que permanecieron en el subproducto.</p>
+            <!-- Formula matematica -->
+            <code style="color: #b45309;">Expeller_kg * (%MG_expeller / 100)</code>
+        <!-- Cierre de criterio 4 -->
+        </div>
+
+        <!-- Criterio 5: Conciliacion Masica -->
+        <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border-left: 4px solid #dc2626;">
+            <!-- Nombre de formula -->
+            <strong>5. Conciliación y Diferencia de Balance Másico:</strong>
+            <!-- Descripcion -->
+            <p>Diferencia no atribuible a productos o evaporación.</p>
+            <!-- Formula matematica -->
+            <code style="color: #991b1b;">Semilla - (Aceite + Expeller + Residuos + Humedad_evap)</code>
+        <!-- Cierre de criterio 5 -->
+        </div>
+    <!-- Cierre de contenedor de formulas -->
+    </div>
+<!-- Cierre de guia de criterios -->
+</div>
+
+<!-- ========================================================================= -->
+<!-- HISTORIAL DE CONCILIACIONES REGISTRADAS                                   -->
 <!-- ========================================================================= -->
 <div class="form-card">
+    <!-- Titulo del historial de conciliaciones -->
     <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
         Historial de Conciliaciones de Turno
     </h3>
+    <!-- Contenedor responsivo de tabla de historial -->
     <div class="table-responsive">
+        <!-- Tabla de conciliaciones registradas -->
         <table class="table">
+            <!-- Encabezado de la tabla -->
             <thead>
+                <!-- Fila de titulos de columnas -->
                 <tr>
+                    <!-- Columna: Fecha y Turno -->
                     <th>Fecha y Turno</th>
+                    <!-- Columna: Semilla -->
                     <th>Semilla (kg)</th>
+                    <!-- Columna: Aceite -->
                     <th>Aceite (kg)</th>
+                    <!-- Columna: Expeller -->
                     <th>Expeller (kg)</th>
+                    <!-- Columna: Extraccion Aceite -->
                     <th>Extracción Aceite</th>
+                    <!-- Columna: Rendimiento Expeller -->
                     <th>Rend. Expeller</th>
+                    <!-- Columna: Recuperacion Disponible -->
                     <th>Recup. Disponible</th>
+                    <!-- Columna: Grasa Residual -->
                     <th class="mobile-hidden">Grasa Residual</th>
+                    <!-- Columna: Diferencia de Balance -->
                     <th>Dif. Balance</th>
+                    <!-- Columna: Notas -->
                     <th class="mobile-hidden">Notas</th>
+                <!-- Cierre de fila de titulos -->
                 </tr>
+            <!-- Cierre de encabezado thead -->
             </thead>
+            <!-- Cuerpo de la tabla con registros historicos -->
             <tbody>
+                <!-- Iteracion sobre conciliaciones registradas -->
                 {% for r in reconciliations %}
+                <!-- Fila individual de conciliacion de turno -->
                 <tr>
+                    <!-- Turno y fecha -->
                     <td><strong>{{ r.date_shift }}</strong></td>
+                    <!-- Semilla procesada formateada -->
                     <td>{{ "{:,.0f}".format(r.seed_processed_kg).replace(",", ".") }} kg</td>
+                    <!-- Aceite producido formateado -->
                     <td>{{ "{:,.0f}".format(r.oil_produced_kg).replace(",", ".") }} kg</td>
+                    <!-- Expeller obtenido formateado -->
                     <td>{{ "{:,.0f}".format(r.expeller_produced_kg).replace(",", ".") }} kg</td>
+                    <!-- Porcentaje de extraccion de aceite -->
                     <td><strong style="color: #15803d;">{{ r.oil_yield_pct }}%</strong></td>
+                    <!-- Porcentaje de rendimiento de expeller -->
                     <td><strong style="color: #b45309;">{{ r.expeller_yield_pct }}%</strong></td>
+                    <!-- Porcentaje de recuperacion de grasa disponible -->
                     <td><strong style="color: #1d4ed8;">{{ r.oil_recovery_pct }}%</strong></td>
+                    <!-- Kilos de grasa residual en celda oculta para telefonos -->
                     <td class="mobile-hidden">{{ "{:,.0f}".format(r.residual_fat_kg).replace(",", ".") }} kg</td>
+                    <!-- Diferencia de balance masico en porcentaje y kilos -->
                     <td>{{ r.mass_diff_pct }}% ({{ "{:,.0f}".format(r.mass_difference_kg).replace(",", ".") }} kg)</td>
+                    <!-- Observaciones de la conciliacion -->
                     <td class="mobile-hidden">{{ r.notes or '-' }}</td>
+                <!-- Cierre de fila individual -->
                 </tr>
+                <!-- Bloque alternativo cuando la lista esta vacia -->
                 {% else %}
+                <!-- Fila indicando que no hay registros previos -->
                 <tr>
+                    <!-- Mensaje centrado ocupando todas las columnas -->
                     <td colspan="10" style="text-align: center; color: #94a3b8; padding: 2rem;">No hay conciliaciones de balance registradas todavía.</td>
+                <!-- Cierre de fila vacia -->
                 </tr>
+                <!-- Fin del bucle for de conciliaciones -->
                 {% endfor %}
+            <!-- Cierre de tbody -->
             </tbody>
+        <!-- Cierre de tabla de historial -->
         </table>
+    <!-- Cierre de contenedor responsivo -->
     </div>
+<!-- Cierre de tarjeta de historial -->
 </div>
+
+<!-- ========================================================================= -->
+<!-- JAVASCRIPT REACTIVO PARA CALCULO EN VIVO Y SIMULACION                     -->
+<!-- ========================================================================= -->
+<script>
+    // Objeto con datos registrados del turno inyectados desde el servidor
+    const AUTO_DATA = {
+        // Kilos de semilla registrados
+        seed_processed_kg: {{ auto_efficiency.seed_processed_kg }},
+        // Kilos de expeller registrados
+        expeller_produced_kg: {{ auto_efficiency.expeller_produced_kg }},
+        // Kilos de aceite estimados
+        oil_produced_kg: {{ auto_efficiency.oil_produced_kg }},
+        // Porcentaje de materia grasa en semilla
+        seed_fat_pct: {{ auto_efficiency.seed_fat_pct }},
+        // Porcentaje de materia grasa en expeller
+        expeller_fat_pct: {{ auto_efficiency.expeller_fat_pct }},
+        // Kilos de residuos registrados
+        waste_kg: {{ auto_efficiency.waste_kg }},
+        // Kilos de perdida por evaporacion
+        moisture_loss_kg: {{ auto_efficiency.moisture_loss_kg }}
+    };
+
+    // Funcion para formatear numeros con separadores de miles
+    function formatKg(num) {
+        // Redondeo a numero entero y formateo con puntos
+        return Math.round(num).toLocaleString('es-AR') + ' kg';
+    }
+
+    // Funcion para rellenar el formulario de simulacion con los datos automaticos registrados
+    function loadAutoDataIntoSimulator() {
+        // Cargar semilla en el input del simulador
+        document.getElementById('sim_seed_processed_kg').value = AUTO_DATA.seed_processed_kg;
+        // Cargar expeller en el input del simulador
+        document.getElementById('sim_expeller_produced_kg').value = AUTO_DATA.expeller_produced_kg;
+        // Cargar aceite en el input del simulador
+        document.getElementById('sim_oil_produced_kg').value = AUTO_DATA.oil_produced_kg;
+        // Cargar MG semilla en el input del simulador
+        document.getElementById('sim_seed_fat_pct').value = AUTO_DATA.seed_fat_pct;
+        // Cargar MG expeller en el input del simulador
+        document.getElementById('sim_expeller_fat_pct').value = AUTO_DATA.expeller_fat_pct;
+        // Cargar residuos en el input del simulador
+        document.getElementById('sim_identified_waste_kg').value = AUTO_DATA.waste_kg;
+        // Cargar agua evaporada en el input del simulador
+        document.getElementById('sim_moisture_loss_kg').value = AUTO_DATA.moisture_loss_kg;
+        // Recalcular reactivamente la eficiencia con los valores cargados
+        recalculateCustomEfficiency();
+        // Desplazar la vista suavemente hacia la seccion del simulador
+        const simSection = document.getElementById('simulator-section');
+        // Ejecutar desplazamiento si el elemento existe
+        if (simSection) {
+            // Scroll suave a la seccion
+            simSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    // Funcion para estimar aceite por balance diferencial si el usuario lo solicita
+    function autoEstimateOilInSimulator() {
+        // Obtener semilla ingresada
+        const seed = parseFloat(document.getElementById('sim_seed_processed_kg').value) || 0;
+        // Obtener expeller ingresado
+        const exp = parseFloat(document.getElementById('sim_expeller_produced_kg').value) || 0;
+        // Obtener residuos ingresados
+        const waste = parseFloat(document.getElementById('sim_identified_waste_kg').value) || 0;
+        // Obtener evaporacion ingresada
+        const moisture = parseFloat(document.getElementById('sim_moisture_loss_kg').value) || 0;
+        // Calcular aceite por diferencia
+        const estimatedOil = Math.max(0, seed - exp - waste - moisture);
+        // Actualizar el valor en el input de aceite
+        document.getElementById('sim_oil_produced_kg').value = Math.round(estimatedOil);
+        // Ejecutar recalculo reactivo inmediato
+        recalculateCustomEfficiency();
+    }
+
+    // Funcion principal de recalculo reactivo local en vivo
+    function recalculateCustomEfficiency() {
+        // Leer semilla del formulario
+        const seed_kg = parseFloat(document.getElementById('sim_seed_processed_kg').value) || 0;
+        // Leer expeller del formulario
+        const exp_kg = parseFloat(document.getElementById('sim_expeller_produced_kg').value) || 0;
+        // Leer aceite del formulario
+        const oil_kg = parseFloat(document.getElementById('sim_oil_produced_kg').value) || 0;
+        // Leer porcentaje de grasa de semilla
+        const seed_fat = parseFloat(document.getElementById('sim_seed_fat_pct').value) || 0;
+        // Leer porcentaje de grasa de expeller
+        const exp_fat = parseFloat(document.getElementById('sim_expeller_fat_pct').value) || 0;
+        // Leer residuos del proceso
+        const waste_kg = parseFloat(document.getElementById('sim_identified_waste_kg').value) || 0;
+        // Leer perdida de humedad
+        const moisture_kg = parseFloat(document.getElementById('sim_moisture_loss_kg').value) || 0;
+
+        // Validar que la semilla sea mayor a cero para evitar division por cero
+        if (seed_kg <= 0) {
+            // Salir de la funcion si la semilla no es valida
+            return;
+        }
+
+        // Calcular rendimiento de aceite en porcentaje
+        const oil_yield_pct = (oil_kg / seed_kg) * 100.0;
+        // Calcular rendimiento de expeller en porcentaje
+        const exp_yield_pct = (exp_kg / seed_kg) * 100.0;
+        // Calcular grasa disponible teorica en kilos
+        const available_fat_kg = seed_kg * (seed_fat / 100.0);
+        // Calcular eficiencia de recuperacion en porcentaje
+        const recovery_pct = available_fat_kg > 0 ? (oil_kg / available_fat_kg) * 100.0 : 0.0;
+        // Calcular grasa residual en el expeller en kilos
+        const residual_fat_kg = exp_kg * (exp_fat / 100.0);
+        // Calcular salida total en masa
+        const total_output_kg = oil_kg + exp_kg + waste_kg + moisture_kg;
+        // Calcular diferencia masica en kilos
+        const mass_diff_kg = seed_kg - total_output_kg;
+        // Calcular porcentaje de desvio masico
+        const mass_diff_pct = (Math.abs(mass_diff_kg) / seed_kg) * 100.0;
+
+        // Actualizar visualmente la tarjeta de recuperacion
+        document.getElementById('res_oil_recovery_pct').textContent = recovery_pct.toFixed(2) + '%';
+        // Actualizar visualmente la tarjeta de rendimiento de aceite
+        document.getElementById('res_oil_yield_pct').textContent = oil_yield_pct.toFixed(2) + '%';
+        // Actualizar visualmente la tarjeta de rendimiento de expeller
+        document.getElementById('res_expeller_yield_pct').textContent = exp_yield_pct.toFixed(2) + '%';
+        // Actualizar visualmente la grasa residual en expeller
+        document.getElementById('res_residual_fat_kg').textContent = formatKg(residual_fat_kg);
+        // Actualizar semilla en la tabla de desglose
+        document.getElementById('res_seed_kg').textContent = formatKg(seed_kg);
+        // Actualizar salida total en la tabla de desglose
+        document.getElementById('res_total_output_kg').textContent = formatKg(total_output_kg);
+        // Actualizar grasa disponible teorica
+        document.getElementById('res_available_fat_kg').textContent = formatKg(available_fat_kg);
+
+        // Elemento visual de desvio de balance
+        const diffEl = document.getElementById('res_mass_diff');
+        // Asignar texto con porcentaje y kilos
+        diffEl.textContent = mass_diff_pct.toFixed(2) + '% (' + formatKg(mass_diff_kg) + ')';
+        // Asignar color rojo si supera el 5% de desvio tolerado o verde si es balance aceptable
+        diffEl.style.color = mass_diff_pct > 5.0 ? '#dc2626' : '#059669';
+
+        // Actualizar badge de estado
+        const badge = document.getElementById('sim-status-badge');
+        // Mostrar insignia de recalculado en vivo
+        badge.textContent = 'En Vivo';
+        // Color verde de fondo
+        badge.style.background = '#dcfce7';
+        // Color verde de texto
+        badge.style.color = '#166534';
+    }
+</script>
 {% endblock %}
+<!-- Fin del bloque de contenido de la vista de rendimiento -->
