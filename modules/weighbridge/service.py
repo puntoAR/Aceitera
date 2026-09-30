@@ -180,8 +180,9 @@ def record_weighing(
     origin_destination=None, user_id_code='1', exit_weight_kg=None,
     entry_weight_kg=None, exporter=None, manual_tare='NO',
     driver_nationality='Argentina', packages=None, customs=None,
-    lot=None, single_weighing='NO', customs_destination=None
-):
+    lot=None, single_weighing='NO', customs_destination=None,
+    conn=None # Conexion opcional para ejecucion en lote reutilizable
+): # Fin de firma de record_weighing
     # Asigna origen de la carga
     origin = origin or origin_name or ''
     # Asigna destino de la carga
@@ -240,10 +241,10 @@ def record_weighing(
     # Convierte neto a toneladas
     net_tons = round(net / 1000.0, 3)
 
-    # Abre conexion para insertar el registro
-    with get_db_connection() as conn:
+    # Define funcion interna para ejecutar el INSERT y sincronizacion
+    def _do_record_insert(target_conn): # Funcion auxiliar de insercion
         # Inserta la pesada completa con las 27 columnas estandar
-        cursor = conn.execute("""
+        cursor = target_conn.execute("""
             INSERT INTO truck_scale_weighings (
                 ticket_number, weigh_date, operation_type, product,
                 truck_plate, trailer_plate, transport_company,
@@ -268,44 +269,52 @@ def record_weighing(
             str(user_id_code or '1'), p_egreso, p_ingreso, exporter,
             manual_tare or 'NO', driver_nationality or 'Argentina', packages, customs,
             lot, single_weighing or 'NO', customs_destination
-        ))
+        )) # Fin ejecucion SQL
         # Obtiene ID asignado a la fila
-        weighing_id = cursor.lastrowid
-
+        weighing_id = cursor.lastrowid # Asigna lastrowid
         # Si se solicita sincronizar con existencias de inventario
-        if sync_inventory and net > 0:
+        if sync_inventory and net > 0: # Comprobacion de flag y neto
             # Importa servicio de movimientos de inventario
-            from modules.inventory.service import record_inventory_movement
+            from modules.inventory.service import record_inventory_movement # Importa servicio
             # Captura posibles excepciones sin abortar pesada
-            try:
+            try: # Bloque protegido
                 # El movimiento de inventario impacta en el stock general
-                inv_mov_type = 'ingreso' if operation_type == 'ingreso' else 'despacho'
+                inv_mov_type = 'ingreso' if operation_type == 'ingreso' else 'despacho' # Tipo de movimiento
                 # Normaliza producto para silos y tanques
-                inv_prod = product if product in ['semilla', 'aceite', 'expeller'] else 'semilla'
+                inv_prod = product if product in ['semilla', 'aceite', 'expeller'] else 'semilla' # Producto de stock
                 # Detalle del comprobante
-                inv_notes = f"Balanza Ticket {ticket_number or weighing_id} - Camión {truck_plate or '-'}"
+                inv_notes = f"Balanza Ticket {ticket_number or weighing_id} - Camión {truck_plate or '-'}" # Comentario
                 # Registra el movimiento
-                record_inventory_movement(
-                    product=inv_prod,
-                    movement_type=inv_mov_type,
-                    origin=origin or 'Balanza Báscula',
-                    destination=destination or 'Planta BioBalcarce',
-                    quantity_kg=net,
-                    document_ref=f"BAL-{ticket_number or weighing_id}",
-                    shift_id=shift_id,
-                    operator_name=operator_name,
-                    notes=inv_notes
-                )
+                record_inventory_movement( # Llama servicio
+                    product=inv_prod, # Producto
+                    movement_type=inv_mov_type, # Tipo
+                    origin=origin or 'Balanza Báscula', # Origen
+                    destination=destination or 'Planta BioBalcarce', # Destino
+                    quantity_kg=net, # Kilos netos
+                    document_ref=f"BAL-{ticket_number or weighing_id}", # Referencia documental
+                    shift_id=shift_id, # Turno
+                    operator_name=operator_name, # Operador
+                    notes=inv_notes # Observaciones
+                ) # Fin llamada
             # Manejo de error de sincronizacion
-            except Exception as e:
+            except Exception as e: # Captura error
                 # Registra en bitacora
-                log_error('WEIGHBRIDGE_SERVICE', f"No se pudo sincronizar inventario para pesada {weighing_id}", e)
-
+                log_error('WEIGHBRIDGE_SERVICE', f"No se pudo sincronizar inventario para pesada {weighing_id}", e) # Log error
         # Confirma transaccion en base de datos
-        conn.commit()
+        target_conn.commit() # Confirma transaccion
+        # Retorna ID de pesada
+        return weighing_id # Retorna identificador
 
-    # Retorna ID de pesada
-    return weighing_id
+    # Si se proporciono una conexion existente
+    if conn is not None: # Verifica conexion externa
+        # Ejecuta la insercion con la conexion suministrada
+        return _do_record_insert(conn) # Insercion directa
+    # Si no se suministro conexion
+    else: # Abre nueva conexion
+        # Abre conexion para insertar el registro
+        with get_db_connection() as new_conn: # Conexion propia
+            # Ejecuta la insercion y retorna el ID
+            return _do_record_insert(new_conn) # Insercion segura
 
 # Expresion SQL para normalizar y comparar fechas en SQLite y Turso (soporta ISO, DD/MM/YYYY y DD-MM-YYYY)
 _SQL_WEIGH_DATE_EXPR = """
@@ -1081,19 +1090,29 @@ def import_weighings_from_file(file_storage, filename=None, operator_name='Balan
                 if ticket: # Si se especifico numero de ticket
                     # Consulta pesada por comprobante o ticket exacto
                     row_found = conn.execute("SELECT id FROM truck_scale_weighings WHERE ticket_number = ?;", (ticket,)).fetchone() # Busca ticket
+                    if not row_found and str(ticket).isdigit(): # Intenta coincidencia por ticket numerico
+                        row_found = conn.execute("SELECT id FROM truck_scale_weighings WHERE CAST(ticket_number AS INTEGER) = ?;", (int(ticket),)).fetchone() # Numerico
                     if row_found: # Si encontro registro coincidente
                         existing_id = row_found['id'] if isinstance(row_found, dict) else row_found[0] # Obtiene identificador existente
+                # Si no encontro por ticket y el ticket corresponde a la secuencia historica (1000 a 1228)
+                if not existing_id and ticket and str(ticket).isdigit(): # Comprobacion de rango historico
+                    t_num = int(ticket) # Numero de ticket entero
+                    if 1000 <= t_num <= 1228: # Rango historico
+                        cand_id = 1228 - t_num # Id calculado
+                        row_found = conn.execute("SELECT id FROM truck_scale_weighings WHERE id = ?;", (cand_id,)).fetchone() # Busca por id historico
+                        if row_found: # Si encontro
+                            existing_id = row_found['id'] if isinstance(row_found, dict) else row_found[0] # Asigna id
                 # Si no encontro por ticket pero hay patente y fecha
                 if not existing_id and chasis and (fecha_egreso or fecha_ingreso or fecha): # Condiciones para deduccion
-                    target_date = fecha_egreso or fecha_ingreso or fecha # Fecha objetivo de la pesada
-                    # Busca pesadas previas que no tenian ticket guardado con misma fecha y patente
+                    t_day = (fecha_egreso or fecha_ingreso or fecha)[:10] # Solo YYYY-MM-DD para comparar sin problemas de segundos
+                    # Busca pesadas previas por patente y dia calendario
                     row_found = conn.execute("""
                         SELECT id FROM truck_scale_weighings 
-                        WHERE (ticket_number IS NULL OR ticket_number = '') 
+                        WHERE (ticket_number IS NULL OR ticket_number = '' OR ticket_number = ?) 
                           AND truck_plate = ? 
-                          AND (weigh_date = ? OR exit_date = ? OR entry_date = ?);
-                    """, (chasis.upper(), target_date, target_date, target_date)).fetchone() # Busca coincidencia sin ticket
-                    if row_found: # Si encontro registro previo sin ticket
+                          AND (substr(weigh_date, 1, 10) = ? OR substr(exit_date, 1, 10) = ? OR substr(entry_date, 1, 10) = ?);
+                    """, (ticket, chasis.upper(), t_day, t_day, t_day)).fetchone() # Busca coincidencia
+                    if row_found: # Si encontro registro previo
                         existing_id = row_found['id'] if isinstance(row_found, dict) else row_found[0] # Asigna ID para actualizar
         except Exception: # Captura fallos de busqueda sin abortar proceso
             existing_id = None # Restablece identificador

@@ -766,5 +766,36 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         applied = get_applied_migration_versions() # Consulta versiones
         self.assertIn(18, applied) # Comprueba version 18 registrada
 
+    def test_migration_19_applied_and_legacy_repair(self): # Prueba de migracion 19 y reparacion de tickets 1000-1012
+        """Verifica que la migracion 19 repare tickets historicos y su metadata""" # Docstring
+        from core.migrations import apply_pending_migrations, get_applied_migration_versions, backfill_repair_weighbridge_tickets # Importa migraciones
+        apply_pending_migrations() # Aplica todas las migraciones pendientes
+        applied = get_applied_migration_versions() # Consulta versiones aplicadas
+        self.assertIn(19, applied) # Comprueba que la version 19 esta registrada
+        # Inserta registros historicos simulados sin ticket_number con IDs especificos 216 y 228
+        with get_db_connection() as conn: # Abre conexion de base de datos
+            conn.execute("""
+                INSERT OR REPLACE INTO truck_scale_weighings (id, ticket_number, weigh_date, exit_date, truck_plate, operation_type, product, transport_company)
+                VALUES (216, NULL, '2026-04-28 10:02:27', '2026-04-28 10:02:27', 'AD182XG', 'egreso', 'expeller', NULL);
+            """) # Inserta fila 216 sin ticket
+            conn.execute("""
+                INSERT OR REPLACE INTO truck_scale_weighings (id, ticket_number, weigh_date, exit_date, truck_plate, operation_type, product, transport_company)
+                VALUES (228, NULL, '2026-04-24 06:26:06', '2026-04-24 06:26:06', 'AD596OX', 'ingreso', 'semilla', NULL);
+            """) # Inserta fila 228 sin ticket
+            backfill_repair_weighbridge_tickets(conn) # Ejecuta el backfill de recuperacion
+            conn.commit() # Confirma transaccion
+        # Verifica recuperacion de ticket_number y transport_company
+        with get_db_connection() as conn: # Abre conexion para consultar
+            row216 = conn.execute("SELECT ticket_number, transport_company FROM truck_scale_weighings WHERE id = 216;").fetchone() # Consulta 216
+            self.assertEqual(row216['ticket_number'], "1012") # Verifica ticket 1012 para id 216
+            self.assertEqual(row216['transport_company'], "TRANSPORTI") # Verifica transportista restaurado
+            row228 = conn.execute("SELECT ticket_number, transport_company FROM truck_scale_weighings WHERE id = 228;").fetchone() # Consulta 228
+            self.assertEqual(row228['ticket_number'], "1000") # Verifica ticket 1000 para id 228
+            self.assertEqual(row228['transport_company'], "AGROINDUSTRIAL COSANIC S.R.L.") # Verifica transportista restaurado
+        # Verifica ordenamiento ticket_asc con los tickets 1000 y 1012
+        weighings = get_recent_weighings(order_by="ticket_asc") # Consulta orden ascendente
+        tickets = [w['ticket_number'] for w in weighings if w['ticket_number'] in ('1000', '1012')] # Filtra tickets de prueba
+        self.assertEqual(tickets, ['1000', '1012']) # Comprueba que 1000 precede a 1012
+
 if __name__ == '__main__': # Punto de entrada de ejecucion
     unittest.main() # Ejecuta pruebas unitarias

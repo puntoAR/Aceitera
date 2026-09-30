@@ -549,7 +549,29 @@ REGISTERED_MIGRATIONS = [
         """, # Sentencias SQL
         # Callback opcional en Python
         'callback': None # Sin callback
-    } # Fin migracion 18
+    }, # Fin migracion 18
+    { # Definicion de migracion 19
+        # Version 19: Reparacion de tickets y consistencia de pesadas historicas de balanza
+        'version': 19, # Version 19
+        # Identificador de la migracion
+        'name': 'v19_repair_weighbridge_legacy_tickets', # Nombre
+        # Descripcion del ajuste
+        'description': 'Repara numeros de ticket faltantes en pesadas historicas (tickets 1000 a 1012), metadatos de transporte y orden cronologico ascendente', # Descripcion
+        # Script SQL para asignar tickets a filas preexistentes sin ticket
+        'sql': """
+            -- Asigna el numero de ticket secuencial a las pesadas historicas del archivo original
+            UPDATE truck_scale_weighings
+            SET ticket_number = CAST(1228 - id AS TEXT)
+            WHERE (ticket_number IS NULL OR ticket_number = '') AND id BETWEEN 1 AND 228;
+
+            -- Si todavia quedara algun registro sin ticket posterior a la fila 228, asigna su id
+            UPDATE truck_scale_weighings
+            SET ticket_number = CAST(id AS TEXT)
+            WHERE ticket_number IS NULL OR ticket_number = '';
+        """, # Sentencias SQL
+        # Callback opcional en Python para restaurar metadatos especificos de las filas historicas
+        'callback': lambda conn: backfill_repair_weighbridge_tickets(conn) # Callback reparador
+    } # Fin migracion 19
 ] # Fin REGISTERED_MIGRATIONS
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes
@@ -618,6 +640,147 @@ def backfill_weighbridge_standard_columns(conn):
     except Exception as e:
         # Registra advertencia en bitacora
         log_error('MIGRATIONS', 'Aviso al rellenar columnas estandar de balanza', e)
+
+# Funcion para reparar tickets historicos y restaurar datos de transportista y fechas en filas 216-228
+def backfill_repair_weighbridge_tickets(conn): # Funcion reparadora de pesadas historicas
+    # Bloque de proteccion ante excepciones
+    try: # Inicia bloque protegido
+        # Diccionario con los datos completos de las filas historicas 216 a 228 del archivo original
+        legacy_rows = { # Diccionario de filas historicas
+            216: { # Fila 216 correspondiente al ticket 1012
+                'ticket_number': '1012', # Numero de ticket 1012
+                'exit_date': '2026-04-28 10:02:27', # Fecha de egreso
+                'entry_date': '2026-04-28 11:44:00', # Fecha de ingreso
+                'product': 'aceite', # Producto aceite
+                'client': 'SEDA', # Cliente SEDA
+                'transport_company': 'TRANSPORTI', # Transportista
+                'recipient': 'SEDA', # Destinatario
+                'truck_plate': 'JJY909', # Patente chasis
+                'trailer_plate': 'SWA625', # Patente acoplado
+                'driver_name': 'LIEJFLDT JORGE', # Chofer
+                'user_id_code': '19', # ID Usuario
+                'exit_weight_kg': 41160.0, # Peso egreso kg
+                'entry_weight_kg': 17400.0, # Peso ingreso kg
+                'net_weight_kg': 23760.0, # Peso neto kg
+                'net_weight_tons': 23.76 # Peso neto tons
+            }, # Fin fila 216
+            217: { # Fila 217 correspondiente al ticket 1011
+                'ticket_number': '1011', # Numero de ticket 1011
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 217
+            218: { # Fila 218 correspondiente al ticket 1010
+                'ticket_number': '1010', # Numero de ticket 1010
+                'exit_date': '2026-04-27 01:12:33', # Fecha de egreso
+                'entry_date': '2026-04-27 11:11:00', # Fecha de ingreso
+                'product': 'aceite', # Producto aceite
+                'client': 'SEDA', # Cliente SEDA
+                'transport_company': 'TRANSPORTE EL LOCO', # Transportista
+                'recipient': 'JJY909', # Destinatario
+                'truck_plate': 'JJY909', # Patente chasis
+                'trailer_plate': 'SWA625', # Patente acoplado
+                'driver_name': 'JORGE LIEJFLDT', # Chofer
+                'user_id_code': '3', # ID Usuario
+                'exit_weight_kg': 48920.0, # Peso egreso kg
+                'entry_weight_kg': 17740.0, # Peso ingreso kg
+                'net_weight_kg': 31180.0, # Peso neto kg
+                'net_weight_tons': 31.18 # Peso neto tons
+            }, # Fin fila 218
+            219: { # Fila 219 correspondiente al ticket 1009
+                'ticket_number': '1009', # Numero de ticket 1009
+                'product': 'expeller', # Producto expeller
+                'client': 'ZARATE MAURICIO', # Cliente Zarate
+                'transport_company': 'ZARATE MAURICIO', # Transportista
+                'recipient': 'ZARATE MAURICIO' # Destinatario
+            }, # Fin fila 219
+            220: { # Fila 220 correspondiente al ticket 1008
+                'ticket_number': '1008', # Numero de ticket 1008
+                'exit_date': '2026-04-25 08:45:31', # Fecha egreso
+                'entry_date': '2026-04-25 07:12:00', # Fecha ingreso
+                'product': 'aceite', # Producto aceite
+                'client': 'COMPANIA ARGENTINA DE ACEITES', # Cliente
+                'transport_company': 'TRANSPORTI', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.', # Destinatario
+                'truck_plate': 'GFI013', # Patente chasis
+                'trailer_plate': 'OFF774', # Patente acoplado
+                'driver_name': 'roberto dos santos', # Chofer
+                'user_id_code': '6', # ID Usuario
+                'exit_weight_kg': 43760.0, # Peso egreso kg
+                'entry_weight_kg': 15800.0, # Peso ingreso kg
+                'net_weight_kg': 27960.0, # Peso neto kg
+                'net_weight_tons': 27.96 # Peso neto tons
+            }, # Fin fila 220
+            221: { # Fila 221 correspondiente al ticket 1007
+                'ticket_number': '1007', # Numero de ticket 1007
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 221
+            222: { # Fila 222 correspondiente al ticket 1006
+                'ticket_number': '1006', # Numero de ticket 1006
+                'product': 'expeller', # Producto expeller
+                'client': 'LLADA', # Cliente Llada
+                'transport_company': 'LLADA', # Transportista
+                'recipient': 'LLADA' # Destinatario
+            }, # Fin fila 222
+            223: { # Fila 223 correspondiente al ticket 1005
+                'ticket_number': '1005', # Numero de ticket 1005
+                'product': 'insumos', # Producto insumos
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 223
+            224: { # Fila 224 correspondiente al ticket 1004
+                'ticket_number': '1004', # Numero de ticket 1004
+                'product': 'expeller', # Producto expeller
+                'client': 'TRES ESQUINAS', # Cliente Tres Esquinas
+                'transport_company': 'TRES ESQUINAS', # Transportista
+                'recipient': 'TRES ESQUINAS' # Destinatario
+            }, # Fin fila 224
+            225: { # Fila 225 correspondiente al ticket 1003
+                'ticket_number': '1003', # Numero de ticket 1003
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 225
+            226: { # Fila 226 correspondiente al ticket 1002
+                'ticket_number': '1002', # Numero de ticket 1002
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 226
+            227: { # Fila 227 correspondiente al ticket 1001
+                'ticket_number': '1001', # Numero de ticket 1001
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            }, # Fin fila 227
+            228: { # Fila 228 correspondiente al ticket 1000
+                'ticket_number': '1000', # Numero de ticket 1000
+                'product': 'semilla', # Producto semilla
+                'client': 'AGROINDUSTRIAL COSANIC S.R.L.', # Cliente Cosanic
+                'transport_company': 'AGROINDUSTRIAL COSANIC S.R.L.', # Transportista
+                'recipient': 'AGROINDUSTRIAL COSANIC S.R.L.' # Destinatario
+            } # Fin fila 228
+        } # Fin diccionario legacy_rows
+        # Itera sobre cada registro historico para actualizarlo en la base de datos
+        for rid, data in legacy_rows.items(): # Bucle de actualizacion
+            # Clausulas SET dinamicas
+            set_clauses = [f"{col} = ?" for col in data.keys()] # Ensambla pares columna = ?
+            # Valores a inyectar en la consulta
+            vals = list(data.values()) + [rid] # Lista de valores mas el id
+            # Ejecuta sentencia SQL de actualizacion
+            conn.execute(f"UPDATE truck_scale_weighings SET {', '.join(set_clauses)} WHERE id = ?;", tuple(vals)) # Update
+    # Captura cualquier error sin abortar la ejecucion global
+    except Exception as e: # Manejo de excepcion
+        # Registra advertencia en el log del sistema
+        log_error('MIGRATIONS', 'Aviso al reparar tickets de balanza en migracion 19', e) # Registro de log
 
 # Funcion de retro-compatibilidad para calcular y rellenar time_slots en registros historicos
 def backfill_time_slots(conn):
