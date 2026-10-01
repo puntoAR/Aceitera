@@ -153,8 +153,27 @@ def service_worker_js():
 # Ruta publica para servir fotografias de intervenciones de mantenimiento
 @app.route('/static/uploads/maintenance/<path:filename>')
 def serve_maintenance_upload(filename):
-    # Retorna la fotografia almacenada en disco con envio optimizado
-    return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
+    # Si el archivo existe físicamente en disco, lo envía directamente
+    disk_path = os.path.join(MAINTENANCE_UPLOADS_DIR, filename)
+    if os.path.isfile(disk_path):
+        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
+    # Si no existe en disco (entornos serverless como Vercel), consulta la base de datos
+    try:
+        from modules.maintenance.service import get_maintenance_image_data, get_placeholder_image_svg
+        img_bytes, mime_type = get_maintenance_image_data(filename)
+        if img_bytes:
+            resp = make_response(img_bytes)
+            resp.headers['Content-Type'] = mime_type or 'image/jpeg'
+            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return resp
+        # Si no existe en base de datos, sirve un SVG placeholder elegante
+        svg_bytes, svg_mime = get_placeholder_image_svg()
+        resp = make_response(svg_bytes)
+        resp.headers['Content-Type'] = svg_mime
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception:
+        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
 
 # Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
 with app.app_context():

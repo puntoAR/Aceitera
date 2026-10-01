@@ -10,6 +10,11 @@ import io
 # Importa sqlite3 para verificaciones directas de registros
 import sqlite3
 
+# Importa FileStorage para simular subida de archivos multipart
+from werkzeug.datastructures import FileStorage
+# Importa PIL para generar imagenes de prueba
+from PIL import Image
+
 # Importa componentes principales de la aplicacion
 from run import app
 # Importa inicializador de base de datos
@@ -20,9 +25,10 @@ from core.migrations import apply_pending_migrations
 from modules.maintenance.service import (
     create_maintenance_activity, get_maintenance_activities, get_activity_by_id,
     update_activity_status, save_maintenance_image, get_activity_images,
-    create_or_update_spare_part, get_spare_parts, get_spare_part_by_id,
-    record_spare_part_movement, get_spare_parts_report_data, get_maintenance_dashboard_kpis,
-    get_maintenance_repairs_report
+    get_all_recent_images, create_or_update_spare_part, get_spare_parts,
+    get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data,
+    get_maintenance_dashboard_kpis, get_maintenance_repairs_report,
+    get_maintenance_image_data, delete_maintenance_image, get_placeholder_image_svg
 )
 
 
@@ -544,6 +550,110 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         self.assertIn('CINTA-01', html_print)
         self.assertIn('Se vulcanizó parche', html_print)
         self.assertIn('Imprimir Ahora', html_print)
+
+    # Prueba exhaustiva de almacenamiento permanente en base de datos y resiliencia serverless
+    def test_maintenance_image_persistence_and_serverless_resilience(self):
+        # 1. Crea una actividad de mantenimiento para vincularle la fotografia
+        act_id = create_maintenance_activity(
+            title="Reparación eje reductor Prensa 1",
+            category="no_planificada_con_parada",
+            equipment_tag="PRENSA-01",
+            priority="critica",
+            description="Inspección visual de fractura de chavetero",
+            reported_by="Mecánico de Turno"
+        )
+
+        # 2. Genera una imagen JPEG sintética real en memoria con Pillow
+        img = Image.new('RGB', (100, 100), color=(255, 128, 0))
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='JPEG', quality=85)
+        img_buffer.seek(0)
+
+        # Crea el objeto FileStorage simulando subida multipart desde navegador
+        file_storage = FileStorage(
+            stream=img_buffer,
+            filename='falla_eje.jpg',
+            content_type='image/jpeg'
+        )
+
+        # 3. Guarda la imagen usando el servicio
+        saved_filename = save_maintenance_image(act_id, file_storage, caption="Fisura en chavetero eje")
+        self.assertTrue(saved_filename.startswith(f"maint_{act_id}_"))
+
+        # 4. Verifica que la imagen esté persistida en la base de datos con Base64
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM maintenance_images WHERE filename = ?;", (saved_filename,)).fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row['activity_id'], act_id)
+            self.assertEqual(row['mime_type'], 'image/jpeg')
+            self.assertTrue(row['image_data'].startswith('data:image/jpeg;base64,'))
+            img_id = row['id']
+
+        # 5. Verifica que get_activity_images retorne la URL oficial y has_data
+        images_list = get_activity_images(act_id)
+        self.assertEqual(len(images_list), 1)
+        self.assertEqual(images_list[0]['id'], img_id)
+        self.assertEqual(images_list[0]['url'], f"/maintenance/image/{img_id}")
+        self.assertTrue(images_list[0]['has_data'])
+
+        # 6. SIMULACIÓN CRUCIAL DE ENTORNO SERVERLESS EFÍMERO (Vercel):
+        # Borra el archivo físico del disco para simular cambio de instancia / lambda cold-start
+        disk_path = os.path.join(self.upload_dir, saved_filename)
+        if os.path.exists(disk_path):
+            os.remove(disk_path)
+        self.assertFalse(os.path.exists(disk_path), "El archivo en disco debe haber sido eliminado para probar recuperación de BD")
+
+        # 7. Verifica que get_maintenance_image_data recupere los bytes intactos desde la columna base64 en BD
+        recovered_bytes, mime_type = get_maintenance_image_data(img_id)
+        self.assertIsNotNone(recovered_bytes)
+        self.assertEqual(mime_type, 'image/jpeg')
+        self.assertTrue(len(recovered_bytes) > 0)
+
+        # Verifica recuperación por filename
+        bytes_by_name, mime_by_name = get_maintenance_image_data(saved_filename)
+        self.assertEqual(recovered_bytes, bytes_by_name)
+
+        # 8. Prueba endpoint HTTP oficial /maintenance/image/<id>
+        resp_img = self.client.get(f"/maintenance/image/{img_id}")
+        self.assertEqual(resp_img.status_code, 200)
+        self.assertEqual(resp_img.content_type, 'image/jpeg')
+        self.assertEqual(resp_img.data, recovered_bytes)
+
+        # 9. Prueba fallback en ruta estatica /static/uploads/maintenance/<filename>
+        resp_static = self.client.get(f"/static/uploads/maintenance/{saved_filename}")
+        self.assertEqual(resp_static.status_code, 200)
+        self.assertEqual(resp_static.content_type, 'image/jpeg')
+        self.assertEqual(resp_static.data, recovered_bytes)
+
+        # 10. Prueba fallback SVG para IDs inexistentes o imagenes legacy faltantes
+        resp_missing = self.client.get("/maintenance/image/999999")
+        self.assertEqual(resp_missing.status_code, 200)
+        self.assertTrue(resp_missing.content_type.startswith('image/svg+xml'))
+        self.assertIn(b'<svg', resp_missing.data)
+
+        # 11. Prueba endpoint JSON /maintenance/activity/<act_id>/images
+        self.login_as('admin', 'admin_sistema')
+        resp_json = self.client.get(f"/maintenance/activity/{act_id}/images")
+        self.assertEqual(resp_json.status_code, 200)
+        json_data = resp_json.get_json()
+        self.assertTrue(json_data['success'])
+        self.assertEqual(len(json_data['images']), 1)
+        self.assertEqual(json_data['images'][0]['url'], f"/maintenance/image/{img_id}")
+
+        # 12. Prueba eliminacion de fotografia via endpoint /maintenance/image/<id>/delete
+        resp_del = self.client.post(f"/maintenance/image/{img_id}/delete", headers={'X-Requested-With': 'XMLHttpRequest'})
+        self.assertEqual(resp_del.status_code, 200)
+        self.assertTrue(resp_del.get_json()['success'])
+
+        # Verifica que ya no exista en base de datos
+        with get_db_connection() as conn:
+            deleted_check = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (img_id,)).fetchone()
+            self.assertIsNone(deleted_check)
+
+        # Y que la peticion a la imagen ahora devuelva el SVG placeholder
+        resp_after_del = self.client.get(f"/maintenance/image/{img_id}")
+        self.assertEqual(resp_after_del.status_code, 200)
+        self.assertTrue(resp_after_del.content_type.startswith('image/svg+xml'))
 
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':

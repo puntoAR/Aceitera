@@ -592,7 +592,20 @@ REGISTERED_MIGRATIONS = [
             WHERE code IN ('TK-01', 'TK-02', 'TK-03');
         """,
         'callback': None
-    } # Fin migracion 20
+    }, # Fin migracion 20
+    {
+        # Version 21: Persistencia robusta de fotografias de mantenimiento en base de datos
+        'version': 21,
+        'name': 'v21_maintenance_images_data_persistence',
+        'description': 'Incorpora columnas image_data (base64) y mime_type a maintenance_images para almacenamiento permanente y resiliente en entornos serverless',
+        'sql': """
+            -- Agrega columna image_data para almacenar la imagen optimizada en base64
+            ALTER TABLE maintenance_images ADD COLUMN image_data TEXT DEFAULT NULL;
+            -- Agrega columna mime_type para el tipo de contenido
+            ALTER TABLE maintenance_images ADD COLUMN mime_type TEXT DEFAULT 'image/jpeg';
+        """,
+        'callback': None
+    } # Fin migracion 21
 ] # Fin REGISTERED_MIGRATIONS
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes

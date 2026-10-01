@@ -470,8 +470,10 @@
                 <!-- Contenedor de la imagen con recorte -->
                 <div style="height: 180px; overflow: hidden; background: #0f172a; position: relative;">
                     <!-- Imagen de la reparacion -->
-                    <img src="{{ url_for('static', filename='uploads/maintenance/' + photo.filename) }}" alt="{{ photo.caption }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="openPhotoViewer('{{ url_for('static', filename='uploads/maintenance/' + photo.filename) }}', '{{ photo.activity_title | replace("'", "\\'") }} - {{ photo.caption }}')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                    <!-- Badge de equipo en esquina -->
+                    <img src="{{ photo.url or url_for('maintenance.serve_image_by_id', image_id=photo.id) }}" alt="{{ photo.caption }}" onerror="this.onerror=null; this.src='/maintenance/image/placeholder.svg';" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="openPhotoViewer('{{ photo.url or url_for('maintenance.serve_image_by_id', image_id=photo.id) }}', '{{ photo.activity_title | replace("'", "\\'") }} - {{ photo.caption }}')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <!-- Boton eliminar foto en esquina superior derecha -->
+                    <button type="button" onclick="event.stopPropagation(); deletePhotoDirect({{ photo.id }}, '{{ photo.activity_title | replace("'", "\\'") }}');" title="Eliminar fotografía" style="position: absolute; top: 8px; right: 8px; background: rgba(239, 68, 68, 0.85); color: white; border: none; border-radius: 4px; padding: 3px 6px; font-size: 0.75rem; cursor: pointer; backdrop-filter: blur(2px); z-index: 2;">🗑️</button>
+                    <!-- Badge de equipo en esquina inferior izquierda -->
                     <span style="position: absolute; bottom: 8px; left: 8px; background: rgba(15,23,42,0.85); color: #f59e0b; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">
                         {{ photo.equipment_tag or 'Equipo General' }}
                     </span>
@@ -970,12 +972,24 @@
                 if (data.images && data.images.length > 0) {
                     container.innerHTML = '';
                     data.images.forEach(img => {
+                        const imgUrl = img.url || ('/maintenance/image/' + img.id);
+                        const safeTitle = (img.caption || title).replace(/'/g, "\\'");
                         const item = document.createElement('div');
                         item.style.background = '#0f172a';
                         item.style.borderRadius = '0.5rem';
                         item.style.overflow = 'hidden';
                         item.style.border = '1px solid #334155';
-                        item.innerHTML = '<img src="/static/uploads/maintenance/' + img.filename + '" style="width: 100%; height: 140px; object-fit: cover; cursor: pointer;" onclick="openPhotoViewer(\'/static/uploads/maintenance/' + img.filename + '\', \'' + (img.caption || title).replace(/'/g, "\\'") + '\')"><div style="padding: 0.5rem; font-size: 0.75rem; color: #cbd5e1;">' + (img.caption || 'Registro') + '</div>';
+                        item.style.position = 'relative';
+                        item.innerHTML = `
+                            <div style="position: relative; height: 140px; background: #1e293b;">
+                                <img src="${imgUrl}" onerror="this.onerror=null; this.src='/maintenance/image/placeholder.svg';" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoViewer('${imgUrl}', '${safeTitle}')">
+                                <button type="button" onclick="deletePhoto(${img.id}, ${actId}, '${(title).replace(/'/g, "\\'")}')" title="Eliminar fotografía" style="position: absolute; top: 6px; right: 6px; background: rgba(239, 68, 68, 0.85); color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; backdrop-filter: blur(2px);">🗑️</button>
+                            </div>
+                            <div style="padding: 0.5rem; font-size: 0.75rem; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${img.caption || 'Registro visual'}</span>
+                                <span style="font-size: 0.65rem; color: #64748b; margin-left: 0.25rem;">#${img.id}</span>
+                            </div>
+                        `;
                         container.appendChild(item);
                     });
                 } else {
@@ -985,6 +999,46 @@
             .catch(err => {
                 container.innerHTML = '<div style="color: #ef4444; text-align: center; grid-column: 1/-1;">Error al consultar imágenes.</div>';
             });
+    }
+
+    // Elimina una fotografia desde el modal de galeria de la actividad
+    function deletePhoto(imgId, actId, title) {
+        if (!confirm('¿Deseas eliminar permanentemente esta fotografía?')) return;
+        fetch('/maintenance/image/' + imgId + '/delete', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                viewActivityGallery(actId, title);
+            } else {
+                alert('No se pudo eliminar la fotografía.');
+            }
+        })
+        .catch(err => {
+            alert('Error de conexión al eliminar la fotografía.');
+        });
+    }
+
+    // Elimina una fotografia directamente desde la pestaña de galeria general
+    function deletePhotoDirect(imgId, actTitle) {
+        if (!confirm('¿Deseas eliminar permanentemente esta fotografía de "' + actTitle + '"?')) return;
+        fetch('/maintenance/image/' + imgId + '/delete', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('No se pudo eliminar la fotografía.');
+            }
+        })
+        .catch(err => {
+            alert('Error de conexión al eliminar la fotografía.');
+        });
     }
 
     // Cierra cualquier modal especificando su ID

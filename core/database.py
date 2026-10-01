@@ -634,6 +634,8 @@ def init_db():
             filename TEXT NOT NULL,                       -- Nombre del archivo almacenado en disco
             caption TEXT,                                 -- Epigrafe explicativo (antes, durante, repuesto, final)
             uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Fecha y hora de subida
+            image_data TEXT DEFAULT NULL,                 -- Contenido binario en Base64 para persistencia permanente
+            mime_type TEXT DEFAULT 'image/jpeg',          -- Tipo MIME de la imagen
             FOREIGN KEY (activity_id) REFERENCES maintenance_activities(id) ON DELETE CASCADE
         );
         """)

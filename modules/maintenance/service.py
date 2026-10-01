@@ -5,8 +5,18 @@ import datetime
 import os
 # Importa uuid para generar identificadores unicos de nombres de imagenes
 import uuid
+# Importa base64 para codificacion de fotografias de persistencia permanente
+import base64
+# Importa io para manejo de buffers de bytes en memoria
+import io
 # Importa secure_filename para sanitizar nombres de archivos cargados
 from werkzeug.utils import secure_filename
+# Importa Pillow para procesamiento, optimizacion y compresion de imagenes
+try:
+    from PIL import Image, ImageOps
+except ImportError:
+    Image = None
+    ImageOps = None
 # Importa la conexion de base de datos relacional
 from core.database import get_db_connection
 # Importa el registrador de auditoria de eventos de planta
@@ -148,7 +158,97 @@ def update_activity_status(activity_id, status, resolution_notes=None, completed
     # Retorna verdadero confirmando la actualizacion
     return True
 
-# Guarda una fotografia de reparacion en disco y la asocia a la actividad
+# Optimiza y codifica la fotografia en Base64 para persistencia permanente en base de datos
+def _process_and_encode_image(file_storage, max_dimension=1280, quality=80):
+    """
+    Procesa un archivo de imagen optimizándolo para almacenamiento resiliente:
+    - Corrige orientación física EXIF (rotación automática)
+    - Redimensiona proporcionalmente a un máximo de 1280px
+    - Comprime a JPEG con calidad 80 y optimización
+    - Genera Data URI base64 lista para almacenamiento en base de datos
+    - Fallback resiliente si Pillow no está disponible o para streams simulados en pruebas
+    """
+    try:
+        # Lee los bytes del archivo subido
+        file_storage.seek(0)
+        raw_bytes = file_storage.read()
+        file_storage.seek(0)
+        
+        if not raw_bytes:
+            return 'image/jpeg', None, b''
+            
+        if Image is not None:
+            try:
+                # Abre con Pillow desde el buffer de memoria
+                with Image.open(io.BytesIO(raw_bytes)) as img:
+                    # Corrige orientación física según metadatos EXIF de cámaras y celulares
+                    if ImageOps is not None:
+                        try:
+                            img = ImageOps.exif_transpose(img)
+                        except Exception:
+                            pass
+                    
+                    # Convierte a modo RGB si tiene canales alfa o es paleta indexada
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        bg = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode == 'P':
+                            img = img.convert('RGBA')
+                        bg.paste(img, mask=img.split()[-1] if len(img.split()) == 4 else None)
+                        img = bg
+                    elif img.mode != 'RGB':
+                        img = img.convert('RGB')
+                        
+                    # Redimensiona proporcionalmente si supera la dimension maxima
+                    resample_filter = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.BICUBIC)
+                    img.thumbnail((max_dimension, max_dimension), resample=resample_filter)
+                    
+                    # Guarda el resultado comprimido en memoria
+                    buffer = io.BytesIO()
+                    img.save(buffer, format='JPEG', quality=quality, optimize=True)
+                    processed_bytes = buffer.getvalue()
+                    mime_type = 'image/jpeg'
+                    b64_str = base64.b64encode(processed_bytes).decode('ascii')
+                    data_uri = f"data:{mime_type};base64,{b64_str}"
+                    return mime_type, data_uri, processed_bytes
+            except Exception:
+                # Fallback en caso de archivos simulados o formatos binarios no raster
+                pass
+                
+        # Fallback estándar directo
+        mime_type = 'image/jpeg'
+        b64_str = base64.b64encode(raw_bytes).decode('ascii')
+        data_uri = f"data:{mime_type};base64,{b64_str}"
+        return mime_type, data_uri, raw_bytes
+    except Exception as e:
+        log_error("ERROR_OPTIMIZAR_IMAGEN_MANTENIMIENTO", f"Fallo al procesar imagen: {e}")
+        return 'image/jpeg', None, b''
+
+# Genera un placeholder SVG cuando la imagen histórica no está disponible
+def get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible"):
+    """
+    Retorna un gráfico SVG vectorial estilizado para servir como fallback
+    ante fotografías anteriores cuya copia efímera en disco fue purgada.
+    """
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#bg)" />
+  <rect x="20" y="20" width="560" height="360" rx="12" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="6 6" />
+  <g transform="translate(300, 160)" text-anchor="middle">
+    <circle cx="0" cy="-20" r="42" fill="#334155" />
+    <path d="M -18,-15 L -10,-28 L 10,-28 L 18,-15 L 24,-15 C 27,-15 29,-13 29,-10 L 29,8 C 29,11 27,13 24,13 L -24,13 C -27,13 -29,11 -29,8 L -29,-10 C -29,-13 -27,-15 -24,-15 Z" fill="#94a3b8" />
+    <circle cx="0" cy="-1" r="10" fill="#0f172a" stroke="#f59e0b" stroke-width="2.5" />
+    <text y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="700" fill="#f8fafc">{title}</text>
+    <text y="75" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#94a3b8">{message}</text>
+  </g>
+</svg>"""
+    return svg.encode('utf-8'), 'image/svg+xml'
+
+# Guarda una fotografia de reparacion en base de datos y cache en disco
 def save_maintenance_image(activity_id, file_storage, caption=None):
     # Verifica que el objeto de archivo sea valido y tenga nombre
     if not file_storage or not file_storage.filename:
@@ -164,17 +264,31 @@ def save_maintenance_image(activity_id, file_storage, caption=None):
         raise ValueError(f"Formato no permitido. Use: {', '.join(config.ALLOWED_IMAGE_EXTENSIONS)}")
     # Genera un nombre de archivo seguro y unico
     unique_filename = f"maint_{activity_id}_{uuid.uuid4().hex[:10]}.{ext}"
-    # Define la ruta absoluta en disco donde se guardara la fotografia
-    destination_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, unique_filename)
-    # Guarda el archivo fisico en disco
-    file_storage.save(destination_path)
-    # Abre conexion para registrar la imagen en la base de datos
+    
+    # Procesa y optimiza la imagen para base de datos y cache en disco
+    mime_type, data_uri, processed_bytes = _process_and_encode_image(file_storage)
+
+    # Intenta guardar una copia local en disco como cache rápido
+    try:
+        os.makedirs(config.MAINTENANCE_UPLOADS_DIR, exist_ok=True)
+        destination_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, unique_filename)
+        if processed_bytes:
+            with open(destination_path, 'wb') as f:
+                f.write(processed_bytes)
+        else:
+            file_storage.seek(0)
+            file_storage.save(destination_path)
+    except Exception as e:
+        # En entornos serverless read-only o temporales, continúa sin fallar
+        log_info("MAINTENANCE_IMAGE_DISK_WRITE", f"No se pudo escribir en disco (normal en serverless): {e}")
+
+    # Abre conexion para registrar la imagen en la base de datos persistente
     with get_db_connection() as conn:
-        # Inserta el registro en maintenance_images
+        # Inserta el registro en maintenance_images con datos persistentes
         cursor = conn.execute("""
-            INSERT INTO maintenance_images (activity_id, filename, caption)
-            VALUES (?, ?, ?);
-        """, (activity_id, unique_filename, caption.strip() if caption else 'Registro visual'))
+            INSERT INTO maintenance_images (activity_id, filename, caption, image_data, mime_type)
+            VALUES (?, ?, ?, ?, ?);
+        """, (activity_id, unique_filename, caption.strip() if caption else 'Registro visual', data_uri, mime_type))
         # Obtiene el identificador asignado
         image_id = cursor.lastrowid
         # Confirma la transaccion
@@ -184,14 +298,117 @@ def save_maintenance_image(activity_id, file_storage, caption=None):
     # Retorna el nombre de archivo almacenado
     return unique_filename
 
+# Recupera los datos binarios y MIME type de una imagen por ID o filename
+def get_maintenance_image_data(identifier):
+    """
+    Recupera los datos binarios y el MIME type de una imagen de mantenimiento
+    a partir de su ID numérico o de su nombre de archivo (filename).
+    Busca prioritariamente en la columna 'image_data' (base64) de la base de datos;
+    si no está disponible, intenta cargar desde el disco local.
+    Retorna tupla: (binary_bytes, mime_type) o (None, None) si no existe.
+    """
+    row = None
+    with get_db_connection() as conn:
+        # Si es un entero o una cadena numérica
+        if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+            row = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (int(identifier),)).fetchone()
+        
+        # Si no se encontró por ID o el identificador es un filename
+        if not row and isinstance(identifier, str):
+            row = conn.execute("SELECT * FROM maintenance_images WHERE filename = ?;", (identifier,)).fetchone()
+
+    # Si se encontró registro en base de datos
+    if row:
+        row_dict = dict(row)
+        img_data = row_dict.get('image_data')
+        mime = row_dict.get('mime_type') or 'image/jpeg'
+        if img_data:
+            try:
+                # Si tiene prefijo data:mime;base64,
+                if ',' in img_data:
+                    header, b64_part = img_data.split(',', 1)
+                    if 'image/' in header:
+                        mime = header.split(';')[0].replace('data:', '').strip()
+                else:
+                    b64_part = img_data
+                binary_bytes = base64.b64decode(b64_part)
+                return binary_bytes, mime
+            except Exception as e:
+                log_error("ERROR_DECODE_IMAGE_DATA", f"Error al decodificar base64 de imagen #{row_dict.get('id')}: {e}")
+
+        # Si no había image_data o falló la decodificación, busca en disco usando filename
+        fn = row_dict.get('filename')
+        if fn:
+            disk_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, fn)
+            if os.path.isfile(disk_path):
+                try:
+                    with open(disk_path, 'rb') as f:
+                        return f.read(), mime
+                except Exception:
+                    pass
+
+    # Si no hubo registro en BD pero identifier es un string, verifica si existe físicamente en disco
+    if isinstance(identifier, str):
+        disk_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, identifier)
+        if os.path.isfile(disk_path):
+            try:
+                ext = identifier.rsplit('.', 1)[-1].lower() if '.' in identifier else 'jpeg'
+                mime = 'image/png' if ext == 'png' else 'image/webp' if ext == 'webp' else 'image/jpeg'
+                with open(disk_path, 'rb') as f:
+                    return f.read(), mime
+            except Exception:
+                pass
+
+    return None, None
+
+# Elimina una fotografia de mantenimiento de la base de datos y del disco
+def delete_maintenance_image(image_id):
+    """
+    Elimina permanentemente una fotografía de mantenimiento de la base de datos
+    y remueve el archivo físico de disco si existiera.
+    """
+    with get_db_connection() as conn:
+        row = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (image_id,)).fetchone()
+        if not row:
+            return False
+        row_dict = dict(row)
+        filename = row_dict.get('filename')
+        activity_id = row_dict.get('activity_id')
+        
+        # Elimina de la base de datos
+        conn.execute("DELETE FROM maintenance_images WHERE id = ?;", (image_id,))
+        conn.commit()
+        
+    # Intenta borrar el archivo de disco si existe
+    if filename:
+        try:
+            disk_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, filename)
+            if os.path.isfile(disk_path):
+                os.remove(disk_path)
+        except Exception:
+            pass
+            
+    record_audit_event('MANTENIMIENTO', 'FOTO_ELIMINADA', f"Foto #{image_id} eliminada de actividad #{activity_id} ({filename}).")
+    return True
+
 # Obtiene todas las imagenes vinculadas a una actividad especifica
 def get_activity_images(activity_id):
     # Abre conexion a la base de datos
     with get_db_connection() as conn:
         # Consulta las imagenes asociadas a la actividad ordenadas cronologicamente
-        rows = conn.execute("SELECT * FROM maintenance_images WHERE activity_id = ? ORDER BY id ASC;", (activity_id,)).fetchall()
-        # Retorna la lista de imagenes como diccionarios
-        return [dict(row) for row in rows]
+        rows = conn.execute("""
+            SELECT id, activity_id, filename, caption, uploaded_at, mime_type,
+                   (image_data IS NOT NULL) as has_data
+            FROM maintenance_images
+            WHERE activity_id = ?
+            ORDER BY id ASC;
+        """, (activity_id,)).fetchall()
+        result = []
+        for row in rows:
+            r = dict(row)
+            r['url'] = f"/maintenance/image/{r['id']}"
+            result.append(r)
+        return result
 
 # Obtiene las fotografias mas recientes de todas las intervenciones para galeria general
 def get_all_recent_images(limit=30):
@@ -199,13 +416,19 @@ def get_all_recent_images(limit=30):
     with get_db_connection() as conn:
         # Consulta imagenes cruzadas con el titulo de la actividad
         rows = conn.execute("""
-            SELECT mi.*, ma.title as activity_title, ma.category as activity_category, ma.equipment_tag
+            SELECT mi.id, mi.activity_id, mi.filename, mi.caption, mi.uploaded_at, mi.mime_type,
+                   (mi.image_data IS NOT NULL) as has_data,
+                   ma.title as activity_title, ma.category as activity_category, ma.equipment_tag
             FROM maintenance_images mi
             JOIN maintenance_activities ma ON mi.activity_id = ma.id
             ORDER BY mi.id DESC LIMIT ?;
         """, (limit,)).fetchall()
-        # Retorna el resultado estructurado
-        return [dict(row) for row in rows]
+        result = []
+        for row in rows:
+            r = dict(row)
+            r['url'] = f"/maintenance/image/{r['id']}"
+            result.append(r)
+        return result
 
 # Da de alta o actualiza los datos de un repuesto en el inventario del pañol
 def create_or_update_spare_part(code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit='unidades', location='', notes='', part_id=None):

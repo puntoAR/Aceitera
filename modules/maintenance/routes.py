@@ -1,6 +1,6 @@
 # Modulo de rutas web y controladores para Mantenimiento Industrial y Pañol de Repuestos
 # Importa componentes basicos de Flask para enrutamiento, respuestas, renderizado y mensajes
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, make_response, g
 # Importa decorador de proteccion por roles
 from core.security import roles_required
 # Importa funciones de negocio del servicio de mantenimiento
@@ -9,7 +9,8 @@ from modules.maintenance.service import (
     update_activity_status, save_maintenance_image, get_activity_images,
     get_all_recent_images, create_or_update_spare_part, get_spare_parts,
     get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data,
-    get_maintenance_repairs_report
+    get_maintenance_repairs_report, get_maintenance_image_data,
+    get_placeholder_image_svg, delete_maintenance_image
 )
 # Importa el servicio de configuracion para obtener equipos y turnos
 from modules.configuration.service import get_all_equipment, get_active_shift
@@ -169,6 +170,63 @@ def get_images_json(activity_id):
     images = get_activity_images(activity_id)
     # Retorna en formato JSON
     return jsonify({'success': True, 'activity_id': activity_id, 'images': images})
+
+# Endpoint para servir fotografias de mantenimiento por su ID numérico
+@maintenance_bp.route('/image/<int:image_id>')
+def serve_image_by_id(image_id):
+    # Recupera bytes y tipo MIME desde base de datos o disco
+    img_bytes, mime_type = get_maintenance_image_data(image_id)
+    if img_bytes:
+        resp = make_response(img_bytes)
+        resp.headers['Content-Type'] = mime_type or 'image/jpeg'
+        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return resp
+    # Si la imagen no está disponible (ej. archivos anteriores borrados por lambda efímera), sirve un SVG placeholder
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message=f"Fotografía #{image_id} archivada")
+    resp = make_response(svg_bytes)
+    resp.headers['Content-Type'] = svg_mime
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+# Endpoint para servir fotografias de mantenimiento por su nombre de archivo
+@maintenance_bp.route('/image/<path:filename>')
+def serve_image_by_filename(filename):
+    # Si se solicita explícitamente el placeholder SVG
+    if filename in ('placeholder.svg', 'default.svg'):
+        svg_bytes, svg_mime = get_placeholder_image_svg()
+        resp = make_response(svg_bytes)
+        resp.headers['Content-Type'] = svg_mime
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    # Busca por filename en base de datos o disco
+    img_bytes, mime_type = get_maintenance_image_data(filename)
+    if img_bytes:
+        resp = make_response(img_bytes)
+        resp.headers['Content-Type'] = mime_type or 'image/jpeg'
+        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return resp
+    # Fallback SVG si no se encuentra
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible")
+    resp = make_response(svg_bytes)
+    resp.headers['Content-Type'] = svg_mime
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
+# Endpoint para eliminar una fotografía de mantenimiento
+@maintenance_bp.route('/image/<int:image_id>/delete', methods=['POST'])
+@roles_required('usuario', 'admin_sistema', 'administrador')
+def delete_photo(image_id):
+    # Elimina la foto de la base de datos y de disco
+    success = delete_maintenance_image(image_id)
+    # Si la solicitud vino via AJAX/Fetch
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        return jsonify({'success': success})
+    # Si vino via formulario HTML tradicional
+    if success:
+        flash(f"Fotografía #{image_id} eliminada correctamente.", "success")
+    else:
+        flash(f"No se pudo encontrar la fotografía #{image_id}.", "warning")
+    return redirect(request.referrer or url_for('maintenance.index'))
 
 # Endpoint para dar de alta o editar un repuesto en el catalogo
 @maintenance_bp.route('/spare_part/save', methods=['POST'])
