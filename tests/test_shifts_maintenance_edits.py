@@ -25,6 +25,10 @@ class TestShiftsMaintenanceEdits(unittest.TestCase):
     def setUp(self):
         self.app = app.test_client()
         self.app.testing = True
+        with get_db_connection() as conn:
+            conn.execute("UPDATE users SET allowed_modules = NULL WHERE username = 'mantenimiento';")
+            conn.execute("DELETE FROM users WHERE username = 'tecnico_planta';")
+            conn.commit()
 
     def test_determine_time_slot_boundaries(self):
         """Valida la clasificación precisa de franjas horarias y días operativos."""
@@ -646,6 +650,70 @@ class TestShiftsMaintenanceEdits(unittest.TestCase):
         self.assertIn('Activo', html)
         self.assertIn('Inactivo', html)
 
+    def test_admin_users_view_renders_maintenance_option(self):
+        """Verifica que /admin/users renderice la opción de Mantenimiento tanto en creación como en edición."""
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['full_name'] = 'Administrador Sistema'
+            sess['role'] = 'admin_sistema'
+
+        res = self.app.get('/admin/users')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+        # Verifica que la casilla de verificación de Mantenimiento esté presente
+        self.assertIn('value="maintenance"', html)
+        self.assertIn('🔧 Mantenimiento', html)
+        self.assertIn('Módulos Autorizados de Acceso', html)
+
+    def test_user_creation_with_maintenance_module_and_access(self):
+        """Verifica la asignación granular del módulo Mantenimiento a un usuario y su navegación dinámica."""
+        from modules.admin.service import admin_create_user
+        # Crea un nuevo usuario operario pero con acceso explícito a mantenimiento y producción
+        admin_create_user(
+            username='tecnico_planta',
+            full_name='Técnico Especialista',
+            dni='40999888',
+            phone='2266123456',
+            password='Password123!',
+            role='usuario',
+            must_change=False,
+            allowed_modules=['maintenance', 'production']
+        )
+
+        with get_db_connection() as conn:
+            user = conn.execute("SELECT * FROM users WHERE username = 'tecnico_planta';").fetchone()
+
+        self.assertIsNotNone(user)
+        self.assertTrue(has_module_access(user, 'maintenance'))
+        self.assertTrue(has_module_access(user, 'production'))
+        self.assertFalse(has_module_access(user, 'laboratory'))
+        self.assertFalse(has_module_access(user, 'weighbridge'))
+
+        # Simula sesión de técnico_planta
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = user['id']
+            sess['username'] = user['username']
+            sess['full_name'] = user['full_name']
+            sess['role'] = user['role']
+
+        # Puede acceder a mantenimiento
+        r_maint = self.app.get('/maintenance/')
+        self.assertEqual(r_maint.status_code, 200)
+        html_maint = r_maint.data.decode('utf-8')
+        self.assertIn('🔧 Mantenimiento', html_maint)
+        self.assertIn('⚖️ Producción', html_maint)
+        self.assertNotIn('🧪 Laboratorio', html_maint)
+
+        # Puede acceder a producción
+        r_prod = self.app.get('/production/')
+        self.assertEqual(r_prod.status_code, 200)
+
+        # NO puede acceder a laboratorio (no está en sus allowed_modules)
+        r_lab = self.app.get('/laboratory/', follow_redirects=True)
+        self.assertIn('No posee permisos autorizados'.encode('utf-8'), r_lab.data)
+
 if __name__ == '__main__':
     unittest.main()
+
 

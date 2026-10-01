@@ -282,6 +282,24 @@ def get_user_allowed_modules(user):
 
     return list(modules)
 
+# Redireccion inteligente al primer modulo autorizado para el usuario
+def _smart_redirect_for_user(user):
+    """Redirige al usuario al primer módulo que tenga habilitado en el sistema."""
+    if not user:
+        return redirect(url_for('dashboard.login'))
+    for m, endpoint in [
+        ('production', 'production.index'),
+        ('maintenance', 'maintenance.index'),
+        ('dashboard', 'dashboard.index'),
+        ('inventory', 'inventory.index'),
+        ('laboratory', 'laboratory.index'),
+        ('weighbridge', 'weighbridge.index'),
+        ('yield', 'yield.index'),
+    ]:
+        if has_module_access(user, m):
+            return redirect(url_for(endpoint))
+    return redirect(url_for('dashboard.login'))
+
 # Verifica si un usuario tiene acceso autorizado a un modulo especifico
 def has_module_access(user, module_name):
     """
@@ -303,16 +321,31 @@ def has_module_access(user, module_name):
     if role == 'admin_sistema':
         return True
 
-    # Gerencia / Administrador
+    # Si el usuario tiene modulos configurados explicitamente (allowed_modules)
+    try:
+        raw = user['allowed_modules'] if 'allowed_modules' in user.keys() else (user.get('allowed_modules') if hasattr(user, 'get') else '')
+    except Exception:
+        raw = getattr(user, 'allowed_modules', '')
+    raw = str(raw or '').strip()
+
+    if raw:
+        allowed = get_user_allowed_modules(user)
+        if mod in allowed:
+            return True
+        if mod == 'shifts' and ('production' in allowed or 'maintenance' in allowed):
+            return True
+        # Para rol mantenimiento siempre incluye maintenance
+        if role == 'mantenimiento' and mod == 'maintenance':
+            return True
+        return False
+
+    # Permisos por defecto segun el rol (cuando allowed_modules no fue configurado)
     if role in ('administrador', 'gerencia'):
         return mod in ('dashboard', 'weighbridge', 'maintenance', 'yield')
 
-    # Operario regular
     if role == 'usuario':
         return mod in ('production', 'inventory', 'laboratory', 'maintenance', 'shifts')
 
-    # Rol Mantenimiento:
-    # Solo ve el modulo de mantenimiento a menos que el administrador indique que otros modulos puede ver
     if role == 'mantenimiento':
         if mod == 'maintenance':
             return True
@@ -360,21 +393,23 @@ def roles_required(*allowed_roles):
                 flash('Acceso restringido: Su usuario de Mantenimiento no tiene permisos habilitados para este módulo.', 'warning')
                 return redirect(url_for('maintenance.index'))
 
+            # Validacion por modulo para rutas dentro de blueprints modulares
+            bp = request.blueprint or ''
+            mod_name = 'yield' if bp == 'yield_balance' else bp
+            if mod_name in ('maintenance', 'production', 'inventory', 'laboratory', 'weighbridge', 'yield', 'dashboard'):
+                if has_module_access(g.user, mod_name):
+                    # Si el rol o modulo tiene permiso y la ruta admite perfiles operativos/gerenciales
+                    if any(r in effective_roles for r in ('usuario', 'gerencia', 'administrador', 'mantenimiento')):
+                        return view(**kwargs)
+                else:
+                    # El usuario no tiene permiso habilitado para este módulo
+                    flash('No posee permisos autorizados para acceder a esta sección.', 'danger')
+                    return _smart_redirect_for_user(g.user)
+
             if g.user['role'] not in effective_roles:
                 # Emite mensaje de permisos insuficientes
                 flash('No posee permisos autorizados para acceder a esta sección.', 'danger')
-                # Redireccion inteligente segun el rol del usuario
-                if g.user['role'] == 'usuario':
-                    # Operarios y tecnicos van a su panel de produccion
-                    return redirect(url_for('production.index'))
-                elif g.user['role'] in ('administrador', 'gerencia'):
-                    # Gerencia de direccion va al dashboard
-                    return redirect(url_for('dashboard.index'))
-                elif g.user['role'] == 'mantenimiento':
-                    return redirect(url_for('maintenance.index'))
-                else:
-                    # Otros casos van al login
-                    return redirect(url_for('dashboard.login'))
+                return _smart_redirect_for_user(g.user)
                     
             # Permite el paso a la vista protegida
             return view(**kwargs)
@@ -382,3 +417,4 @@ def roles_required(*allowed_roles):
         return wrapped_view
     # Retorna el decorador configurado
     return decorator
+

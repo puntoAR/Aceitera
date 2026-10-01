@@ -37,8 +37,8 @@
     {% if not hide_navbar %}
     <!-- Elemento nav de la barra superior -->
     <nav class="navbar">
-        <!-- Marca y titulo de la planta con enlace inteligente segun rol -->
-        <a href="{% if g.user and g.user.role == 'usuario' %}{{ url_for('production.index') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}" class="navbar-brand">
+        <!-- Marca y titulo de la planta con enlace inteligente segun modulos autorizados -->
+        <a href="{% if g.user %}{% if has_module_access(g.user, 'dashboard') %}{{ url_for('dashboard.index') }}{% elif has_module_access(g.user, 'production') %}{{ url_for('production.index') }}{% elif has_module_access(g.user, 'maintenance') %}{{ url_for('maintenance.index') }}{% elif has_module_access(g.user, 'inventory') %}{{ url_for('inventory.index') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}{% else %}{{ url_for('dashboard.login') }}{% endif %}" class="navbar-brand">
             <!-- Logotipo oficial de girasol y gota de aceite -->
             <img src="{{ url_for('static', filename='images/logo_simple.png') }}" alt="BioBalcarce" style="height: 30px; width: 30px; object-fit: contain; margin-right: 0.45rem; vertical-align: middle;">
             <!-- Denominacion institucional de la aplicacion -->
@@ -48,66 +48,23 @@
         <!-- Si el usuario esta autenticado muestra menu de navegacion adaptado a su perfil -->
         {% if g.user %}
         <div class="nav-links">
-            <!-- Navegacion para Gerencia y Administrador (Dashboard Ejecutivo y Mantenimiento) -->
-            {% if g.user.role in ['administrador', 'gerencia'] %}
-            <!-- Enlace al Dashboard Ejecutivo -->
-            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard Ejecutivo</a>
-            <!-- Enlace a Balanza de Camiones -->
-            <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
-            <!-- Enlace al modulo de Mantenimiento y Pañol -->
-            <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
-            <!-- Cierra condicion de rol gerencia / administrador -->
-            {% endif %}
-
-            <!-- Navegacion para Rol Operario / Usuario de Carga -->
-            {% if g.user.role == 'usuario' %}
-            <!-- Enlace a Produccion -->
-            <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
-            <!-- Enlace a Cubicaje y Stock -->
-            <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje y Stock</a>
-            <!-- Enlace a Laboratorio -->
-            <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
-            <!-- Enlace al modulo de Mantenimiento y Pañol -->
-            <a href="{{ url_for('maintenance.index') }}" class="nav-item">🔧 Mantenimiento</a>
-            <!-- Enlace a Guardias de Turno -->
-            <a href="{{ url_for('dashboard.shifts') }}" class="nav-item">🔄 Guardias</a>
-            <!-- Cierra condicion de rol operario -->
-            {% endif %}
-
             <!-- Navegacion completa para Administrador del Sistema -->
             {% if g.user.role == 'admin_sistema' %}
-            <!-- Enlace a Dashboard -->
             <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
-            <!-- Enlace a Produccion -->
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
-            <!-- Enlace a Balanza de Camiones -->
             <a href="{{ url_for('weighbridge.index') }}" class="nav-item">🚛 Balanza</a>
-            <!-- Enlace a Cubicaje -->
             <a href="{{ url_for('inventory.index') }}" class="nav-item">🌾 Cubicaje</a>
-            <!-- Enlace a Laboratorio -->
             <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
-            <!-- Enlace a Mantenimiento Industrial -->
             <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
-            <!-- Enlace a Rendimiento -->
             <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
-            <!-- Enlace a Equipos -->
             <a href="{{ url_for('config.index') }}" class="nav-item">⚙️ Equipos</a>
-            <!-- Enlace a Usuarios -->
             <a href="{{ url_for('admin.users_list') }}" class="nav-item" style="color: #60a5fa; font-weight: 600;">👥 Usuarios</a>
-            <!-- Enlace a Auditoria -->
             <a href="{{ url_for('admin.audit_view') }}" class="nav-item" style="color: #34d399;">📋 Auditoría</a>
-            <!-- Enlace a Errores -->
             <a href="{{ url_for('admin.errors_view') }}" class="nav-item" style="color: #f87171;">⚠️ Errores</a>
-            <!-- Cierra condicion de admin_sistema -->
-            {% endif %}
-
-            <!-- Navegacion para Rol Mantenimiento -->
-            {% if g.user.role == 'mantenimiento' %}
-            <!-- Enlace al modulo de Mantenimiento y Pañol (siempre habilitado) -->
-            <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
-            <!-- Modulos autorizados de forma adicional por el Administrador -->
+            {% else %}
+            <!-- Navegacion dinamica por modulos autorizados para cualquier rol de usuario -->
             {% if has_module_access(g.user, 'dashboard') %}
-            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard</a>
+            <a href="{{ url_for('dashboard.index') }}" class="nav-item">📊 Dashboard{% if g.user.role in ['administrador', 'gerencia'] %} Ejecutivo{% endif %}</a>
             {% endif %}
             {% if has_module_access(g.user, 'production') %}
             <a href="{{ url_for('production.index') }}" class="nav-item">⚖️ Producción</a>
@@ -121,8 +78,14 @@
             {% if has_module_access(g.user, 'laboratory') %}
             <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
             {% endif %}
+            {% if has_module_access(g.user, 'maintenance') %}
+            <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
+            {% endif %}
             {% if has_module_access(g.user, 'yield') %}
             <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
+            {% endif %}
+            {% if has_module_access(g.user, 'shifts') %}
+            <a href="{{ url_for('dashboard.shifts') }}" class="nav-item">🔄 Guardias</a>
             {% endif %}
             {% endif %}
 
