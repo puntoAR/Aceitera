@@ -249,117 +249,220 @@ def get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotogr
     return svg.encode('utf-8'), 'image/svg+xml'
 
 # Guarda una fotografia de reparacion en base de datos y cache en disco
-def save_maintenance_image(activity_id, file_storage, caption=None):
+# Guarda una fotografia de reparacion en base de datos y cache en disco
+def save_maintenance_image(activity_id, file_storage, caption=None): # Guarda fotografia
     # Verifica que el objeto de archivo sea valido y tenga nombre
-    if not file_storage or not file_storage.filename:
+    if not file_storage or not file_storage.filename: # Valida archivo recibido
         # Lanza excepcion si no se recibio archivo
-        raise ValueError("No se seleccionó ningún archivo de imagen para cargar.")
+        raise ValueError("No se seleccionó ningún archivo de imagen para cargar.") # Error si falta
     # Sanitiza el nombre original del archivo
-    orig_name = secure_filename(file_storage.filename)
+    orig_name = secure_filename(file_storage.filename) # Sanitiza nombre
     # Extrae la extension en minusculas
-    ext = orig_name.rsplit('.', 1)[-1].lower() if '.' in orig_name else ''
+    ext = orig_name.rsplit('.', 1)[-1].lower() if '.' in orig_name else '' # Obtiene extension
     # Comprueba si la extension esta dentro de las autorizadas
-    if ext not in config.ALLOWED_IMAGE_EXTENSIONS:
+    if ext not in config.ALLOWED_IMAGE_EXTENSIONS: # Valida extension autorizada
         # Lanza error de extension no permitida
-        raise ValueError(f"Formato no permitido. Use: {', '.join(config.ALLOWED_IMAGE_EXTENSIONS)}")
-    # Genera un nombre de archivo seguro y unico
-    unique_filename = f"maint_{activity_id}_{uuid.uuid4().hex[:10]}.{ext}"
-    
+        raise ValueError(f"Formato no permitido. Use: {', '.join(config.ALLOWED_IMAGE_EXTENSIONS)}") # Error formato
     # Procesa y optimiza la imagen para base de datos y cache en disco
-    mime_type, data_uri, processed_bytes = _process_and_encode_image(file_storage)
-
-    # Intenta guardar una copia local en disco como cache rápido
-    try:
-        os.makedirs(config.MAINTENANCE_UPLOADS_DIR, exist_ok=True)
-        destination_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, unique_filename)
-        if processed_bytes:
-            with open(destination_path, 'wb') as f:
-                f.write(processed_bytes)
-        else:
-            file_storage.seek(0)
-            file_storage.save(destination_path)
-    except Exception as e:
-        # En entornos serverless read-only o temporales, continúa sin fallar
-        log_info("MAINTENANCE_IMAGE_DISK_WRITE", f"No se pudo escribir en disco (normal en serverless): {e}")
-
+    mime_type, data_uri, processed_bytes = _process_and_encode_image(file_storage) # Procesa imagen
+    # Si el resultado es JPEG, normaliza la extension a .jpg para consistencia MIME
+    effective_ext = 'jpg' if mime_type == 'image/jpeg' else ext # Extension efectiva
+    # Genera un nombre de archivo seguro y unico con la extension normalizada
+    unique_filename = f"maint_{activity_id}_{uuid.uuid4().hex[:10]}.{effective_ext}" # Nombre unico
+    # Intenta guardar una copia local en disco como cache rapido
+    try: # Bloque try cache disco
+        # Crea directorio de subidas si no existe
+        os.makedirs(config.MAINTENANCE_UPLOADS_DIR, exist_ok=True) # Crea carpeta
+        # Ruta destino en disco
+        destination_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, unique_filename) # Ruta destino
+        # Si se obtuvieron bytes procesados optimizados
+        if processed_bytes: # Si hay bytes procesados
+            # Escribe los bytes procesados directamente al archivo
+            with open(destination_path, 'wb') as f: # Abre archivo en escritura binaria
+                # Escribe bytes
+                f.write(processed_bytes) # Escribe bytes
+        else: # Si no hubo bytes procesados
+            # Posiciona al inicio del stream original
+            file_storage.seek(0) # Seek 0
+            # Guarda usando metodo nativo de Flask
+            file_storage.save(destination_path) # Guarda nativo
+    except Exception as e: # En entornos serverless read-only
+        # Registra aviso informativo sin interrumpir la operacion
+        log_info("MAINTENANCE_IMAGE_DISK_WRITE", f"No se pudo escribir en disco (normal en serverless): {e}") # Log aviso
     # Abre conexion para registrar la imagen en la base de datos persistente
-    with get_db_connection() as conn:
+    with get_db_connection() as conn: # Abre conexion
         # Inserta el registro en maintenance_images con datos persistentes
         cursor = conn.execute("""
             INSERT INTO maintenance_images (activity_id, filename, caption, image_data, mime_type)
             VALUES (?, ?, ?, ?, ?);
-        """, (activity_id, unique_filename, caption.strip() if caption else 'Registro visual', data_uri, mime_type))
+        """, (activity_id, unique_filename, caption.strip() if caption else 'Registro visual', data_uri, mime_type)) # Inserta registro
         # Obtiene el identificador asignado
-        image_id = cursor.lastrowid
+        image_id = cursor.lastrowid # ID asignado
         # Confirma la transaccion
-        conn.commit()
+        conn.commit() # Confirma
     # Registra en auditoria la subida de la imagen
-    record_audit_event('MANTENIMIENTO', 'FOTO_SUBIDA', f"Foto #{image_id} cargada para actividad #{activity_id} ({unique_filename}).")
+    record_audit_event('MANTENIMIENTO', 'FOTO_SUBIDA', f"Foto #{image_id} cargada para actividad #{activity_id} ({unique_filename}).") # Auditoria
     # Retorna el nombre de archivo almacenado
-    return unique_filename
+    return unique_filename # Retorna nombre
 
 # Recupera los datos binarios y MIME type de una imagen por ID o filename
-def get_maintenance_image_data(identifier):
+def get_maintenance_image_data(identifier): # Recupera datos de imagen
     """
     Recupera los datos binarios y el MIME type de una imagen de mantenimiento
     a partir de su ID numérico o de su nombre de archivo (filename).
     Busca prioritariamente en la columna 'image_data' (base64) de la base de datos;
-    si no está disponible, intenta cargar desde el disco local.
+    si no está disponible, intenta cargar desde el disco local y auto-repara la BD.
     Retorna tupla: (binary_bytes, mime_type) o (None, None) si no existe.
-    """
-    row = None
-    with get_db_connection() as conn:
+    """ # Docstring
+    # Inicializa variable de fila
+    row = None # Inicializa row
+    # Limpia identificador si contiene parametros de consulta
+    clean_id = str(identifier).split('?')[0].split('#')[0] if identifier is not None else '' # Limpia query string
+    # Abre conexion a la base de datos
+    with get_db_connection() as conn: # Abre conexion
         # Si es un entero o una cadena numérica
-        if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
-            row = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (int(identifier),)).fetchone()
-        
-        # Si no se encontró por ID o el identificador es un filename
-        if not row and isinstance(identifier, str):
-            row = conn.execute("SELECT * FROM maintenance_images WHERE filename = ?;", (identifier,)).fetchone()
-
+        if isinstance(identifier, int) or clean_id.isdigit(): # Comprueba si es ID numerico
+            # Consulta por ID numérico en la tabla
+            row = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (int(clean_id),)).fetchone() # Consulta por ID
+        # Si no se encontró por ID o el identificador es un filename de texto
+        if not row and clean_id: # Si no se encontro fila
+            # Consulta por nombre exacto de archivo
+            row = conn.execute("SELECT * FROM maintenance_images WHERE filename = ?;", (clean_id,)).fetchone() # Consulta por filename
+            # Si no se encuentra y tiene extension, busca por prefijo sin importar extension jpg/png
+            if not row and '.' in clean_id: # Si tiene punto de extension
+                # Extrae nombre base sin extension
+                stem = clean_id.rsplit('.', 1)[0] # Nombre base
+                # Busca registro cuyo nombre empiece con la misma raiz
+                row = conn.execute("SELECT * FROM maintenance_images WHERE filename LIKE ?;", (f"{stem}.%",)).fetchone() # Consulta por patron
     # Si se encontró registro en base de datos
-    if row:
-        row_dict = dict(row)
-        img_data = row_dict.get('image_data')
-        mime = row_dict.get('mime_type') or 'image/jpeg'
-        if img_data:
-            try:
+    if row: # Si existe registro
+        # Convierte fila a diccionario
+        row_dict = dict(row) # Convierte a dict
+        # Extrae datos base64 persistidos
+        img_data = row_dict.get('image_data') # Obtiene image_data
+        # Extrae tipo MIME almacenado o default JPEG
+        mime = row_dict.get('mime_type') or 'image/jpeg' # Obtiene mime_type
+        # Extrae nombre de archivo de la fila
+        fn = row_dict.get('filename') # Obtiene filename
+        # Si la fila contiene datos binarios en base64
+        if img_data: # Si hay image_data
+            # Bloque de decodificacion segura
+            try: # Bloque try decodificacion
                 # Si tiene prefijo data:mime;base64,
-                if ',' in img_data:
-                    header, b64_part = img_data.split(',', 1)
-                    if 'image/' in header:
-                        mime = header.split(';')[0].replace('data:', '').strip()
-                else:
-                    b64_part = img_data
-                binary_bytes = base64.b64decode(b64_part)
-                return binary_bytes, mime
-            except Exception as e:
-                log_error("ERROR_DECODE_IMAGE_DATA", f"Error al decodificar base64 de imagen #{row_dict.get('id')}: {e}")
-
-        # Si no había image_data o falló la decodificación, busca en disco usando filename
-        fn = row_dict.get('filename')
-        if fn:
-            disk_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, fn)
-            if os.path.isfile(disk_path):
-                try:
-                    with open(disk_path, 'rb') as f:
-                        return f.read(), mime
-                except Exception:
-                    pass
-
-    # Si no hubo registro en BD pero identifier es un string, verifica si existe físicamente en disco
-    if isinstance(identifier, str):
-        disk_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, identifier)
-        if os.path.isfile(disk_path):
-            try:
-                ext = identifier.rsplit('.', 1)[-1].lower() if '.' in identifier else 'jpeg'
-                mime = 'image/png' if ext == 'png' else 'image/webp' if ext == 'webp' else 'image/jpeg'
-                with open(disk_path, 'rb') as f:
-                    return f.read(), mime
-            except Exception:
-                pass
-
-    return None, None
+                if ',' in img_data: # Comprueba data URI
+                    # Separa cabecera y cuerpo base64
+                    header, b64_part = img_data.split(',', 1) # Separa cabecera
+                    # Si la cabecera especifica el tipo de imagen
+                    if 'image/' in header: # Valida prefijo mime
+                        # Extrae el MIME type exacto
+                        mime = header.split(';')[0].replace('data:', '').strip() # Extrae mime
+                else: # Si no tiene prefijo
+                    # Asigna directamente el cuerpo base64
+                    b64_part = img_data # Cuerpo base64
+                # Decodifica la cadena base64 a bytes binarios limpios
+                binary_bytes = base64.b64decode(b64_part.strip()) # Decodifica base64
+                # Recrea copia local en disco como cache si no existe (resiliencia multi-PC)
+                if fn and binary_bytes: # Si hay filename y bytes
+                    # Bloque protegido para cache en disco
+                    try: # Bloque try cache disco
+                        # Asegura la existencia de la carpeta de uploads
+                        os.makedirs(config.MAINTENANCE_UPLOADS_DIR, exist_ok=True) # Crea carpeta
+                        # Construye ruta de cache local
+                        disk_cache_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, fn) # Ruta en disco
+                        # Si el archivo no existe fisicamente en el disco de esta PC
+                        if not os.path.isfile(disk_cache_path): # Verifica si no existe
+                            # Escribe los bytes descargados de la base de datos
+                            with open(disk_cache_path, 'wb') as cf: # Abre archivo
+                                # Guarda copia en disco
+                                cf.write(binary_bytes) # Guarda bytes
+                    except Exception: # Si el disco es de solo lectura o falla
+                        # Continua sin error
+                        pass # Pasa
+                # Retorna tupla de bytes y tipo MIME
+                return binary_bytes, mime # Retorna imagen
+            except Exception as e: # Si falla la decodificacion
+                # Registra advertencia de decodificacion
+                log_error("ERROR_DECODE_IMAGE_DATA", f"Error al decodificar base64 de imagen #{row_dict.get('id')}: {e}") # Log error
+        # Si no había image_data o falló, busca archivo fisico en disco y auto-repara la BD
+        if fn: # Si hay filename en la fila
+            # Carpetas potenciales para buscar la imagen fisica
+            potential_dirs = [ # Lista de carpetas
+                config.MAINTENANCE_UPLOADS_DIR, # Carpeta configurada
+                os.path.join(str(config.BASE_DIR), 'static', 'uploads', 'maintenance'), # Carpeta estatica oficial
+                os.path.join(str(config.BASE_DIR), 'static', 'uploads') # Carpeta estatica general
+            ] # Fin lista
+            # Itera sobre las carpetas potenciales
+            for pdir in potential_dirs: # Itera carpetas
+                # Construye ruta candidata
+                disk_path = os.path.join(pdir, fn) # Ruta candidata
+                # Si el archivo existe fisicamente en disco
+                if os.path.isfile(disk_path): # Verifica existencia
+                    # Bloque de lectura y auto-reparacion
+                    try: # Bloque try auto-sync
+                        # Abre y lee el archivo binario
+                        with open(disk_path, 'rb') as f: # Abre archivo
+                            # Lee los bytes del archivo
+                            disk_bytes = f.read() # Lee bytes
+                        # Si se obtuvieron bytes validos
+                        if disk_bytes: # Si hay contenido
+                            # Detecta extension para tipo MIME
+                            ext = fn.rsplit('.', 1)[-1].lower() if '.' in fn else 'jpg' # Obtiene extension
+                            # Asigna tipo MIME segun extension
+                            detected_mime = 'image/png' if ext == 'png' else 'image/webp' if ext == 'webp' else 'image/jpeg' # Detecta mime
+                            # Codifica a Base64 para persistir permanentemente
+                            b64_str = base64.b64encode(disk_bytes).decode('ascii') # Codifica base64
+                            # Construye Data URI estandar
+                            data_uri = f"data:{detected_mime};base64,{b64_str}" # Data URI
+                            # Auto-sincroniza hacia la base de datos relacional (self-healing)
+                            try: # Bloque try actualizacion BD
+                                # Abre conexion para escribir la reparacion
+                                with get_db_connection() as up_conn: # Abre conexion
+                                    # Actualiza la fila sin perder el resto de metadatos
+                                    up_conn.execute("""
+                                        UPDATE maintenance_images
+                                        SET image_data = ?, mime_type = ?
+                                        WHERE id = ?;
+                                    """, (data_uri, detected_mime, row_dict['id'])) # Ejecuta UPDATE
+                                    # Confirma los cambios en la base de datos
+                                    up_conn.commit() # Confirma
+                                # Registra la auto-reparacion en bitacora
+                                log_info("MAINTENANCE_SELF_HEAL", f"Imagen #{row_dict['id']} ({fn}) sincronizada a base de datos.") # Log
+                            except Exception as sync_err: # Si falla el UPDATE
+                                # Registra advertencia
+                                log_error("MAINTENANCE_SELF_HEAL", f"Aviso al sincronizar #{row_dict['id']}: {sync_err}") # Error log
+                            # Retorna los bytes leidos y el tipo MIME
+                            return disk_bytes, detected_mime # Retorna bytes
+                    except Exception: # Si falla la lectura
+                        # Pasa a siguiente intento
+                        pass # Pasa
+    # Si no hubo registro en BD pero clean_id es un string de archivo valido
+    if clean_id and not clean_id.isdigit(): # Comprueba identificador de archivo directo
+        # Carpetas potenciales para buscar la imagen fisica directa
+        potential_dirs = [ # Lista de carpetas
+            config.MAINTENANCE_UPLOADS_DIR, # Carpeta configurada
+            os.path.join(str(config.BASE_DIR), 'static', 'uploads', 'maintenance') # Carpeta estatica
+        ] # Fin lista
+        # Itera sobre las carpetas potenciales
+        for pdir in potential_dirs: # Itera carpetas
+            # Construye ruta candidata
+            disk_path = os.path.join(pdir, clean_id) # Ruta candidata
+            # Si el archivo existe fisicamente en disco
+            if os.path.isfile(disk_path): # Comprueba existencia
+                # Bloque de lectura protegida
+                try: # Bloque try lectura
+                    # Detecta extension
+                    ext = clean_id.rsplit('.', 1)[-1].lower() if '.' in clean_id else 'jpg' # Obtiene extension
+                    # Detecta mime type
+                    mime = 'image/png' if ext == 'png' else 'image/webp' if ext == 'webp' else 'image/jpeg' # Detecta mime
+                    # Abre y lee el archivo
+                    with open(disk_path, 'rb') as f: # Abre archivo
+                        # Retorna tupla de bytes leidos y mime
+                        return f.read(), mime # Retorna bytes
+                except Exception: # Si falla
+                    # Pasa a siguiente
+                    pass # Pasa
+    # Si no se encontro por ningun medio, retorna tupla None
+    return None, None # Retorna None
 
 # Elimina una fotografia de mantenimiento de la base de datos y del disco
 def delete_maintenance_image(image_id):
@@ -392,43 +495,59 @@ def delete_maintenance_image(image_id):
     return True
 
 # Obtiene todas las imagenes vinculadas a una actividad especifica
-def get_activity_images(activity_id):
+def get_activity_images(activity_id): # Obtiene imagenes de actividad
     # Abre conexion a la base de datos
-    with get_db_connection() as conn:
+    with get_db_connection() as conn: # Abre conexion
         # Consulta las imagenes asociadas a la actividad ordenadas cronologicamente
         rows = conn.execute("""
             SELECT id, activity_id, filename, caption, uploaded_at, mime_type,
-                   (image_data IS NOT NULL) as has_data
+                   (image_data IS NOT NULL AND image_data != '') as has_data
             FROM maintenance_images
             WHERE activity_id = ?
             ORDER BY id ASC;
-        """, (activity_id,)).fetchall()
-        result = []
-        for row in rows:
-            r = dict(row)
-            r['url'] = f"/maintenance/image/{r['id']}"
-            result.append(r)
-        return result
+        """, (activity_id,)).fetchall() # Ejecuta consulta
+        # Lista de resultados con URL y version para cache buster
+        result = [] # Inicializa lista
+        # Itera sobre cada registro obtenido
+        for row in rows: # Itera filas
+            # Convierte fila a diccionario
+            r = dict(row) # Convierte a dict
+            # Genera version para evitar cache stale de placeholders anteriores en otros navegadores
+            v_tag = str(r.get('uploaded_at') or r['id']).replace(' ', '_').replace(':', '') # Genera tag de version
+            # Asigna la URL del endpoint sirviendo la imagen con version
+            r['url'] = f"/maintenance/image/{r['id']}?v={v_tag}" # Asigna url
+            # Agrega el registro a la lista
+            result.append(r) # Agrega resultado
+        # Retorna la lista formateada
+        return result # Retorna lista
 
 # Obtiene las fotografias mas recientes de todas las intervenciones para galeria general
-def get_all_recent_images(limit=30):
+def get_all_recent_images(limit=30): # Obtiene fotos recientes
     # Abre conexion
-    with get_db_connection() as conn:
+    with get_db_connection() as conn: # Abre conexion
         # Consulta imagenes cruzadas con el titulo de la actividad
         rows = conn.execute("""
             SELECT mi.id, mi.activity_id, mi.filename, mi.caption, mi.uploaded_at, mi.mime_type,
-                   (mi.image_data IS NOT NULL) as has_data,
+                   (mi.image_data IS NOT NULL AND mi.image_data != '') as has_data,
                    ma.title as activity_title, ma.category as activity_category, ma.equipment_tag
             FROM maintenance_images mi
             JOIN maintenance_activities ma ON mi.activity_id = ma.id
             ORDER BY mi.id DESC LIMIT ?;
-        """, (limit,)).fetchall()
-        result = []
-        for row in rows:
-            r = dict(row)
-            r['url'] = f"/maintenance/image/{r['id']}"
-            result.append(r)
-        return result
+        """, (limit,)).fetchall() # Ejecuta consulta
+        # Lista de resultados formateados
+        result = [] # Inicializa lista
+        # Itera sobre cada registro
+        for row in rows: # Itera filas
+            # Convierte a diccionario
+            r = dict(row) # Convierte a dict
+            # Genera version para evitar cache stale de placeholders anteriores en otros navegadores
+            v_tag = str(r.get('uploaded_at') or r['id']).replace(' ', '_').replace(':', '') # Genera tag de version
+            # Asigna la URL del endpoint sirviendo la imagen con version
+            r['url'] = f"/maintenance/image/{r['id']}?v={v_tag}" # Asigna url
+            # Agrega a la lista
+            result.append(r) # Agrega resultado
+        # Retorna lista de imagenes
+        return result # Retorna lista
 
 # Da de alta o actualiza los datos de un repuesto en el inventario del pañol
 def create_or_update_spare_part(code, name, category, equipment_assigned, is_consumable, stock_quantity, min_stock, unit='unidades', location='', notes='', part_id=None):

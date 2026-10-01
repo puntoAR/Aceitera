@@ -595,17 +595,32 @@ REGISTERED_MIGRATIONS = [
     }, # Fin migracion 20
     {
         # Version 21: Persistencia robusta de fotografias de mantenimiento en base de datos
-        'version': 21,
-        'name': 'v21_maintenance_images_data_persistence',
-        'description': 'Incorpora columnas image_data (base64) y mime_type a maintenance_images para almacenamiento permanente y resiliente en entornos serverless',
+        'version': 21, # Version 21
+        'name': 'v21_maintenance_images_data_persistence', # Nombre
+        'description': 'Incorpora columnas image_data (base64) y mime_type a maintenance_images para almacenamiento permanente y resiliente en entornos serverless', # Descripcion
         'sql': """
             -- Agrega columna image_data para almacenar la imagen optimizada en base64
             ALTER TABLE maintenance_images ADD COLUMN image_data TEXT DEFAULT NULL;
             -- Agrega columna mime_type para el tipo de contenido
             ALTER TABLE maintenance_images ADD COLUMN mime_type TEXT DEFAULT 'image/jpeg';
-        """,
-        'callback': None
-    } # Fin migracion 21
+        """, # SQL
+        'callback': None # Sin callback
+    }, # Fin migracion 21
+    { # Abre definicion migracion 22
+        # Version 22: Sincronizacion exhaustiva de fotografias de mantenimiento y recuperacion multi-PC
+        'version': 22, # Version 22
+        # Nombre descriptivo
+        'name': 'v22_maintenance_images_backfill_and_sync', # Nombre
+        # Detalle de la migracion
+        'description': 'Sincroniza y rellena columnas image_data y mime_type escaneando directorios locales y estandarizando persistencia para todas las PCs', # Descripcion
+        # Script SQL para asegurar indices
+        'sql': """
+            -- Crea indice por actividad para acelerar busqueda de fotos
+            CREATE INDEX IF NOT EXISTS idx_maint_images_activity ON maintenance_images(activity_id);
+        """, # Sentencias SQL
+        # Callback para recuperar archivos de disco y poblar image_data
+        'callback': lambda conn: backfill_sync_disk_and_cloud_images(conn) # Callback
+    } # Fin migracion 22
 ] # Fin REGISTERED_MIGRATIONS
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes
@@ -921,6 +936,187 @@ def backfill_normalize_weighbridge_dates(conn):
     except Exception as e:
         # Registra advertencia en bitacora
         log_error('MIGRATIONS', 'Aviso al normalizar fechas en truck_scale_weighings', e)
+
+# Sincroniza fotografias de mantenimiento desde disco local a columnas image_data y mime_type
+def backfill_sync_disk_and_cloud_images(conn): # Define funcion backfill
+    # Captura segura para evitar que fallos de disco interrumpan el arranque
+    try: # Bloque try
+        # Importa os para rutas de archivos
+        import os # Importa os
+        # Importa base64 para codificar imagenes
+        import base64 # Importa base64
+        # Importa modulo de configuracion para obtener directorios
+        import config # Importa config
+        # Intenta importar Pillow para optimizar fotografias encontradas en disco
+        try: # Bloque try Pillow
+            # Importa Image de PIL
+            from PIL import Image # Importa Image
+            # Importa ImageOps para corregir EXIF
+            from PIL import ImageOps # Importa ImageOps
+            # Importa io para buffers en memoria
+            import io # Importa io
+        except ImportError: # Si Pillow no esta instalado
+            # Asigna Image a None
+            Image = None # Image None
+            # Asigna ImageOps a None
+            ImageOps = None # ImageOps None
+            # Asigna io a None
+            io = None # io None
+        # Comprueba si la tabla maintenance_images existe en la base de datos
+        t_exists = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='maintenance_images';").fetchone() # Comprueba tabla
+        # Si la tabla no existe todavia, concluye la ejecucion
+        if not t_exists: # Si no existe tabla
+            # Retorna temprano
+            return # Retorna
+        # Consulta todas las filas de fotografias que no tengan image_data cargado
+        rows = conn.execute("""
+            SELECT id, activity_id, filename
+            FROM maintenance_images
+            WHERE image_data IS NULL OR image_data = '';
+        """).fetchall() # Obtiene filas
+        # Si no hay imagenes pendientes de sincronizar
+        if not rows: # Si no hay filas
+            # Retorna temprano
+            return # Retorna
+        # Directorios potenciales donde pueden residir los archivos fisicos
+        potential_dirs = [ # Lista de carpetas
+            config.MAINTENANCE_UPLOADS_DIR, # Carpeta configurada
+            os.path.join(str(config.BASE_DIR), 'static', 'uploads', 'maintenance'), # Carpeta estatica oficial
+            os.path.join(str(config.BASE_DIR), 'static', 'uploads'), # Carpeta subida general
+        ] # Fin de lista de carpetas
+        # Contador de imagenes sincronizadas exitosamente
+        synced_count = 0 # Inicializa contador
+        # Itera sobre cada registro sin datos binarios persistidos
+        for r in rows: # Itera registros
+            # Extrae identificador numerico
+            img_id = r['id'] if isinstance(r, dict) else r[0] # Extrae ID
+            # Extrae identificador de actividad
+            act_id = r['activity_id'] if isinstance(r, dict) else r[1] # Extrae activity_id
+            # Extrae nombre de archivo
+            fn = r['filename'] if isinstance(r, dict) else r[2] # Extrae filename
+            # Si no hay nombre de archivo asignado, salta la iteracion
+            if not fn: # Si filename vacio
+                # Continua con siguiente fila
+                continue # Continua
+            # Variable para almacenar ruta encontrada
+            found_path = None # Inicializa ruta
+            # Busca el archivo en cada directorio potencial
+            for pdir in potential_dirs: # Itera carpetas
+                # Si el directorio no existe fisicamente, salta
+                if not os.path.isdir(pdir): # Verifica si existe directorio
+                    # Siguiente directorio
+                    continue # Siguiente
+                # Construye ruta candidata directa
+                candidate = os.path.join(pdir, fn) # Ruta directa
+                # Si el archivo exacto existe en disco
+                if os.path.isfile(candidate): # Verifica existencia
+                    # Asigna la ruta encontrada
+                    found_path = candidate # Asigna ruta
+                    # Corta la busqueda en carpetas
+                    break # Rompe ciclo
+                # Si no encontro coincidencia exacta, busca por patron maint_{act_id}_
+                prefix = f"maint_{act_id}_" # Prefijo esperado
+                # Lista archivos en la carpeta
+                try: # Bloque try listdir
+                    # Obtiene nombres en el directorio
+                    for fname in os.listdir(pdir): # Itera archivos
+                        # Si el archivo comienza con el prefijo de la actividad
+                        if fname.startswith(prefix): # Comprueba prefijo
+                            # Construye ruta
+                            alt_cand = os.path.join(pdir, fname) # Ruta alternativa
+                            # Si es un archivo regular valido
+                            if os.path.isfile(alt_cand): # Comprueba archivo
+                                # Asigna la ruta encontrada
+                                found_path = alt_cand # Asigna ruta
+                                # Actualiza el nombre de archivo si era diferente
+                                fn = fname # Actualiza filename
+                                # Corta la busqueda
+                                break # Rompe ciclo
+                except Exception: # Captura error al listar
+                    # Ignora fallo de lectura de directorio
+                    pass # Pasa
+                # Si ya encontro ruta, corta busqueda
+                if found_path: # Si encontro
+                    # Rompe ciclo exterior
+                    break # Rompe ciclo
+            # Si encontro el archivo fisico en disco
+            if found_path and os.path.isfile(found_path): # Comprueba archivo hallado
+                # Lee los bytes del archivo fisico
+                with open(found_path, 'rb') as f: # Abre archivo
+                    # Lee contenido completo
+                    raw_bytes = f.read() # Lee bytes
+                # Si el archivo tiene contenido util
+                if raw_bytes: # Si hay bytes
+                    # Tipo MIME por defecto
+                    mime = 'image/jpeg' # Mime por defecto
+                    # Datos procesados binarios
+                    processed = raw_bytes # Bytes procesados
+                    # Si Pillow esta disponible, optimiza la imagen
+                    if Image is not None and io is not None: # Si Pillow disponible
+                        # Bloque protegido para procesamiento de imagen
+                        try: # Bloque try Pillow
+                            # Abre imagen desde buffer en memoria
+                            with Image.open(io.BytesIO(raw_bytes)) as img: # Abre imagen
+                                # Si ImageOps esta disponible, corrige orientacion EXIF
+                                if ImageOps is not None: # Si ImageOps disponible
+                                    # Corrige rotacion de fotos tomadas con celulares
+                                    try: # Bloque try EXIF
+                                        # Aplica correccion de metadatos EXIF
+                                        img = ImageOps.exif_transpose(img) # Corrige EXIF
+                                    except Exception: # Captura fallo EXIF
+                                        # Ignora error de metadatos
+                                        pass # Pasa
+                                # Si la imagen tiene transparencia o paleta indexada
+                                if img.mode in ('RGBA', 'LA', 'P'): # Comprueba modo con canal alfa
+                                    # Crea lienzo blanco de fondo
+                                    bg = Image.new('RGB', img.size, (255, 255, 255)) # Fondo blanco
+                                    # Si es modo paleta P, convierte a RGBA
+                                    if img.mode == 'P': # Modo paleta
+                                        # Convierte a RGBA
+                                        img = img.convert('RGBA') # Convierte RGBA
+                                    # Pega sobre el fondo usando canal alfa como mascara
+                                    bg.paste(img, mask=img.split()[-1] if len(img.split()) == 4 else None) # Pega fondo
+                                    # Asigna imagen combinada
+                                    img = bg # Reemplaza por RGB
+                                # Si no es RGB, convierte a RGB
+                                elif img.mode != 'RGB': # Si no es RGB
+                                    # Convierte modo a RGB
+                                    img = img.convert('RGB') # Convierte RGB
+                                # Redimensiona proporcionalmente a maximo 1280px
+                                resample_f = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.BICUBIC) # Filtro de muestreo
+                                # Aplica thumbnail proporcional
+                                img.thumbnail((1280, 1280), resample=resample_f) # Redimensiona
+                                # Buffer en memoria para compilar JPEG optimizado
+                                buf = io.BytesIO() # Crea buffer
+                                # Guarda JPEG con calidad 80 y compresion optimizada
+                                img.save(buf, format='JPEG', quality=80, optimize=True) # Guarda buffer
+                                # Asigna bytes procesados
+                                processed = buf.getvalue() # Obtiene bytes JPEG
+                                # Asigna mime JPEG
+                                mime = 'image/jpeg' # Mime JPEG
+                        except Exception: # En caso de que Pillow falle al parsear
+                            # Mantiene bytes originales
+                            processed = raw_bytes # Fallback raw
+                    # Codifica en Base64
+                    b64_str = base64.b64encode(processed).decode('ascii') # Codifica base64
+                    # Construye URI de datos completa
+                    data_uri = f"data:{mime};base64,{b64_str}" # Data URI
+                    # Actualiza la fila en la base de datos
+                    conn.execute("""
+                        UPDATE maintenance_images
+                        SET image_data = ?, mime_type = ?, filename = ?
+                        WHERE id = ?;
+                    """, (data_uri, mime, fn, img_id)) # Actualiza registro
+                    # Incrementa contador de imagenes recuperadas
+                    synced_count += 1 # Suma 1
+        # Si se sincronizaron fotografias, registra en el log
+        if synced_count > 0: # Si hubo sincronizaciones
+            # Registra aviso informativo de recuperacion
+            log_info('MIGRATIONS', f'Migracion v22: {synced_count} fotografias de mantenimiento sincronizadas desde disco a base de datos.') # Log
+    # Captura cualquier error no previsto
+    except Exception as e: # Captura general
+        # Registra en el log de errores
+        log_error('MIGRATIONS', f'Aviso en callback de migracion v22 (backfill_sync_disk_and_cloud_images): {e}') # Error log
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

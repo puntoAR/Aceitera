@@ -567,8 +567,12 @@
                 </div>
                 <!-- Foto de falla o estado inicial -->
                 <div>
+                    <!-- Etiqueta de la fotografia -->
                     <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">📷 Fotografía Inicial</label>
-                    <input type="file" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+                    <!-- Campo de seleccion de archivo con compresion reactiva -->
+                    <input type="file" id="new-act-photo" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+                    <!-- Indicador interactivo de tamano y optimizacion cliente -->
+                    <div id="new-act-photo-status" style="font-size: 0.72rem; margin-top: 0.25rem;"></div>
                 </div>
             </div>
 
@@ -622,8 +626,12 @@
             </div>
             <!-- Fotografia de la reparacion -->
             <div style="margin-bottom: 1.25rem;">
+                <!-- Etiqueta del campo de foto opcional -->
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">📷 Fotografía de la Reparación (Opcional)</label>
-                <input type="file" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+                <!-- Campo de archivo con optimizacion reactiva en el cliente -->
+                <input type="file" id="update-status-photo" name="photo" accept="image/*" style="width: 100%; font-size: 0.75rem; color: #94a3b8;">
+                <!-- Contenedor para mostrar progreso de compresion -->
+                <div id="update-status-photo-status" style="font-size: 0.72rem; margin-top: 0.25rem;"></div>
             </div>
             <!-- Botones -->
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
@@ -708,9 +716,14 @@
             <button type="button" onclick="closeModal('modal-add-photo')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
         </div>
         <form id="add-photo-form" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
+            <!-- Contenedor del selector de archivo -->
             <div style="margin-bottom: 1rem;">
+                <!-- Etiqueta del archivo obligatorio -->
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Seleccionar Imagen *</label>
-                <input type="file" name="photo" required accept="image/*" style="width: 100%; font-size: 0.8rem; color: #cbd5e1;">
+                <!-- Campo de seleccion con optimizacion reactiva en el cliente -->
+                <input type="file" id="add-photo-input" name="photo" required accept="image/*" style="width: 100%; font-size: 0.8rem; color: #cbd5e1;">
+                <!-- Contenedor interactivo para mostrar estado de optimizacion -->
+                <div id="add-photo-status" style="font-size: 0.72rem; margin-top: 0.25rem;"></div>
             </div>
             <div style="margin-bottom: 1.25rem;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Epígrafe / Momento</label>
@@ -1045,6 +1058,134 @@
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
     }
+
+    // Comprime y optimiza automaticamente una imagen en el navegador del cliente antes de subirla
+    function setupImageCompression(inputId, statusId) { // Configura optimizador en cliente
+        // Obtiene elemento de entrada de archivo
+        const input = document.getElementById(inputId); // Elemento input
+        // Si no existe el campo en el DOM, retorna
+        if (!input) return; // Retorna si no existe
+        // Escucha evento de seleccion de archivo
+        input.addEventListener('change', function(e) { // Event listener change
+            // Obtiene primer archivo seleccionado
+            const file = this.files && this.files[0]; // Primer archivo
+            // Obtiene contenedor de estado para avisos
+            const statusEl = document.getElementById(statusId); // Elemento de estado
+            // Si no hay archivo o no es de tipo imagen
+            if (!file || !file.type.startsWith('image/')) { // Valida imagen
+                // Limpia el estado si habia mensaje previo
+                if (statusEl) statusEl.innerHTML = ''; // Limpia aviso
+                // Concluye la funcion
+                return; // Retorna
+            } // Fin if
+            // Tamano original formateado en KB
+            const origKb = Math.round(file.size / 1024); // KB original
+            // Notifica al usuario que se esta optimizando
+            if (statusEl) { // Si existe status
+                // Estilo color celeste informativo
+                statusEl.style.color = '#38bdf8'; // Color celeste
+                // Mensaje en curso
+                statusEl.innerHTML = `⏳ Comprimiendo fotografía (${origKb} KB)...`; // Mensaje
+            } // Fin if
+            // Instancia lector de archivos
+            const reader = new FileReader(); // Crea FileReader
+            // Callback al completar lectura
+            reader.onload = function(evt) { // Evento load
+                // Crea elemento de imagen en memoria
+                const img = new Image(); // Crea Image
+                // Callback al cargar la imagen en memoria
+                img.onload = function() { // Evento load de imagen
+                    // Dimension maxima permitida (1280px garantiza nitidez industrial)
+                    const maxDim = 1280; // Maximo 1280px
+                    // Ancho original
+                    let w = img.width; // Ancho
+                    // Alto original
+                    let h = img.height; // Alto
+                    // Si alguna dimension supera el limite
+                    if (w > maxDim || h > maxDim) { // Comprueba dimensiones
+                        // Si el ancho es mayor
+                        if (w > h) { // Si w > h
+                            // Escala alto proporcionalmente
+                            h = Math.round((h * maxDim) / w); // Calcula alto
+                            // Fija ancho al maximo
+                            w = maxDim; // Fija ancho
+                        } else { // Si el alto es mayor o igual
+                            // Escala ancho proporcionalmente
+                            w = Math.round((w * maxDim) / h); // Calcula ancho
+                            // Fija alto al maximo
+                            h = maxDim; // Fija alto
+                        } // Fin if
+                    } // Fin if
+                    // Crea lienzo canvas offscreen para procesar
+                    const canvas = document.createElement('canvas'); // Crea canvas
+                    // Asigna ancho calculado
+                    canvas.width = w; // Asigna ancho
+                    // Asigna alto calculado
+                    canvas.height = h; // Asigna alto
+                    // Obtiene contexto 2D de dibujo
+                    const ctx = canvas.getContext('2d'); // Contexto 2D
+                    // Dibuja la imagen escalada en el lienzo
+                    ctx.drawImage(img, 0, 0, w, h); // Dibuja en canvas
+                    // Exporta canvas a Blob JPEG con calidad 80
+                    canvas.toBlob(function(blob) { // Exporta a Blob
+                        // Si fallo la creacion del blob
+                        if (!blob) { // Valida blob
+                            // Restaura aviso
+                            if (statusEl) statusEl.innerHTML = `✓ Fotografía lista (${origKb} KB)`; // Aviso
+                            // Retorna
+                            return; // Retorna
+                        } // Fin if
+                        // Tamano optimizado en KB
+                        const compKb = Math.round(blob.size / 1024); // KB comprimido
+                        // Nombre normalizado con extension .jpg
+                        const newName = (file.name.replace(/\.[^/.]+$/, "") || "foto_mantenimiento") + ".jpg"; // Nuevo nombre
+                        // Bloque de asignacion segura via DataTransfer
+                        try { // Bloque try DataTransfer
+                            // Instancia nuevo DataTransfer del estandar HTML5
+                            const dt = new DataTransfer(); // Crea DataTransfer
+                            // Crea objeto File a partir del Blob
+                            const newFile = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() }); // Crea File
+                            // Agrega el archivo optimizado a la coleccion
+                            dt.items.add(newFile); // Agrega item
+                            // Reemplaza los archivos del input por la version comprimida
+                            input.files = dt.files; // Asigna files
+                            // Notifica exito en verde esmeralda
+                            if (statusEl) { // Si existe status
+                                // Color verde esmeralda
+                                statusEl.style.color = '#34d399'; // Color verde
+                                // Detalle de reduccion
+                                statusEl.innerHTML = `✓ Optimizada: ${origKb} KB → <strong>${compKb} KB</strong> (100% compatible con nube)`; // Mensaje exito
+                            } // Fin if
+                        } catch (dtErr) { // Fallback en navegadores antiguos
+                            // Guarda blob en propiedad personalizada
+                            input._compressedBlob = blob; // Asigna blob custom
+                            // Notifica preparacion
+                            if (statusEl) { // Si existe status
+                                // Color verde
+                                statusEl.style.color = '#34d399'; // Color verde
+                                // Mensaje preparado
+                                statusEl.innerHTML = `✓ Imagen preparada para envío (${compKb} KB)`; // Mensaje
+                            } // Fin if
+                        } // Fin catch
+                    }, 'image/jpeg', 0.82); // Calidad JPEG 82%
+                }; // Fin img.onload
+                // Asigna los datos leidos a la fuente de la imagen
+                img.src = evt.target.result; // Asigna data URL
+            }; // Fin reader.onload
+            // Inicia la lectura del archivo en formato DataURL
+            reader.readAsDataURL(file); // Lee archivo
+        }); // Fin addEventListener
+    } // Fin setupImageCompression
+
+    // Inicializa optimizacion de fotografias al cargar el documento
+    document.addEventListener('DOMContentLoaded', function() { // Evento DOMContentLoaded
+        // Configura optimizador para modal de nueva actividad
+        setupImageCompression('new-act-photo', 'new-act-photo-status'); // Modal 1
+        // Configura optimizador para modal de actualizar estado
+        setupImageCompression('update-status-photo', 'update-status-photo-status'); // Modal 2
+        // Configura optimizador para modal de subir foto adicional
+        setupImageCompression('add-photo-input', 'add-photo-status'); // Modal 3
+    }); // Fin addEventListener
 </script>
 {% endblock %}
 <!-- Fin del bloque de contenido principal -->

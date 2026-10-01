@@ -151,29 +151,31 @@ def service_worker_js():
     return response
 
 # Ruta publica para servir fotografias de intervenciones de mantenimiento
-@app.route('/static/uploads/maintenance/<path:filename>')
-def serve_maintenance_upload(filename):
+@app.route('/static/uploads/maintenance/<path:filename>') # Ruta de compatibilidad estatica
+def serve_maintenance_upload(filename): # Manejador de la peticion
     # Si el archivo existe físicamente en disco, lo envía directamente
-    disk_path = os.path.join(MAINTENANCE_UPLOADS_DIR, filename)
-    if os.path.isfile(disk_path):
-        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
+    disk_path = os.path.join(MAINTENANCE_UPLOADS_DIR, filename) # Ruta en disco
+    if os.path.isfile(disk_path): # Comprueba existencia
+        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename) # Envia directo
     # Si no existe en disco (entornos serverless como Vercel), consulta la base de datos
-    try:
-        from modules.maintenance.service import get_maintenance_image_data, get_placeholder_image_svg
-        img_bytes, mime_type = get_maintenance_image_data(filename)
-        if img_bytes:
-            resp = make_response(img_bytes)
-            resp.headers['Content-Type'] = mime_type or 'image/jpeg'
-            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-            return resp
-        # Si no existe en base de datos, sirve un SVG placeholder elegante
-        svg_bytes, svg_mime = get_placeholder_image_svg()
-        resp = make_response(svg_bytes)
-        resp.headers['Content-Type'] = svg_mime
-        resp.headers['Cache-Control'] = 'public, max-age=86400'
-        return resp
-    except Exception:
-        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename)
+    try: # Bloque try consulta DB
+        from modules.maintenance.service import get_maintenance_image_data, get_placeholder_image_svg # Importa servicios
+        img_bytes, mime_type = get_maintenance_image_data(filename) # Consulta datos
+        if img_bytes: # Si existe imagen
+            resp = make_response(img_bytes) # Crea respuesta
+            resp.headers['Content-Type'] = mime_type or 'image/jpeg' # Header MIME
+            resp.headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800' # Header cache
+            return resp # Retorna
+        # Si no existe en base de datos, sirve un SVG placeholder elegante sin cachear
+        svg_bytes, svg_mime = get_placeholder_image_svg() # Genera placeholder
+        resp = make_response(svg_bytes) # Crea respuesta
+        resp.headers['Content-Type'] = svg_mime # Header MIME
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate' # No cache
+        resp.headers['Pragma'] = 'no-cache' # Pragma
+        resp.headers['Expires'] = '0' # Expires
+        return resp # Retorna
+    except Exception: # En caso de error
+        return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename) # Fallback a directorio
 
 # Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
 with app.app_context():

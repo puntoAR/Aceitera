@@ -172,45 +172,80 @@ def get_images_json(activity_id):
     return jsonify({'success': True, 'activity_id': activity_id, 'images': images})
 
 # Endpoint para servir fotografias de mantenimiento por su ID numérico
-@maintenance_bp.route('/image/<int:image_id>')
-def serve_image_by_id(image_id):
+@maintenance_bp.route('/image/<int:image_id>') # Ruta por ID
+def serve_image_by_id(image_id): # Funcion del endpoint
     # Recupera bytes y tipo MIME desde base de datos o disco
-    img_bytes, mime_type = get_maintenance_image_data(image_id)
-    if img_bytes:
-        resp = make_response(img_bytes)
-        resp.headers['Content-Type'] = mime_type or 'image/jpeg'
-        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        return resp
-    # Si la imagen no está disponible (ej. archivos anteriores borrados por lambda efímera), sirve un SVG placeholder
-    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message=f"Fotografía #{image_id} archivada")
-    resp = make_response(svg_bytes)
-    resp.headers['Content-Type'] = svg_mime
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
+    img_bytes, mime_type = get_maintenance_image_data(image_id) # Obtiene datos
+    # Si la fotografia existe
+    if img_bytes: # Comprueba bytes
+        # Crea respuesta HTTP con los bytes binarios
+        resp = make_response(img_bytes) # Crea respuesta
+        # Asigna el tipo MIME detectado
+        resp.headers['Content-Type'] = mime_type or 'image/jpeg' # Header content-type
+        # Cabecera de cache publica para imagenes confirmadas
+        resp.headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800' # Header cache
+        # Retorna la respuesta con la imagen real
+        return resp # Retorna
+    # Si la imagen no está disponible, sirve un SVG placeholder SIN cachear para reintentos inmediatos
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message=f"Fotografía #{image_id} archivada") # Placeholder
+    # Crea respuesta con el SVG vectorial
+    resp = make_response(svg_bytes) # Crea respuesta
+    # Asigna MIME type SVG
+    resp.headers['Content-Type'] = svg_mime # Header content-type
+    # Deshabilita estrictamente el cacheo del placeholder para evitar bloqueos persistentes en otros navegadores
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate' # No cache
+    # Compatibilidad con proxies HTTP/1.0
+    resp.headers['Pragma'] = 'no-cache' # Pragma
+    # Expiracion inmediata
+    resp.headers['Expires'] = '0' # Expires
+    # Retorna placeholder
+    return resp # Retorna
 
 # Endpoint para servir fotografias de mantenimiento por su nombre de archivo
-@maintenance_bp.route('/image/<path:filename>')
-def serve_image_by_filename(filename):
+@maintenance_bp.route('/image/<path:filename>') # Ruta por filename
+def serve_image_by_filename(filename): # Funcion del endpoint
     # Si se solicita explícitamente el placeholder SVG
-    if filename in ('placeholder.svg', 'default.svg'):
-        svg_bytes, svg_mime = get_placeholder_image_svg()
-        resp = make_response(svg_bytes)
-        resp.headers['Content-Type'] = svg_mime
-        resp.headers['Cache-Control'] = 'public, max-age=86400'
-        return resp
-    # Busca por filename en base de datos o disco
-    img_bytes, mime_type = get_maintenance_image_data(filename)
-    if img_bytes:
-        resp = make_response(img_bytes)
-        resp.headers['Content-Type'] = mime_type or 'image/jpeg'
-        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        return resp
-    # Fallback SVG si no se encuentra
-    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible")
-    resp = make_response(svg_bytes)
-    resp.headers['Content-Type'] = svg_mime
-    resp.headers['Cache-Control'] = 'public, max-age=86400'
-    return resp
+    if filename in ('placeholder.svg', 'default.svg'): # Si es placeholder directo
+        # Genera placeholder por defecto
+        svg_bytes, svg_mime = get_placeholder_image_svg() # Genera svg
+        # Crea respuesta HTTP
+        resp = make_response(svg_bytes) # Crea respuesta
+        # Asigna MIME type SVG
+        resp.headers['Content-Type'] = svg_mime # Header content-type
+        # Evita almacenamiento en cache del placeholder
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate' # No cache
+        # Compatibilidad HTTP/1.0
+        resp.headers['Pragma'] = 'no-cache' # Pragma
+        # Expiracion
+        resp.headers['Expires'] = '0' # Expires
+        # Retorna respuesta
+        return resp # Retorna
+    # Busca por filename en base de datos o disco con auto-recuperacion
+    img_bytes, mime_type = get_maintenance_image_data(filename) # Obtiene datos
+    # Si se encontro la imagen binaria
+    if img_bytes: # Comprueba bytes
+        # Crea respuesta con la imagen real
+        resp = make_response(img_bytes) # Crea respuesta
+        # Asigna tipo MIME
+        resp.headers['Content-Type'] = mime_type or 'image/jpeg' # Header content-type
+        # Cache publico para imagenes reales existentes
+        resp.headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800' # Header cache
+        # Retorna la respuesta
+        return resp # Retorna
+    # Fallback SVG si no se encuentra en ningun repositorio (sin cachear)
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible") # Genera svg
+    # Crea respuesta
+    resp = make_response(svg_bytes) # Crea respuesta
+    # Asigna MIME SVG
+    resp.headers['Content-Type'] = svg_mime # Header content-type
+    # Deshabilita almacenamiento en cache para reintentar cuando se sincronice
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate' # No cache
+    # Header pragma
+    resp.headers['Pragma'] = 'no-cache' # Pragma
+    # Header expires
+    resp.headers['Expires'] = '0' # Expires
+    # Retorna placeholder
+    return resp # Retorna
 
 # Endpoint para eliminar una fotografía de mantenimiento
 @maintenance_bp.route('/image/<int:image_id>/delete', methods=['POST'])

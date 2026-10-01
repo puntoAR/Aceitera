@@ -9,6 +9,8 @@ import os
 import io
 # Importa sqlite3 para verificaciones directas de registros
 import sqlite3
+# Importa configuracion global para directorios de subida
+import config
 
 # Importa FileStorage para simular subida de archivos multipart
 from werkzeug.datastructures import FileStorage
@@ -592,9 +594,9 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         # 5. Verifica que get_activity_images retorne la URL oficial y has_data
         images_list = get_activity_images(act_id)
         self.assertEqual(len(images_list), 1)
-        self.assertEqual(images_list[0]['id'], img_id)
-        self.assertEqual(images_list[0]['url'], f"/maintenance/image/{img_id}")
-        self.assertTrue(images_list[0]['has_data'])
+        self.assertEqual(images_list[0]['id'], img_id) # Verifica ID coincidente
+        self.assertTrue(images_list[0]['url'].startswith(f"/maintenance/image/{img_id}")) # Verifica URL base oficial con versionamiento
+        self.assertTrue(images_list[0]['has_data']) # Verifica flag has_data
 
         # 6. SIMULACIÓN CRUCIAL DE ENTORNO SERVERLESS EFÍMERO (Vercel):
         # Borra el archivo físico del disco para simular cambio de instancia / lambda cold-start
@@ -637,23 +639,73 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         self.assertEqual(resp_json.status_code, 200)
         json_data = resp_json.get_json()
         self.assertTrue(json_data['success'])
-        self.assertEqual(len(json_data['images']), 1)
-        self.assertEqual(json_data['images'][0]['url'], f"/maintenance/image/{img_id}")
+        self.assertEqual(len(json_data['images']), 1) # Verifica 1 imagen
+        self.assertTrue(json_data['images'][0]['url'].startswith(f"/maintenance/image/{img_id}")) # Verifica URL con versionamiento
 
         # 12. Prueba eliminacion de fotografia via endpoint /maintenance/image/<id>/delete
-        resp_del = self.client.post(f"/maintenance/image/{img_id}/delete", headers={'X-Requested-With': 'XMLHttpRequest'})
-        self.assertEqual(resp_del.status_code, 200)
-        self.assertTrue(resp_del.get_json()['success'])
+        resp_del = self.client.post(f"/maintenance/image/{img_id}/delete", headers={'X-Requested-With': 'XMLHttpRequest'}) # Peticion de eliminacion
+        self.assertEqual(resp_del.status_code, 200) # Verifica codigo 200
+        self.assertTrue(resp_del.get_json()['success']) # Verifica respuesta json
 
         # Verifica que ya no exista en base de datos
-        with get_db_connection() as conn:
-            deleted_check = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (img_id,)).fetchone()
-            self.assertIsNone(deleted_check)
+        with get_db_connection() as conn: # Abre conexion
+            deleted_check = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (img_id,)).fetchone() # Comprueba borrado
+            self.assertIsNone(deleted_check) # Verifica None
 
-        # Y que la peticion a la imagen ahora devuelva el SVG placeholder
-        resp_after_del = self.client.get(f"/maintenance/image/{img_id}")
-        self.assertEqual(resp_after_del.status_code, 200)
-        self.assertTrue(resp_after_del.content_type.startswith('image/svg+xml'))
+        # Y que la peticion a la imagen ahora devuelva el SVG placeholder sin cachear
+        resp_after_del = self.client.get(f"/maintenance/image/{img_id}") # Peticion a foto eliminada
+        self.assertEqual(resp_after_del.status_code, 200) # Verifica codigo 200
+        self.assertTrue(resp_after_del.content_type.startswith('image/svg+xml')) # Verifica tipo SVG
+        self.assertIn('no-cache', resp_after_del.headers.get('Cache-Control', '')) # Verifica header no-cache
+
+    # Prueba la sincronizacion de migracion 22, persistencia en BD y regeneracion de cache en segunda PC
+    def test_migration_22_and_multi_pc_sync(self): # Prueba de sincronizacion multi-pc
+        # Importa callback de migracion 22
+        from core.migrations import backfill_sync_disk_and_cloud_images # Importa callback
+        # Crea una actividad de prueba
+        act_id = create_maintenance_activity("Falla motor multi-pc", "operativa", "Motor 1", "alta", "Prueba", "Operario") # Crea actividad
+        # Nombre de archivo fisico en disco
+        test_filename = f"maint_{act_id}_disk_only.jpg" # Nombre de archivo
+        # Ruta fisica en disco
+        disk_file_path = os.path.join(config.MAINTENANCE_UPLOADS_DIR, test_filename) # Ruta en disco
+        # Contenido binario de prueba
+        sample_bytes = b"IMAGEN_SIMULADA_DE_PRUEBA_MULTI_PC_12345" # Bytes de prueba
+        # Escribe el archivo en disco
+        with open(disk_file_path, 'wb') as f: # Abre archivo
+            f.write(sample_bytes) # Escribe bytes
+        # Inserta registro en BD con image_data = NULL (simulando foto subida previamente en otra sesion)
+        with get_db_connection() as conn: # Abre conexion
+            cur = conn.execute("""
+                INSERT INTO maintenance_images (activity_id, filename, caption, image_data, mime_type)
+                VALUES (?, ?, ?, NULL, 'image/jpeg');
+            """, (act_id, test_filename, "Foto previa sin base64")) # Inserta fila
+            inserted_id = cur.lastrowid # Obtiene ID
+            conn.commit() # Confirma transaccion
+        # Ejecuta la migracion 22 / sincronizador
+        with get_db_connection() as conn: # Abre conexion
+            backfill_sync_disk_and_cloud_images(conn) # Ejecuta sincronizador
+            conn.commit() # Confirma
+        # Comprueba que el registro ahora tenga image_data poblado en la base de datos
+        with get_db_connection() as conn: # Abre conexion
+            row = conn.execute("SELECT * FROM maintenance_images WHERE id = ?;", (inserted_id,)).fetchone() # Consulta fila
+            self.assertIsNotNone(row) # Verifica que existe fila
+            row_dict = dict(row) # Convierte a dict
+            self.assertIsNotNone(row_dict.get('image_data')) # Verifica que image_data ya no sea nulo
+            self.assertTrue(row_dict['image_data'].startswith('data:image/')) # Verifica formato Data URI
+        # Simula el acceso desde OTRA PC donde el archivo local no existe fisicamente en disco
+        if os.path.exists(disk_file_path): # Si existe archivo
+            os.remove(disk_file_path) # Elimina archivo fisico para simular PC remota
+        self.assertFalse(os.path.exists(disk_file_path)) # Comprueba que no esta en disco
+        # Solicita la imagen desde el servicio como si fuera otra PC
+        recovered_bytes, recovered_mime = get_maintenance_image_data(inserted_id) # Consulta datos
+        # Verifica que recupero los bytes intactos desde la base de datos central
+        self.assertEqual(recovered_bytes, sample_bytes) # Comprueba bytes
+        self.assertEqual(recovered_mime, 'image/jpeg') # Comprueba mime
+        # Verifica que ademas recreo automaticamente el archivo en disco en esta PC
+        self.assertTrue(os.path.exists(disk_file_path)) # Comprueba cache en disco
+        # Limpieza de archivo de prueba
+        if os.path.exists(disk_file_path): # Si existe
+            os.remove(disk_file_path) # Elimina archivo
 
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':
