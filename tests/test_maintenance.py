@@ -707,6 +707,78 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         if os.path.exists(disk_file_path): # Si existe
             os.remove(disk_file_path) # Elimina archivo
 
+    # Prueba endpoints AJAX de carga de fotografia, actualizacion de estado y alta de tarea
+    def test_ajax_upload_and_status_routes(self): # Metodo de prueba AJAX
+        # Autentica sesion como usuario autorizado
+        self.login_as('operario1', 'usuario') # Inicia sesion
+        # Crea una actividad para las pruebas de subida
+        act_id = create_maintenance_activity("Falla rodillo transportador", "operativa", "Cinta 2", "media", "Ruido de roce", "Operador") # Crea actividad
+        # Genera imagen JPEG en memoria para simular subida
+        img = Image.new('RGB', (60, 60), color=(0, 128, 255)) # Crea imagen
+        # Buffer de bytes
+        img_buf = io.BytesIO() # Crea buffer
+        # Guarda imagen en formato JPEG
+        img.save(img_buf, format='JPEG', quality=80) # Guarda JPEG
+        # Rebobina cursor
+        img_buf.seek(0) # Rebobina buffer
+        # Simula peticion AJAX POST de carga de fotografia
+        resp_upload = self.client.post( # Ejecuta POST
+            f"/maintenance/activity/{act_id}/photo", # Ruta de subida
+            headers={'X-Requested-With': 'XMLHttpRequest'}, # Cabecera AJAX
+            data={ # Datos del formulario
+                'photo': (img_buf, 'rodillo.jpg'), # Archivo optimizado
+                'caption': 'Vista lateral del rodillo con desgaste' # Epigrafe
+            } # Fin data
+        ) # Fin post
+        # Verifica codigo HTTP 200
+        self.assertEqual(resp_upload.status_code, 200) # Comprueba codigo 200
+        # Obtiene cuerpo JSON
+        json_up = resp_upload.get_json() # Extrae JSON
+        # Verifica indicador de exito
+        self.assertTrue(json_up['success']) # Verifica success
+        # Verifica mensaje devuelto
+        self.assertIn("Fotografía adjuntada", json_up['message']) # Verifica texto
+
+        # Simula peticion AJAX POST para actualizar estado
+        resp_status = self.client.post( # Ejecuta POST
+            f"/maintenance/activity/{act_id}/status", # Ruta de estado
+            headers={'X-Requested-With': 'XMLHttpRequest'}, # Cabecera AJAX
+            data={ # Formulario
+                'status': 'en_progreso', # Nuevo estado
+                'category': 'no_planificada_sin_parada', # Categoria
+                'resolution_notes': 'Desarme iniciado por turno mañana' # Notas
+            } # Fin data
+        ) # Fin post
+        # Verifica codigo HTTP 200
+        self.assertEqual(resp_status.status_code, 200) # Comprueba codigo 200
+        # Obtiene JSON de respuesta
+        json_st = resp_status.get_json() # Extrae JSON
+        # Verifica indicador de exito
+        self.assertTrue(json_st['success']) # Verifica success
+        # Verifica mensaje
+        self.assertIn("actualizado", json_st['message']) # Verifica texto
+
+        # Simula peticion AJAX POST para registrar nueva actividad
+        resp_new = self.client.post( # Ejecuta POST
+            "/maintenance/activity/create", # Ruta de creacion
+            headers={'X-Requested-With': 'XMLHttpRequest'}, # Cabecera AJAX
+            data={ # Formulario
+                'title': 'Engrase de rodamientos prensa 3', # Titulo
+                'category': 'planificada_sin_parada', # Categoria
+                'equipment_tag': 'PRENSA-03', # Tag equipo
+                'priority': 'baja', # Prioridad
+                'description': 'Mantenimiento preventivo semanal' # Descripcion
+            } # Fin data
+        ) # Fin post
+        # Verifica codigo HTTP 200
+        self.assertEqual(resp_new.status_code, 200) # Comprueba codigo 200
+        # Extrae JSON
+        json_new = resp_new.get_json() # Extrae JSON
+        # Verifica exito
+        self.assertTrue(json_new['success']) # Verifica success
+        # Verifica presencia del ID generado
+        self.assertIn('activity_id', json_new) # Verifica ID
+
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':
     unittest.main()

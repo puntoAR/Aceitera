@@ -512,8 +512,8 @@
             <h3 style="color: #f59e0b; margin: 0; font-size: 1.15rem; font-weight: 700;">➕ Registrar Actividad de Mantenimiento</h3>
             <button type="button" onclick="closeModal('modal-new-activity')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
         </div>
-        <!-- Formulario de alta -->
-        <form action="{{ url_for('maintenance.create_activity') }}" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
+        <!-- Formulario de alta con id para optimizacion cliente -->
+        <form id="new-activity-form" action="{{ url_for('maintenance.create_activity') }}" method="POST" enctype="multipart/form-data" style="padding: 1.25rem;">
             <!-- Titulo de la intervencion -->
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.3rem;">Título de la Actividad *</label>
@@ -856,9 +856,23 @@
 <!-- MODAL 7: GALERIA DE FOTOS DE UNA ACTIVIDAD ESPECIFICA -->
 <div id="modal-activity-gallery" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; padding: 1rem;">
     <div style="background: #1e293b; width: 100%; max-width: 750px; max-height: 85vh; border-radius: 0.75rem; border: 1px solid #475569; overflow: hidden; display: flex; flex-direction: column;">
-        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
-            <h3 id="gallery-activity-title" style="color: #f59e0b; margin: 0; font-size: 1.1rem; font-weight: 700;"></h3>
-            <button type="button" onclick="closeModal('modal-activity-gallery')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        <!-- Cabecera del modal de galeria con boton de accion inmediata -->
+        <div style="background: #0f172a; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; gap: 0.5rem; flex-wrap: wrap;">
+            <!-- Titulo de la actividad -->
+            <h3 id="gallery-activity-title" style="color: #f59e0b; margin: 0; font-size: 1.1rem; font-weight: 700; flex: 1;"></h3>
+            <!-- Grupo de botones superiores -->
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <!-- Boton rapido para subir una fotografia a esta actividad -->
+                <button type="button" onclick="openAddPhotoFromGallery()" style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 0.4rem 0.75rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                    <!-- Icono de camara -->
+                    <span>📷</span> + Subir Foto
+                <!-- Cierre del boton subir foto -->
+                </button>
+                <!-- Boton para cerrar modal -->
+                <button type="button" onclick="closeModal('modal-activity-gallery')" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+            <!-- Cierre del grupo de botones -->
+            </div>
+        <!-- Cierre de cabecera -->
         </div>
         <div id="gallery-activity-container" style="padding: 1.25rem; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;"></div>
     </div>
@@ -920,7 +934,25 @@
 
     // Abre el modal para adjuntar foto
     function openAddPhotoModal(actId) {
+        // Fija la URL de envio hacia el endpoint de la tarea seleccionada
         document.getElementById('add-photo-form').action = '/maintenance/activity/' + actId + '/photo';
+        // Obtiene elemento input de archivo
+        const photoInp = document.getElementById('add-photo-input');
+        // Si existe en el DOM
+        if (photoInp) {
+            // Limpia seleccion previa
+            photoInp.value = '';
+            // Limpia cache en memoria
+            photoInp._cachedBlob = null;
+        }
+        // Obtiene contenedor de estado de archivo
+        const st = document.getElementById('add-photo-status');
+        // Si existe
+        if (st) {
+            // Limpia texto previo
+            st.innerHTML = '';
+        }
+        // Despliega el modal de subida en pantalla
         document.getElementById('modal-add-photo').style.display = 'flex';
     }
 
@@ -972,27 +1004,64 @@
         document.getElementById('modal-photo-viewer').style.display = 'flex';
     }
 
-    // Consulta y muestra la galeria de fotos de una actividad especifica mediante AJAX
-    function viewActivityGallery(actId, title) {
-        document.getElementById('gallery-activity-title').textContent = '📷 Fotografías: #' + actId + ' - ' + title;
-        const container = document.getElementById('gallery-activity-container');
-        container.innerHTML = '<div style="color: #94a3b8; text-align: center; grid-column: 1/-1;">Cargando fotografías...</div>';
-        document.getElementById('modal-activity-gallery').style.display = 'flex';
+    // Variable global para rastrear el ID de la actividad abierta en el modal de galeria
+    let currentGalleryActId = null; // ID activo
+    // Variable global para rastrear el titulo de la actividad abierta en el modal de galeria
+    let currentGalleryActTitle = ''; // Titulo activo
 
-        fetch('/maintenance/activity/' + actId + '/images')
-            .then(res => res.json())
-            .then(data => {
-                if (data.images && data.images.length > 0) {
-                    container.innerHTML = '';
-                    data.images.forEach(img => {
-                        const imgUrl = img.url || ('/maintenance/image/' + img.id);
-                        const safeTitle = (img.caption || title).replace(/'/g, "\\'");
-                        const item = document.createElement('div');
-                        item.style.background = '#0f172a';
-                        item.style.borderRadius = '0.5rem';
-                        item.style.overflow = 'hidden';
-                        item.style.border = '1px solid #334155';
-                        item.style.position = 'relative';
+    // Abre el modal para subir fotografia asociada a la tarea actualmente visible en la galeria
+    function openAddPhotoFromGallery() { // Abre subida desde galeria
+        // Si hay una actividad seleccionada
+        if (currentGalleryActId) { // Comprueba actividad
+            // Invoca la apertura del modal de subida para esta tarea
+            openAddPhotoModal(currentGalleryActId); // Abre modal
+        } // Fin if
+    } // Fin openAddPhotoFromGallery
+
+    // Consulta y muestra la galeria de fotos de una actividad especifica mediante AJAX
+    function viewActivityGallery(actId, title) { // Carga galeria de tarea
+        // Almacena el ID de actividad actual en la variable global
+        currentGalleryActId = actId; // Guarda ID
+        // Almacena el titulo de la actividad en la variable global
+        currentGalleryActTitle = title; // Guarda titulo
+        // Asigna titulo dinamico al encabezado del visor
+        document.getElementById('gallery-activity-title').textContent = '📷 Fotografías: #' + actId + ' - ' + title; // Asigna titulo
+        // Obtiene el contenedor visual de las fotos
+        const container = document.getElementById('gallery-activity-container'); // Contenedor
+        // Muestra indicador visual de carga
+        container.innerHTML = '<div style="color: #94a3b8; text-align: center; grid-column: 1/-1;">Cargando fotografías...</div>'; // Spinner
+        // Despliega el modal de galeria en pantalla
+        document.getElementById('modal-activity-gallery').style.display = 'flex'; // Muestra modal
+
+        // Consulta el endpoint JSON de imagenes de la actividad
+        fetch('/maintenance/activity/' + actId + '/images') // Fetch endpoint
+            // Convierte respuesta a JSON
+            .then(res => res.json()) // Parsea JSON
+            // Procesa los datos devueltos
+            .then(data => { // Callback exito
+                // Si hay imagenes en el listado
+                if (data.images && data.images.length > 0) { // Si hay fotos
+                    // Limpia el contenedor de carga
+                    container.innerHTML = ''; // Limpia contenedor
+                    // Itera sobre cada registro de fotografia
+                    data.images.forEach(img => { // Itera fotos
+                        // Obtiene URL de la imagen
+                        const imgUrl = img.url || ('/maintenance/image/' + img.id); // URL imagen
+                        // Escapa comillas simples en el epigrafe para evitar errores de sintaxis JS
+                        const safeTitle = (img.caption || title).replace(/'/g, "\\'"); // Titulo seguro
+                        // Crea el nodo contenedor de la tarjeta
+                        const item = document.createElement('div'); // Crea div
+                        // Aplica color de fondo
+                        item.style.background = '#0f172a'; // Fondo
+                        // Aplica bordes redondeados
+                        item.style.borderRadius = '0.5rem'; // Borde
+                        // Oculta desbordes
+                        item.style.overflow = 'hidden'; // Overflow
+                        // Aplica borde sutil
+                        item.style.border = '1px solid #334155'; // Borde sutil
+                        // Fija posicion relativa para anclar botones
+                        item.style.position = 'relative'; // Posicion relativa
+                        // Genera estructura HTML de la tarjeta con imagen y boton de eliminacion
                         item.innerHTML = `
                             <div style="position: relative; height: 140px; background: #1e293b;">
                                 <img src="${imgUrl}" onerror="this.onerror=null; this.src='/maintenance/image/placeholder.svg';" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoViewer('${imgUrl}', '${safeTitle}')">
@@ -1002,190 +1071,387 @@
                                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${img.caption || 'Registro visual'}</span>
                                 <span style="font-size: 0.65rem; color: #64748b; margin-left: 0.25rem;">#${img.id}</span>
                             </div>
-                        `;
-                        container.appendChild(item);
-                    });
-                } else {
-                    container.innerHTML = '<div style="color: #64748b; text-align: center; grid-column: 1/-1;">No hay imágenes cargadas para esta tarea.</div>';
-                }
-            })
-            .catch(err => {
-                container.innerHTML = '<div style="color: #ef4444; text-align: center; grid-column: 1/-1;">Error al consultar imágenes.</div>';
-            });
-    }
+                        `; // Fin template literal
+                        // Agrega la tarjeta al contenedor
+                        container.appendChild(item); // Inserta tarjeta
+                    }); // Fin forEach
+                } else { // Si la lista de imagenes esta vacia
+                    // Presenta aviso con invitacion y boton para adjuntar una foto
+                    container.innerHTML = '<div style="color: #64748b; text-align: center; grid-column: 1/-1; padding: 2rem 1rem;"><div style="font-size: 2rem; margin-bottom: 0.5rem;">📷</div><div style="font-weight: 600; color: #94a3b8;">No hay fotografías guardadas para esta tarea.</div><button type="button" onclick="openAddPhotoFromGallery()" style="margin-top: 1rem; background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;"><span>📷</span> Subir Fotografía</button></div>'; // HTML vacio
+                } // Fin else
+            }) // Fin then
+            // Captura errores de red o servidor
+            .catch(err => { // Catch error
+                // Notifica fallo en el contenedor
+                container.innerHTML = '<div style="color: #ef4444; text-align: center; grid-column: 1/-1;">Error al consultar imágenes.</div>'; // Mensaje de error
+            }); // Fin catch
+    } // Fin viewActivityGallery
 
     // Elimina una fotografia desde el modal de galeria de la actividad
-    function deletePhoto(imgId, actId, title) {
-        if (!confirm('¿Deseas eliminar permanentemente esta fotografía?')) return;
-        fetch('/maintenance/image/' + imgId + '/delete', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                viewActivityGallery(actId, title);
-            } else {
-                alert('No se pudo eliminar la fotografía.');
-            }
-        })
-        .catch(err => {
-            alert('Error de conexión al eliminar la fotografía.');
-        });
-    }
+    function deletePhoto(imgId, actId, title) { // Elimina foto
+        // Pide confirmacion al operador
+        if (!confirm('¿Deseas eliminar permanentemente esta fotografía?')) return; // Confirma accion
+        // Ejecuta llamada POST asincronica para eliminar
+        fetch('/maintenance/image/' + imgId + '/delete', { // Endpoint delete
+            // Metodo POST
+            method: 'POST', // Metodo
+            // Cabecera AJAX para respuesta JSON
+            headers: { 'X-Requested-With': 'XMLHttpRequest' } // Header
+        }) // Fin fetch
+        // Parsea respuesta a JSON
+        .then(res => res.json()) // Parsea json
+        // Procesa resultado
+        .then(data => { // Callback exito
+            // Si la operacion fue exitosa
+            if (data.success) { // Comprueba resultado
+                // Recarga inmediatamente la galeria de fotos de la tarea activa
+                viewActivityGallery(actId, title); // Refresca galeria
+            } else { // Si no fue exitoso
+                // Alerta al usuario
+                alert('No se pudo eliminar la fotografía.'); // Alerta
+            } // Fin else
+        }) // Fin then
+        // Captura fallas de conexion
+        .catch(err => { // Catch error
+            // Muestra mensaje de fallo
+            alert('Error de conexión al eliminar la fotografía.'); // Alerta de red
+        }); // Fin catch
+    } // Fin deletePhoto
 
     // Elimina una fotografia directamente desde la pestaña de galeria general
-    function deletePhotoDirect(imgId, actTitle) {
-        if (!confirm('¿Deseas eliminar permanentemente esta fotografía de "' + actTitle + '"?')) return;
-        fetch('/maintenance/image/' + imgId + '/delete', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert('No se pudo eliminar la fotografía.');
-            }
-        })
-        .catch(err => {
-            alert('Error de conexión al eliminar la fotografía.');
-        });
-    }
+    function deletePhotoDirect(imgId, actTitle) { // Elimina foto directa
+        // Pide confirmacion al usuario
+        if (!confirm('¿Deseas eliminar permanentemente esta fotografía de "' + actTitle + '"?')) return; // Confirmacion
+        // Envia solicitud POST asincronica
+        fetch('/maintenance/image/' + imgId + '/delete', { // Endpoint delete
+            // Metodo POST
+            method: 'POST', // Metodo
+            // Cabecera identificadora AJAX
+            headers: { 'X-Requested-With': 'XMLHttpRequest' } // Header
+        }) // Fin fetch
+        // Parsea resultado a JSON
+        .then(res => res.json()) // Parsea json
+        // Procesa resultado
+        .then(data => { // Callback exito
+            // Si se elimino correctamente
+            if (data.success) { // Comprueba bandera
+                // Recarga la pagina para actualizar tablero
+                window.location.reload(); // Recarga pagina
+            } else { // Si no
+                // Muestra advertencia
+                alert('No se pudo eliminar la fotografía.'); // Alerta
+            } // Fin else
+        }) // Fin then
+        // Captura error de conexion
+        .catch(err => { // Catch
+            // Alerta al operador
+            alert('Error de conexión al eliminar la fotografía.'); // Alerta
+        }); // Fin catch
+    } // Fin deletePhotoDirect
 
     // Cierra cualquier modal especificando su ID
-    function closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
-    }
+    function closeModal(modalId) { // Cierra modal
+        // Oculta el elemento en pantalla
+        document.getElementById(modalId).style.display = 'none'; // Display none
+    } // Fin closeModal
 
-    // Comprime y optimiza automaticamente una imagen en el navegador del cliente antes de subirla
-    function setupImageCompression(inputId, statusId) { // Configura optimizador en cliente
-        // Obtiene elemento de entrada de archivo
-        const input = document.getElementById(inputId); // Elemento input
-        // Si no existe el campo en el DOM, retorna
-        if (!input) return; // Retorna si no existe
-        // Escucha evento de seleccion de archivo
-        input.addEventListener('change', function(e) { // Event listener change
-            // Obtiene primer archivo seleccionado
-            const file = this.files && this.files[0]; // Primer archivo
-            // Obtiene contenedor de estado para avisos
-            const statusEl = document.getElementById(statusId); // Elemento de estado
-            // Si no hay archivo o no es de tipo imagen
-            if (!file || !file.type.startsWith('image/')) { // Valida imagen
-                // Limpia el estado si habia mensaje previo
-                if (statusEl) statusEl.innerHTML = ''; // Limpia aviso
-                // Concluye la funcion
-                return; // Retorna
+    // Funcion auxiliar que escala y comprime una imagen en memoria mediante Canvas HTML5
+    function compressImageFile(file, maxDimension = 1280, quality = 0.8) { // Compresor de imagen
+        // Retorna una promesa asincronica
+        return new Promise((resolve) => { // Nueva promesa
+            // Si no hay archivo o no es una imagen raster
+            if (!file || !file.type.startsWith('image/')) { // Valida tipo
+                // Resuelve con el archivo original sin modificar
+                return resolve(file); // Retorna original
             } // Fin if
-            // Tamano original formateado en KB
-            const origKb = Math.round(file.size / 1024); // KB original
-            // Notifica al usuario que se esta optimizando
-            if (statusEl) { // Si existe status
-                // Estilo color celeste informativo
-                statusEl.style.color = '#38bdf8'; // Color celeste
-                // Mensaje en curso
-                statusEl.innerHTML = `⏳ Comprimiendo fotografía (${origKb} KB)...`; // Mensaje
-            } // Fin if
-            // Instancia lector de archivos
+            // Instancia lector de archivos HTML5
             const reader = new FileReader(); // Crea FileReader
-            // Callback al completar lectura
-            reader.onload = function(evt) { // Evento load
-                // Crea elemento de imagen en memoria
-                const img = new Image(); // Crea Image
-                // Callback al cargar la imagen en memoria
-                img.onload = function() { // Evento load de imagen
-                    // Dimension maxima permitida (1280px garantiza nitidez industrial)
-                    const maxDim = 1280; // Maximo 1280px
-                    // Ancho original
-                    let w = img.width; // Ancho
-                    // Alto original
-                    let h = img.height; // Alto
-                    // Si alguna dimension supera el limite
-                    if (w > maxDim || h > maxDim) { // Comprueba dimensiones
-                        // Si el ancho es mayor
-                        if (w > h) { // Si w > h
-                            // Escala alto proporcionalmente
-                            h = Math.round((h * maxDim) / w); // Calcula alto
-                            // Fija ancho al maximo
-                            w = maxDim; // Fija ancho
-                        } else { // Si el alto es mayor o igual
-                            // Escala ancho proporcionalmente
-                            w = Math.round((w * maxDim) / h); // Calcula ancho
-                            // Fija alto al maximo
-                            h = maxDim; // Fija alto
+            // En caso de error en la lectura
+            reader.onerror = () => resolve(file); // Fallback a archivo original
+            // Callback al completar lectura en memoria
+            reader.onload = function(evt) { // Evento onload
+                // Crea elemento de imagen
+                const img = new Image(); // Nueva Image
+                // En caso de error de decodificacion de imagen
+                img.onerror = () => resolve(file); // Fallback
+                // Callback al cargar la imagen completamente
+                img.onload = function() { // Evento onload de imagen
+                    // Bloque protegido de escalado
+                    try { // Bloque try
+                        // Ancho actual de la imagen
+                        let w = img.width; // Ancho
+                        // Alto actual de la imagen
+                        let h = img.height; // Alto
+                        // Si alguna de las dimensiones excede el maximo permitido
+                        if (w > maxDimension || h > maxDimension) { // Comprueba dimensiones
+                            // Si el ancho es mayor que el alto
+                            if (w > h) { // Si w > h
+                                // Escala la altura proporcionalmente
+                                h = Math.round((h * maxDimension) / w); // Calcula alto
+                                // Asigna dimension maxima al ancho
+                                w = maxDimension; // Ancho maximo
+                            } else { // Si el alto es mayor o igual
+                                // Escala el ancho proporcionalmente
+                                w = Math.round((w * maxDimension) / h); // Calcula ancho
+                                // Asigna dimension maxima a la altura
+                                h = maxDimension; // Alto maximo
+                            } // Fin else
                         } // Fin if
-                    } // Fin if
-                    // Crea lienzo canvas offscreen para procesar
-                    const canvas = document.createElement('canvas'); // Crea canvas
-                    // Asigna ancho calculado
-                    canvas.width = w; // Asigna ancho
-                    // Asigna alto calculado
-                    canvas.height = h; // Asigna alto
-                    // Obtiene contexto 2D de dibujo
-                    const ctx = canvas.getContext('2d'); // Contexto 2D
-                    // Dibuja la imagen escalada en el lienzo
-                    ctx.drawImage(img, 0, 0, w, h); // Dibuja en canvas
-                    // Exporta canvas a Blob JPEG con calidad 80
-                    canvas.toBlob(function(blob) { // Exporta a Blob
-                        // Si fallo la creacion del blob
-                        if (!blob) { // Valida blob
-                            // Restaura aviso
-                            if (statusEl) statusEl.innerHTML = `✓ Fotografía lista (${origKb} KB)`; // Aviso
-                            // Retorna
-                            return; // Retorna
-                        } // Fin if
-                        // Tamano optimizado en KB
-                        const compKb = Math.round(blob.size / 1024); // KB comprimido
-                        // Nombre normalizado con extension .jpg
-                        const newName = (file.name.replace(/\.[^/.]+$/, "") || "foto_mantenimiento") + ".jpg"; // Nuevo nombre
-                        // Bloque de asignacion segura via DataTransfer
-                        try { // Bloque try DataTransfer
-                            // Instancia nuevo DataTransfer del estandar HTML5
-                            const dt = new DataTransfer(); // Crea DataTransfer
-                            // Crea objeto File a partir del Blob
-                            const newFile = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() }); // Crea File
-                            // Agrega el archivo optimizado a la coleccion
-                            dt.items.add(newFile); // Agrega item
-                            // Reemplaza los archivos del input por la version comprimida
-                            input.files = dt.files; // Asigna files
-                            // Notifica exito en verde esmeralda
-                            if (statusEl) { // Si existe status
-                                // Color verde esmeralda
-                                statusEl.style.color = '#34d399'; // Color verde
-                                // Detalle de reduccion
-                                statusEl.innerHTML = `✓ Optimizada: ${origKb} KB → <strong>${compKb} KB</strong> (100% compatible con nube)`; // Mensaje exito
+                        // Crea elemento canvas offscreen
+                        const canvas = document.createElement('canvas'); // Crea canvas
+                        // Fija ancho del canvas
+                        canvas.width = w; // Asigna ancho
+                        // Fija alto del canvas
+                        canvas.height = h; // Asigna alto
+                        // Obtiene contexto 2D de renderizado
+                        const ctx = canvas.getContext('2d'); // Contexto 2D
+                        // Dibuja la imagen escalada en el lienzo
+                        ctx.drawImage(img, 0, 0, w, h); // Dibuja en lienzo
+                        // Exporta el contenido del canvas a Blob JPEG
+                        canvas.toBlob(function(blob) { // Exporta blob
+                            // Si fallo la generacion del blob
+                            if (!blob) { // Comprueba blob
+                                // Retorna archivo original
+                                return resolve(file); // Resuelve original
                             } // Fin if
-                        } catch (dtErr) { // Fallback en navegadores antiguos
-                            // Guarda blob en propiedad personalizada
-                            input._compressedBlob = blob; // Asigna blob custom
-                            // Notifica preparacion
-                            if (statusEl) { // Si existe status
-                                // Color verde
-                                statusEl.style.color = '#34d399'; // Color verde
-                                // Mensaje preparado
-                                statusEl.innerHTML = `✓ Imagen preparada para envío (${compKb} KB)`; // Mensaje
-                            } // Fin if
-                        } // Fin catch
-                    }, 'image/jpeg', 0.82); // Calidad JPEG 82%
+                            // Normaliza el nombre del archivo con extension .jpg
+                            const cleanName = (file.name.replace(/\.[^/.]+$/, "") || "foto_mantenimiento") + ".jpg"; // Limpia nombre
+                            // Intenta crear objeto File con metadatos
+                            try { // Bloque try File
+                                // Crea nueva instancia File
+                                const compressedFile = new File([blob], cleanName, { type: 'image/jpeg', lastModified: Date.now() }); // File
+                                // Resuelve con el archivo comprimido
+                                resolve(compressedFile); // Resuelve file
+                            } catch (_) { // Fallback en navegadores donde constructor File sea restringido
+                                // Asigna nombre directamente al blob
+                                blob.name = cleanName; // Asigna nombre
+                                // Resuelve con el Blob
+                                resolve(blob); // Resuelve blob
+                            } // Fin catch
+                        }, 'image/jpeg', quality); // Calidad 80% JPEG
+                    } catch (err) { // Captura excepciones durante canvas
+                        // Retorna el archivo original ante cualquier falla
+                        resolve(file); // Resuelve original
+                    } // Fin catch
                 }; // Fin img.onload
-                // Asigna los datos leidos a la fuente de la imagen
-                img.src = evt.target.result; // Asigna data URL
+                // Inicia decodificacion asignando el Data URL
+                img.src = evt.target.result; // Data URL
             }; // Fin reader.onload
-            // Inicia la lectura del archivo en formato DataURL
+            // Inicia lectura del archivo como Data URL
             reader.readAsDataURL(file); // Lee archivo
-        }); // Fin addEventListener
-    } // Fin setupImageCompression
+        }); // Fin Promise
+    } // Fin compressImageFile
 
-    // Inicializa optimizacion de fotografias al cargar el documento
-    document.addEventListener('DOMContentLoaded', function() { // Evento DOMContentLoaded
-        // Configura optimizador para modal de nueva actividad
-        setupImageCompression('new-act-photo', 'new-act-photo-status'); // Modal 1
-        // Configura optimizador para modal de actualizar estado
-        setupImageCompression('update-status-photo', 'update-status-photo-status'); // Modal 2
-        // Configura optimizador para modal de subir foto adicional
-        setupImageCompression('add-photo-input', 'add-photo-status'); // Modal 3
-    }); // Fin addEventListener
+    // Configura optimizacion reactiva y envio multipart asincronico blindado contra limites de nube
+    function setupFormUploadWithCompression(formId, inputId, statusId, onSuccessCallback) { // Configurador de subida
+        // Obtiene elemento del formulario
+        const form = document.getElementById(formId); // Formulario
+        // Obtiene input de tipo archivo
+        const input = document.getElementById(inputId); // Input file
+        // Obtiene contenedor de mensajes de estado
+        const statusEl = document.getElementById(statusId); // Contenedor de estado
+        // Si el formulario no existe en el DOM, interrumpe
+        if (!form) return; // Retorna si no existe
+
+        // Si existe el campo de seleccion de archivo
+        if (input) { // Si existe input
+            // Escucha el evento change al seleccionar un archivo
+            input.addEventListener('change', async function() { // Event listener change
+                // Limpia cualquier archivo comprimido previo
+                input._cachedBlob = null; // Limpia cache
+                // Obtiene el primer archivo seleccionado
+                const file = this.files && this.files[0]; // Archivo
+                // Si no hay archivo o no es una imagen
+                if (!file || !file.type.startsWith('image/')) { // Valida imagen
+                    // Limpia aviso previo
+                    if (statusEl) statusEl.innerHTML = ''; // Limpia mensaje
+                    // Retorna
+                    return; // Retorna
+                } // Fin if
+                // Calcula tamano original en KB
+                const origKb = Math.round(file.size / 1024); // Tamano KB
+                // Muestra indicador de optimizacion en curso
+                if (statusEl) { // Si existe status
+                    // Color celeste informativo
+                    statusEl.style.color = '#38bdf8'; // Estilo celeste
+                    // Mensaje interactivo
+                    statusEl.innerHTML = `⏳ Optimizando fotografía (${origKb} KB)...`; // Mensaje
+                } // Fin if
+                // Ejecuta compresion preventiva en segundo plano
+                try { // Bloque try
+                    // Comprime el archivo
+                    const compFile = await compressImageFile(file); // Ejecuta compresion
+                    // Guarda el archivo comprimido en memoria
+                    input._cachedBlob = compFile; // Cachea blob
+                    // Calcula tamano optimizado en KB
+                    const compKb = Math.round(compFile.size / 1024); // KB comprimido
+                    // Muestra confirmacion con indicador de reduccion
+                    if (statusEl) { // Si existe status
+                        // Color verde esmeralda
+                        statusEl.style.color = '#34d399'; // Verde
+                        // Mensaje de optimizacion exitosa
+                        statusEl.innerHTML = `✓ Lista para subir: ${origKb} KB → <strong>${compKb} KB</strong> (100% compatible con nube)`; // Mensaje exito
+                    } // Fin if
+                } catch (cErr) { // Si falla la compresion
+                    // Mantiene el estado informativo
+                    if (statusEl) { // Si existe status
+                        // Color ambar de advertencia
+                        statusEl.style.color = '#f59e0b'; // Ambar
+                        // Mensaje de preparacion
+                        statusEl.innerHTML = `✓ Fotografía seleccionada (${origKb} KB)`; // Mensaje
+                    } // Fin if
+                } // Fin catch
+            }); // Fin addEventListener change
+        } // Fin if input
+
+        // Intercepta el evento submit para garantizar compresion y envio sin bloqueo en Vercel
+        form.addEventListener('submit', async function(e) { // Event listener submit
+            // Obtiene el archivo actual seleccionado
+            const file = input && input.files && input.files[0]; // Primer archivo
+            // Si hay un archivo de tipo imagen seleccionado
+            if (file && file.type.startsWith('image/')) { // Comprueba imagen
+                // Previene el envio tradicional del formulario
+                e.preventDefault(); // Previene submit HTML tradicional
+                // Obtiene el boton de envio del formulario
+                const submitBtn = form.querySelector('button[type="submit"]'); // Boton submit
+                // Guarda el texto original del boton
+                const origBtnHtml = submitBtn ? submitBtn.innerHTML : ''; // Texto original
+                // Si existe el boton
+                if (submitBtn) { // Si hay boton
+                    // Deshabilita boton para evitar envios duplicados
+                    submitBtn.disabled = true; // Deshabilita
+                    // Muestra spinner y texto de proceso
+                    submitBtn.innerHTML = '⏳ Optimizando y subiendo...'; // Texto proceso
+                } // Fin if
+                // Actualiza contenedor de estado
+                if (statusEl) { // Si existe status
+                    // Color celeste
+                    statusEl.style.color = '#38bdf8'; // Estilo celeste
+                    // Mensaje de carga hacia la nube
+                    statusEl.innerHTML = '⏳ Subiendo fotografía a la nube de BioBalcarce...'; // Mensaje
+                } // Fin if
+
+                // Bloque de envio asincronico
+                try { // Bloque try envio
+                    // Usa el archivo comprimido en cache o lo comprime ahora
+                    let fileToSend = input._cachedBlob; // Obtiene cache
+                    // Si no estaba en cache aun
+                    if (!fileToSend) { // Si no hay cache
+                        // Comprime el archivo esperando resolucion
+                        fileToSend = await compressImageFile(file); // Comprime
+                        // Guarda en cache
+                        input._cachedBlob = fileToSend; // Cachea
+                    } // Fin if
+
+                    // Instancia un nuevo FormData con todos los campos del formulario
+                    const formData = new FormData(form); // Crea FormData
+                    // Nombre normalizado con extension jpg
+                    const safeName = (fileToSend.name || "foto_mantenimiento.jpg").replace(/\.[^/.]+$/, "") + ".jpg"; // Nombre seguro
+                    // Reemplaza el campo 'photo' con el archivo optimizado
+                    formData.set('photo', fileToSend, safeName); // Inyecta version liviana
+
+                    // Ejecuta peticion fetch multipart hacia la ruta del formulario
+                    const res = await fetch(form.action, { // Fetch POST
+                        // Metodo POST
+                        method: 'POST', // Metodo
+                        // Cabecera AJAX para respuesta JSON
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }, // Header AJAX
+                        // Cuerpo con FormData optimizado
+                        body: formData // Body
+                    }); // Fin fetch
+
+                    // Si la respuesta HTTP no fue exitosa
+                    if (!res.ok) { // Comprueba status
+                        // Mensaje de error por defecto
+                        let errMsg = 'Error en el servidor al procesar la subida.'; // Mensaje base
+                        // Intenta extraer mensaje de error del JSON
+                        try { // Bloque try error
+                            // Parsea respuesta de error
+                            const errData = await res.json(); // Parsea
+                            // Si contiene propiedad error
+                            if (errData && errData.error) errMsg = errData.error; // Extrae error
+                        } catch (_) {} // Ignora fallo al parsear error
+                        // Lanza excepcion con el mensaje
+                        throw new Error(errMsg); // Lanza error
+                    } // Fin if
+
+                    // Parsea la respuesta JSON exitosa
+                    const resData = await res.json().catch(() => ({ success: true })); // Parsea json
+                    // Muestra aviso de exito en el estado
+                    if (statusEl) { // Si existe status
+                        // Color verde
+                        statusEl.style.color = '#34d399'; // Verde
+                        // Mensaje de confirmacion
+                        statusEl.innerHTML = '✓ ¡Fotografía guardada con éxito!'; // Mensaje exito
+                    } // Fin if
+
+                    // Restaura el boton de envio
+                    if (submitBtn) { // Si hay boton
+                        // Habilita nuevamente
+                        submitBtn.disabled = false; // Habilita
+                        // Restaura texto
+                        submitBtn.innerHTML = origBtnHtml; // Restaura
+                    } // Fin if
+
+                    // Ejecuta el callback de exito configurado
+                    if (onSuccessCallback) { // Si hay callback
+                        // Invoca callback pasando datos
+                        onSuccessCallback(resData); // Ejecuta callback
+                    } else { // Si no hay callback
+                        // Recarga la pagina por defecto
+                        window.location.reload(); // Recarga
+                    } // Fin else
+                } catch (uploadErr) { // Captura errores de subida
+                    // Muestra alerta al usuario con el motivo del fallo
+                    alert('No se pudo subir la fotografía: ' + (uploadErr.message || uploadErr)); // Alerta
+                    // Actualiza estado visual
+                    if (statusEl) { // Si existe status
+                        // Color rojo de error
+                        statusEl.style.color = '#ef4444'; // Rojo
+                        // Mensaje de error
+                        statusEl.innerHTML = '❌ Error al subir: ' + (uploadErr.message || uploadErr); // Mensaje
+                    } // Fin if
+                    // Restaura el boton de envio
+                    if (submitBtn) { // Si hay boton
+                        // Habilita boton
+                        submitBtn.disabled = false; // Habilita
+                        // Restaura texto original
+                        submitBtn.innerHTML = origBtnHtml; // Restaura texto
+                    } // Fin if
+                } // Fin catch
+            } // Fin if file
+            // Si no habia foto seleccionada, el formulario se procesa de forma nativa sin interferencias
+        }); // Fin addEventListener submit
+    } // Fin setupFormUploadWithCompression
+
+    // Inicializa la optimizacion y captura asincronica al cargar el DOM
+    document.addEventListener('DOMContentLoaded', function() { // DOMContentLoaded
+        // Configura subida para el modal de nueva actividad de mantenimiento
+        setupFormUploadWithCompression('new-activity-form', 'new-act-photo', 'new-act-photo-status', function(data) { // Configura alta
+            // Recarga la pagina para reflejar la nueva tarea en el tablero
+            window.location.reload(); // Recarga
+        }); // Fin setup nueva actividad
+
+        // Configura subida para el modal de actualizacion de estado
+        setupFormUploadWithCompression('update-status-form', 'update-status-photo', 'update-status-photo-status', function(data) { // Configura estado
+            // Recarga la pagina para actualizar indicadores y registros
+            window.location.reload(); // Recarga
+        }); // Fin setup actualizar estado
+
+        // Configura subida para el modal de adjuntar fotografia adicional
+        setupFormUploadWithCompression('add-photo-form', 'add-photo-input', 'add-photo-status', function(data) { // Configura subida foto
+            // Si la galeria modal de una tarea especifica estaba abierta
+            if (currentGalleryActId) { // Comprueba galeria activa
+                // Cierra el modal de adjuntar foto
+                closeModal('modal-add-photo'); // Cierra modal
+                // Refresca la galeria de dicha tarea para mostrar la nueva foto inmediatamente
+                viewActivityGallery(currentGalleryActId, currentGalleryActTitle); // Refresca galeria
+            } else { // Si se abrio desde el boton directo del tablero
+                // Recarga la pagina para actualizar fotos recientes y contadores
+                window.location.reload(); // Recarga
+            } // Fin else
+        }); // Fin setup foto adicional
+    }); // Fin addEventListener DOMContentLoaded
 </script>
 {% endblock %}
 <!-- Fin del bloque de contenido principal -->

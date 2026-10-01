@@ -101,14 +101,26 @@ def create_activity():
             save_maintenance_image(activity_id, photo_file, caption="Registro inicial de falla")
         # Emite mensaje flash de confirmacion
         flash(f"Actividad de mantenimiento #{activity_id} registrada con éxito.", "success")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna confirmacion en formato JSON
+            return jsonify({'success': True, 'activity_id': activity_id, 'message': f"Actividad #{activity_id} registrada con éxito."})
     # Captura errores de validacion
     except ValueError as ve:
         # Notifica error al usuario
         flash(str(ve), "danger")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna JSON con codigo de error 400
+            return jsonify({'success': False, 'error': str(ve)}), 400
     # Captura otros errores inesperados
     except Exception as e:
         # Notifica error general
         flash(f"Error al registrar actividad: {e}", "danger")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna JSON con codigo de error 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     # Redirige al tablero principal de mantenimiento
     return redirect(url_for('maintenance.index'))
 
@@ -134,10 +146,18 @@ def update_status(activity_id):
             save_maintenance_image(activity_id, request.files['photo'], caption=f"Intervención: {new_status}")
         # Emite mensaje de exito
         flash(f"Estado de la actividad #{activity_id} actualizado a '{new_status}'.", "success")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna confirmacion en formato JSON
+            return jsonify({'success': True, 'activity_id': activity_id, 'message': f"Estado de la actividad #{activity_id} actualizado a '{new_status}'."})
     # Captura errores
     except Exception as e:
         # Notifica error
         flash(f"Error al actualizar estado: {e}", "danger")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna error JSON con codigo 400
+            return jsonify({'success': False, 'error': str(e)}), 400
     # Retorna al tablero
     return redirect(url_for('maintenance.index'))
 
@@ -155,10 +175,18 @@ def upload_photo(activity_id):
         save_maintenance_image(activity_id, photo_file, caption=caption)
         # Emite mensaje flash
         flash("Fotografía adjuntada correctamente al histórico de la reparación.", "success")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna confirmacion en formato JSON
+            return jsonify({'success': True, 'activity_id': activity_id, 'message': 'Fotografía adjuntada correctamente al histórico de la reparación.'})
     # Captura errores
     except Exception as e:
         # Notifica advertencia
         flash(f"Error al cargar fotografía: {e}", "danger")
+        # Si la peticion proviene de AJAX/Fetch
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            # Retorna error JSON con codigo 400
+            return jsonify({'success': False, 'error': str(e)}), 400
     # Retorna al tablero
     return redirect(url_for('maintenance.index'))
 
