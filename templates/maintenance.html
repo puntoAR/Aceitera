@@ -52,77 +52,89 @@
     </div>
 
     <!-- Tarjetas de indicadores clave (KPIs) del modulo de mantenimiento -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
         <!-- Tarjeta 1: Tareas Pendientes / Activas -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b;">
+        <a href="{{ url_for('maintenance.index', status='pendiente') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Tareas Pendientes</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Tareas Pendientes</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: #f59e0b; margin-top: 0.2rem;">
-                {{ activities | selectattr('status', 'in', ['pendiente', 'en_progreso']) | list | length }}
+            <div style="font-size: 1.65rem; font-weight: 800; color: #f59e0b; margin-top: 0.2rem;">
+                {{ kpis.pending_count if kpis is defined else (activities | selectattr('status', 'in', ['pendiente', 'en_progreso']) | list | length) }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">Intervenciones en espera o curso</div>
-        </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">Intervenciones en espera o curso</div>
+        </a>
 
-        <!-- Tarjeta 2: No Planificadas con Parada de Planta -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444;">
+        <!-- Tarjeta 2: Tareas Resueltas / Solucionadas -->
+        <a href="{{ url_for('maintenance.index', status='completada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #10b981; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+            <!-- Titulo de la tarjeta resueltas -->
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #34d399; font-weight: 700;">✔ Tareas Resueltas</div>
+            <!-- Valor numerico en verde esmeralda -->
+            <div style="font-size: 1.65rem; font-weight: 800; color: #34d399; margin-top: 0.2rem;">
+                {{ kpis.completed_count if kpis is defined else (activities | selectattr('status', 'equalto', 'completada') | list | length) }}
+            </div>
+            <!-- Subtitulo aclaratorio de resolucion -->
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">Solucionadas y concluidas</div>
+        </a>
+
+        <!-- Tarjeta 3: No Planificadas con Parada de Planta -->
+        <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. c/ Parada</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. c/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: #f87171; margin-top: 0.2rem;">
-                {{ activities | selectattr('category', 'equalto', 'no_planificada_con_parada') | list | length }}
+            <div style="font-size: 1.65rem; font-weight: 800; color: #f87171; margin-top: 0.2rem;">
+                {{ kpis.unplanned_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'no_planificada_con_parada') | list | length) }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🚨 Trabas o roturas c/ parada</div>
-        </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🚨 Trabas o roturas c/ parada</div>
+        </a>
 
-        <!-- Tarjeta 3: No Planificadas sin Parada (Operativas) -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f97316;">
+        <!-- Tarjeta 4: No Planificadas sin Parada (Operativas) -->
+        <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f97316; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. s/ Parada</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. s/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: #fb923c; margin-top: 0.2rem;">
-                {{ activities | selectattr('category', 'in', ['no_planificada_sin_parada', 'operativa']) | list | length }}
+            <div style="font-size: 1.65rem; font-weight: 800; color: #fb923c; margin-top: 0.2rem;">
+                {{ kpis.unplanned_no_stop_count if kpis is defined else (activities | selectattr('category', 'in', ['no_planificada_sin_parada', 'operativa']) | list | length) }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">⚠️ Operativas en marcha</div>
-        </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">⚠️ Operativas en marcha</div>
+        </a>
 
-        <!-- Tarjeta 4: Planificadas con Parada de Planta -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6;">
+        <!-- Tarjeta 5: Planificadas con Parada de Planta -->
+        <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas c/ Parada</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas c/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: #c084fc; margin-top: 0.2rem;">
-                {{ activities | selectattr('category', 'equalto', 'planificada_con_parada') | list | length }}
+            <div style="font-size: 1.65rem; font-weight: 800; color: #c084fc; margin-top: 0.2rem;">
+                {{ kpis.planned_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'planificada_con_parada') | list | length) }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🛑 Requieren detener planta</div>
-        </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🛑 Requieren detener planta</div>
+        </a>
 
-        <!-- Tarjeta 5: Planificadas sin Parada de Planta -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #0ea5e9;">
+        <!-- Tarjeta 6: Planificadas sin Parada de Planta -->
+        <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #0ea5e9; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas s/ Parada</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas s/ Parada</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: #38bdf8; margin-top: 0.2rem;">
-                {{ activities | selectattr('category', 'equalto', 'planificada_sin_parada') | list | length }}
+            <div style="font-size: 1.65rem; font-weight: 800; color: #38bdf8; margin-top: 0.2rem;">
+                {{ kpis.planned_no_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'planificada_sin_parada') | list | length) }}
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">🔄 Preventivo en marcha</div>
-        </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🔄 Preventivo en marcha</div>
+        </a>
 
-        <!-- Tarjeta 6: Stock Critico en Pañol (Alerta de Reposicion) -->
-        <div style="background: #1e293b; padding: 0.9rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %};">
+        <!-- Tarjeta 7: Stock Critico en Pañol (Alerta de Reposicion) -->
+        <div onclick="switchTab('spare-parts')" style="background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Stock Crítico Pañol</div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Stock Crítico Pañol</div>
             <!-- Valor numerico -->
-            <div style="font-size: 1.7rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.2rem;">
+            <div style="font-size: 1.65rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.2rem;">
                 {{ report_data.critical_items }}
             </div>
             <!-- Subtitulo aclaratorio con alerta -->
-            <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;">
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">
                 {% if report_data.critical_items > 0 %}
                     <strong style="color: #f43f5e;">⚠️ Requiere compra</strong>
                 {% else %}
@@ -150,35 +162,79 @@
 
     <!-- SECCION 1: TABLA Y FILTROS DE ACTIVIDADES DE MANTENIMIENTO -->
     <div id="tab-content-activities" class="tab-content">
-        <!-- Barra de filtros rapidos por categoria y estado -->
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
-            <!-- Etiqueta de filtros -->
-            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Filtrar por Categoría:</span>
-            <!-- Boton Todas -->
-            <a href="{{ url_for('maintenance.index') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if not selected_category and not selected_status %}background: #f59e0b; color: #0f172a;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                Todas ({{ activities | length }})
-            </a>
-            <!-- Boton No Planificadas c/ Parada -->
-            <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'no_planificada_con_parada' %}background: #ef4444; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🚨 No Planif. c/ Parada
-            </a>
-            <!-- Boton No Planificadas s/ Parada -->
-            <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category in ['no_planificada_sin_parada', 'operativa'] %}background: #f97316; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                ⚠️ No Planif. s/ Parada
-            </a>
-            <!-- Boton Planificadas con Parada -->
-            <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_con_parada' %}background: #8b5cf6; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🛑 Planif. c/ Parada
-            </a>
-            <!-- Boton Planificadas sin Parada -->
-            <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_sin_parada' %}background: #0ea5e9; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
-                🔄 Planif. s/ Parada
-            </a>
-            {% if selected_status %}
-            <span style="margin-left: auto; font-size: 0.75rem; color: #f59e0b; background: rgba(245,158,11,0.15); border: 1px solid #f59e0b; padding: 0.25rem 0.6rem; border-radius: 9999px;">
-                Filtro estado: <strong>{{ selected_status }}</strong> <a href="{{ url_for('maintenance.index') }}" style="color: #cbd5e1; text-decoration: none; margin-left: 0.3rem;">✖</a>
-            </span>
-            {% endif %}
+        <!-- Barra superior integrada de filtros para estado y categorias -->
+        <div style="background: #1e293b; border: 1px solid #334155; border-radius: 0.6rem; padding: 0.75rem 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.65rem;">
+            <!-- Fila 1: Filtro por Estado de las actividades -->
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <!-- Etiqueta del filtro de estado -->
+                <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Estado:</span>
+                <!-- Boton Todos los Estados -->
+                <a href="{{ url_for('maintenance.index', category=selected_category if selected_category else None) }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 700; {% if not selected_status %}background: #3b82f6; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                    <!-- Icono y texto de todos los estados -->
+                    📋 Todas ({% if kpis is defined %}{{ kpis.total_count }}{% else %}{{ activities | length }}{% endif %})
+                <!-- Cierre de enlace todas -->
+                </a>
+                <!-- Boton Solo Pendientes o En Curso -->
+                <a href="{{ url_for('maintenance.index', status='pendiente', category=selected_category if selected_category else None) }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 700; {% if selected_status in ['pendiente', 'en_progreso'] %}background: #f59e0b; color: #0f172a;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                    <!-- Icono y texto de pendientes -->
+                    ⏳ Pendientes / En Curso ({% if kpis is defined %}{{ kpis.pending_count }}{% endif %})
+                <!-- Cierre de enlace pendientes -->
+                </a>
+                <!-- Boton Solo Resueltas / Completadas -->
+                <a href="{{ url_for('maintenance.index', status='completada', category=selected_category if selected_category else None) }}" style="padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.78rem; text-decoration: none; font-weight: 700; {% if selected_status in ['completada', 'completadas', 'resuelta', 'resueltas'] %}background: #10b981; color: white;{% else %}background: #334155; color: #cbd5e1;{% endif %}">
+                    <!-- Icono y texto de resueltas -->
+                    ✔ Resueltas / Solucionadas ({% if kpis is defined %}{{ kpis.completed_count }}{% endif %})
+                <!-- Cierre de enlace resueltas -->
+                </a>
+                <!-- Verificador de filtros activos para limpiar -->
+                {% if selected_status or selected_category %}
+                <!-- Boton para quitar todos los filtros activos -->
+                <a href="{{ url_for('maintenance.index') }}" style="margin-left: auto; padding: 0.25rem 0.65rem; border-radius: 9999px; font-size: 0.74rem; text-decoration: none; font-weight: 600; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5;">
+                    <!-- Simbolo y texto de limpiar -->
+                    ✖ Quitar Filtros
+                <!-- Cierre de enlace limpiar -->
+                </a>
+                <!-- Cierre de verificador de filtros activos -->
+                {% endif %}
+            <!-- Cierre de Fila 1 -->
+            </div>
+            <!-- Fila 2: Filtro por Categoria Operativa -->
+            <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; border-top: 1px solid rgba(51, 65, 85, 0.6); padding-top: 0.5rem;">
+                <!-- Etiqueta del filtro de categoria -->
+                <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Categoría:</span>
+                <!-- Boton Todas las Categorias -->
+                <a href="{{ url_for('maintenance.index', status=selected_status if selected_status else None) }}" style="padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-decoration: none; font-weight: 600; {% if not selected_category %}background: #64748b; color: white;{% else %}background: #1e293b; border: 1px solid #334155; color: #94a3b8;{% endif %}">
+                    <!-- Texto todas categorias -->
+                    Todas
+                <!-- Cierre enlace todas categorias -->
+                </a>
+                <!-- Boton No Planificadas c/ Parada -->
+                <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada', status=selected_status if selected_status else None) }}" style="padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-decoration: none; font-weight: 600; {% if selected_category == 'no_planificada_con_parada' %}background: #ef4444; color: white;{% else %}background: #1e293b; border: 1px solid #334155; color: #f87171;{% endif %}">
+                    <!-- Texto no planif con parada -->
+                    🚨 No Planif. c/ Parada
+                <!-- Cierre enlace no planif con parada -->
+                </a>
+                <!-- Boton No Planificadas s/ Parada -->
+                <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada', status=selected_status if selected_status else None) }}" style="padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-decoration: none; font-weight: 600; {% if selected_category in ['no_planificada_sin_parada', 'operativa'] %}background: #f97316; color: white;{% else %}background: #1e293b; border: 1px solid #334155; color: #fb923c;{% endif %}">
+                    <!-- Texto no planif sin parada -->
+                    ⚠️ No Planif. s/ Parada
+                <!-- Cierre enlace no planif sin parada -->
+                </a>
+                <!-- Boton Planificadas con Parada -->
+                <a href="{{ url_for('maintenance.index', category='planificada_con_parada', status=selected_status if selected_status else None) }}" style="padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_con_parada' %}background: #8b5cf6; color: white;{% else %}background: #1e293b; border: 1px solid #334155; color: #c084fc;{% endif %}">
+                    <!-- Texto planif con parada -->
+                    🛑 Planif. c/ Parada
+                <!-- Cierre enlace planif con parada -->
+                </a>
+                <!-- Boton Planificadas sin Parada -->
+                <a href="{{ url_for('maintenance.index', category='planificada_sin_parada', status=selected_status if selected_status else None) }}" style="padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; text-decoration: none; font-weight: 600; {% if selected_category == 'planificada_sin_parada' %}background: #0ea5e9; color: white;{% else %}background: #1e293b; border: 1px solid #334155; color: #38bdf8;{% endif %}">
+                    <!-- Texto planif sin parada -->
+                    🔄 Planif. s/ Parada
+                <!-- Cierre enlace planif sin parada -->
+                </a>
+            <!-- Cierre de Fila 2 -->
+            </div>
+        <!-- Cierre de barra integrada de filtros -->
         </div>
 
         <!-- Contenedor responsivo de la tabla de actividades -->
@@ -238,20 +294,53 @@
                             </td>
                             <!-- Columna Titulo y Detalle -->
                             <td style="padding: 0.85rem 1rem; max-width: 320px;">
-                                <!-- Titulo en negrita -->
-                                <div style="font-weight: 700; color: #f8fafc;">{{ act.title }}</div>
-                                <!-- Descripcion complementaria -->
+                                <!-- Titulo en negrita de la actividad -->
+                                <div style="font-weight: 700; color: #f8fafc;">
+                                    <!-- Texto del titulo -->
+                                    {{ act.title }}
+                                    <!-- Distintivo si la actividad ya fue completada o resuelta -->
+                                    {% if act.status == 'completada' %}
+                                        <!-- Badge verde de solucionada -->
+                                        <span style="background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid #10b981; font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 9999px; margin-left: 0.4rem; font-weight: 700; vertical-align: middle;">
+                                            <!-- Icono y texto de solucionada -->
+                                            ✔ Solucionada
+                                        <!-- Cierre de badge -->
+                                        </span>
+                                    <!-- Cierre de condicion si esta completada -->
+                                    {% endif %}
+                                <!-- Cierre de contenedor del titulo -->
+                                </div>
+                                <!-- Descripcion complementaria si existe -->
                                 {% if act.description %}
+                                <!-- Contenedor de la descripcion con puntos suspensivos -->
                                 <div style="font-size: 0.78rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.15rem;">
+                                    <!-- Texto descriptivo de la intervencion -->
                                     {{ act.description }}
+                                <!-- Cierre de descripcion -->
                                 </div>
+                                <!-- Cierre de condicion de descripcion -->
                                 {% endif %}
-                                <!-- Notas de resolucion si esta completada -->
+                                <!-- Notas de resolucion tecnica si la tarea fue finalizada -->
                                 {% if act.resolution_notes %}
-                                <div style="font-size: 0.72rem; color: #34d399; margin-top: 0.25rem;">
-                                    <strong>Resolución:</strong> {{ act.resolution_notes }}
+                                <!-- Caja destacada con la solucion tecnica aplicada -->
+                                <div style="font-size: 0.74rem; color: #34d399; background: rgba(16,185,129,0.1); border-left: 3px solid #10b981; padding: 0.25rem 0.5rem; border-radius: 3px; margin-top: 0.35rem;">
+                                    <!-- Etiqueta en negrita y detalle de la solucion -->
+                                    <strong>✔ Solución técnica:</strong> {{ act.resolution_notes }}
+                                <!-- Cierre de caja de solucion -->
                                 </div>
+                                <!-- Cierre de notas de resolucion -->
                                 {% endif %}
+                                <!-- Fecha de finalizacion si esta registrada -->
+                                {% if act.completed_at %}
+                                <!-- Indicador con fecha de resolucion -->
+                                <div style="font-size: 0.68rem; color: #10b981; margin-top: 0.2rem; font-weight: 600;">
+                                    <!-- Icono y fecha -->
+                                    🏁 Resuelta el: {{ act.completed_at }}
+                                <!-- Cierre de fecha de cierre -->
+                                </div>
+                                <!-- Cierre condicional de fecha de cierre -->
+                                {% endif %}
+                            <!-- Cierre de columna de titulo y detalle -->
                             </td>
                             <!-- Columna Equipo intervenido -->
                             <td style="padding: 0.85rem 1rem; color: #e2e8f0; font-weight: 600;">
@@ -271,21 +360,37 @@
                             </td>
                             <!-- Columna Estado -->
                             <td style="padding: 0.85rem 1rem;">
+                                <!-- Condicion si el estado es pendiente -->
                                 {% if act.status == 'pendiente' %}
+                                    <!-- Badge de pendiente en tono ambar -->
                                     <span style="color: #f59e0b; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <!-- Circulo indicador ambar -->
                                         <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> Pendiente
+                                    <!-- Cierre badge pendiente -->
                                     </span>
+                                <!-- Condicion si el estado es en progreso -->
                                 {% elif act.status == 'en_progreso' %}
+                                    <!-- Badge de en progreso en tono celeste -->
                                     <span style="color: #38bdf8; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                        <!-- Circulo indicador celeste -->
                                         <span style="width: 8px; height: 8px; border-radius: 50%; background: #38bdf8;"></span> En Curso
+                                    <!-- Cierre badge en curso -->
                                     </span>
+                                <!-- Condicion si el estado es completada o resuelta -->
                                 {% elif act.status == 'completada' %}
-                                    <span style="color: #34d399; font-weight: 700; display: inline-flex; align-items: center; gap: 0.3rem;">
-                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span> Resuelta
+                                    <!-- Badge de resuelta en verde esmeralda distintivo -->
+                                    <span style="background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid #10b981; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                                        <!-- Circulo indicador verde esmeralda -->
+                                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> ✔ Resuelta
+                                    <!-- Cierre badge resuelta -->
                                     </span>
+                                <!-- Para cualquier otro estado cancelado -->
                                 {% else %}
+                                    <!-- Badge de cancelada -->
                                     <span style="color: #64748b; font-weight: 600;">Cancelada</span>
+                                <!-- Cierre de condicion de estado -->
                                 {% endif %}
+                            <!-- Cierre de columna estado -->
                             </td>
                             <!-- Columna Tecnico Asignado y fecha -->
                             <td style="padding: 0.85rem 1rem; font-size: 0.78rem; color: #cbd5e1;">

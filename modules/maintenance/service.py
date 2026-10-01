@@ -81,10 +81,19 @@ def get_maintenance_activities(category=None, status=None, limit=100):
                 params.append(category)
         # Si se especifica un estado particular
         if status:
+            # Si se solicitan tareas pendientes o activas en curso
             if status in ('pendiente', 'activas'):
+                # Filtra tareas que no estan concluidas ni canceladas
                 query += " AND status IN ('pendiente', 'en_progreso')"
+            # Si se solicitan tareas resueltas o completadas exitosamente
+            elif status in ('completada', 'completadas', 'resuelta', 'resueltas'):
+                # Filtra tareas cuyo estado es completada
+                query += " AND status = 'completada'"
+            # Para cualquier otro estado especifico indicado
             else:
+                # Agrega clausula de igualdad para el estado
                 query += " AND status = ?"
+                # Agrega el estado a la lista de parametros
                 params.append(status)
         # Agrega ordenamiento descendente por fecha y limite
         query += " ORDER BY id DESC LIMIT ?"
@@ -732,38 +741,48 @@ def get_maintenance_dashboard_kpis():
         if not table_check:
             # Retorna valores en cero si la tabla no fue creada aun
             return {
-                'pending_count': 0,
-                'operative_count': 0,
-                'unplanned_stop_count': 0,
-                'unplanned_no_stop_count': 0,
-                'planned_stop_count': 0,
-                'planned_no_stop_count': 0,
-                'total_active_count': 0
-            }
+                'pending_count': 0, # Conteo pendientes
+                'completed_count': 0, # Conteo resueltas
+                'resolved_count': 0, # Conteo resueltas alias
+                'total_count': 0, # Total historico
+                'operative_count': 0, # Operativas
+                'unplanned_stop_count': 0, # Con parada
+                'unplanned_no_stop_count': 0, # Sin parada
+                'planned_stop_count': 0, # Planificadas con parada
+                'planned_no_stop_count': 0, # Planificadas sin parada
+                'total_active_count': 0 # Total activas
+            } # Fin retorno vacio
         
         # Conteo de tareas pendientes o en curso (no concluidas ni canceladas)
-        pending = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status IN ('pendiente', 'en_progreso');").fetchone()[0]
+        pending = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status IN ('pendiente', 'en_progreso');").fetchone()[0] # Conteo pendientes
+        # Conteo de tareas resueltas o completadas exitosamente
+        completed = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE status = 'completada';").fetchone()[0] # Conteo completadas
+        # Conteo total de todas las tareas registradas en el historico
+        total_activities = conn.execute("SELECT COUNT(*) FROM maintenance_activities;").fetchone()[0] # Conteo total
         # Conteo de tareas no planificadas con parada de planta (roturas críticas, trabas de equipo)
-        unplanned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'no_planificada_con_parada' AND status != 'cancelada';").fetchone()[0]
+        unplanned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'no_planificada_con_parada' AND status != 'cancelada';").fetchone()[0] # Conteo roturas
         # Conteo de tareas no planificadas sin parada de planta (urgencias en marcha, incluye 'operativa')
-        unplanned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('no_planificada_sin_parada', 'operativa') AND status != 'cancelada';").fetchone()[0]
+        unplanned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('no_planificada_sin_parada', 'operativa') AND status != 'cancelada';").fetchone()[0] # Conteo operativas
         # Conteo de tareas planificadas con parada de planta
-        planned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_con_parada' AND status != 'cancelada';").fetchone()[0]
+        planned_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_con_parada' AND status != 'cancelada';").fetchone()[0] # Conteo planificadas parada
         # Conteo de tareas planificadas sin parada de planta
-        planned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_sin_parada' AND status != 'cancelada';").fetchone()[0]
+        planned_no_stop = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category = 'planificada_sin_parada' AND status != 'cancelada';").fetchone()[0] # Conteo planificadas marcha
         # Conteo para retrocompatibilidad con codigo o tests que lean operative_count
-        operative = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('operativa', 'no_planificada_sin_parada') AND status != 'cancelada';").fetchone()[0]
+        operative = conn.execute("SELECT COUNT(*) FROM maintenance_activities WHERE category IN ('operativa', 'no_planificada_sin_parada') AND status != 'cancelada';").fetchone()[0] # Conteo operativo
         
         # Retorna el diccionario de KPIs para el dashboard
         return {
-            'pending_count': int(pending or 0),
-            'operative_count': int(operative or 0),
-            'unplanned_stop_count': int(unplanned_stop or 0),
-            'unplanned_no_stop_count': int(unplanned_no_stop or 0),
-            'planned_stop_count': int(planned_stop or 0),
-            'planned_no_stop_count': int(planned_no_stop or 0),
-            'total_active_count': int(pending or 0)
-        }
+            'pending_count': int(pending or 0), # Tareas en espera
+            'completed_count': int(completed or 0), # Tareas concluidas
+            'resolved_count': int(completed or 0), # Alias resueltas
+            'total_count': int(total_activities or 0), # Total general
+            'operative_count': int(operative or 0), # Operativas
+            'unplanned_stop_count': int(unplanned_stop or 0), # Con parada
+            'unplanned_no_stop_count': int(unplanned_no_stop or 0), # Sin parada
+            'planned_stop_count': int(planned_stop or 0), # Planificadas con parada
+            'planned_no_stop_count': int(planned_no_stop or 0), # Planificadas sin parada
+            'total_active_count': int(pending or 0) # Total activas
+        } # Fin retorno diccionario
 
 # Genera el conjunto de datos para el reporte imprimible de actividades de reparacion con filtros
 def get_maintenance_repairs_report(start_date=None, end_date=None, equipment_tag=None, category=None, status=None):
@@ -799,13 +818,23 @@ def get_maintenance_repairs_report(start_date=None, end_date=None, equipment_tag
                 params.append(cat)
 
         # Filtro de estado
-        if status and status.strip() and status.strip().lower() != 'todos':
-            st = status.strip()
-            if st == 'activas':
-                query += " AND status IN ('pendiente', 'en_progreso')"
-            else:
-                query += " AND status = ?"
-                params.append(st)
+        if status and status.strip() and status.strip().lower() != 'todos': # Valida filtro estado
+            # Normaliza texto
+            st = status.strip() # Texto limpio
+            # Si se solicitan tareas activas o pendientes
+            if st in ('activas', 'pendiente'): # Comprueba activas
+                # Filtra pendientes y en curso
+                query += " AND status IN ('pendiente', 'en_progreso')" # SQL activas
+            # Si se solicitan tareas resueltas o completadas
+            elif st in ('completada', 'completadas', 'resuelta', 'resueltas'): # Comprueba resueltas
+                # Filtra tareas concluidas
+                query += " AND status = 'completada'" # SQL completadas
+            # Para cualquier otro estado especifico
+            else: # Estado puntual
+                # Agrega clausula de igualdad
+                query += " AND status = ?" # Parametro estado
+                # Agrega a lista de parametros
+                params.append(st) # Agrega parametro
 
         query += " ORDER BY id DESC;"
         rows = conn.execute(query, tuple(params)).fetchall()

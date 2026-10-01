@@ -160,8 +160,8 @@
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        height: 4px !important;
-        background: linear-gradient(90deg, #f59e0b, #ef4444, #f97316, #8b5cf6, #0ea5e9) !important;
+        /* Gradiente multicolor que incluye verde para tareas resueltas */
+        background: linear-gradient(90deg, #f59e0b, #10b981, #ef4444, #f97316, #8b5cf6, #0ea5e9) !important;
     }
 
     .maint-sidebar-header {
@@ -226,6 +226,12 @@
 
     .maint-card-planned-no-stop {
         border-top: 4px solid #0ea5e9 !important;
+    }
+
+    /* Estilo distintivo para tarjeta de actividades resueltas y solucionadas */
+    .maint-card-completed, .maint-card-resolved {
+        /* Borde superior verde esmeralda industrial */
+        border-top: 4px solid #10b981 !important;
     }
 
     .maint-dash-title {
@@ -1139,6 +1145,17 @@
                 <div class="maint-dash-title"><span class="mobile-hidden">Tareas </span>Pendientes</div>
                 <div class="maint-dash-val">{{ data.maintenance_kpis.pending_count }}</div>
                 <div class="maint-dash-sub">Intervenciones en espera</div>
+            </a>
+
+            <!-- Tarjeta 2: Tareas Resueltas / Solucionadas -->
+            <a href="{{ url_for('maintenance.index', status='completada') }}" class="maint-dash-card maint-card-completed" title="Ver actividades de mantenimiento resueltas y solucionadas">
+                <!-- Titulo destacado con distintivo de resolucion -->
+                <div class="maint-dash-title" style="color: #34d399 !important;"><span class="mobile-hidden">Tareas </span>Resueltas</div>
+                <!-- Conteo numerico en verde esmeralda -->
+                <div class="maint-dash-val" style="color: #34d399 !important;">{{ data.maintenance_kpis.completed_count }}</div>
+                <!-- Subtitulo de intervenciones cerradas -->
+                <div class="maint-dash-sub">✔ Solucionadas e históricas</div>
+            <!-- Cierre de tarjeta -->
             </a>
 
             <!-- Tarjeta 2: No Planificadas c/ Parada (Atascamientos, Roturas Forzadas) -->

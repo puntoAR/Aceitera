@@ -5,12 +5,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from core.security import roles_required
 # Importa funciones de negocio del servicio de mantenimiento
 from modules.maintenance.service import (
-    create_maintenance_activity, get_maintenance_activities, get_activity_by_id,
-    update_activity_status, save_maintenance_image, get_activity_images,
-    get_all_recent_images, create_or_update_spare_part, get_spare_parts,
-    get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data,
-    get_maintenance_repairs_report, get_maintenance_image_data,
-    get_placeholder_image_svg, delete_maintenance_image
+    create_maintenance_activity, get_maintenance_activities, get_activity_by_id, # Metodos de actividades
+    update_activity_status, save_maintenance_image, get_activity_images, # Metodos de estados e imagenes
+    get_all_recent_images, create_or_update_spare_part, get_spare_parts, # Metodos de repuestos
+    get_spare_part_by_id, record_spare_part_movement, get_spare_parts_report_data, # Movimientos de stock
+    get_maintenance_repairs_report, get_maintenance_image_data, # Reportes y datos de imagen
+    get_placeholder_image_svg, delete_maintenance_image, # Placeholders y borrado
+    get_maintenance_dashboard_kpis # Indicadores KPI consolidados
 )
 # Importa el servicio de configuracion para obtener equipos y turnos
 from modules.configuration.service import get_all_equipment, get_active_shift
@@ -51,6 +52,8 @@ def index():
     equipment_data = get_all_equipment()
     # Obtiene el turno activo
     active_shift = get_active_shift()
+    # Obtiene indicadores KPI globales de mantenimiento (pendientes, resueltas, categorias)
+    kpis = get_maintenance_dashboard_kpis()
     # Renderiza la plantilla principal de mantenimiento
     return render_template(
         'maintenance.html',
@@ -60,6 +63,7 @@ def index():
         report_data=report_data,
         equipment_data=equipment_data,
         active_shift=active_shift,
+        kpis=kpis,
         selected_category=category_filter,
         selected_status=status_filter,
         low_stock_filter=low_stock_filter,

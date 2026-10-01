@@ -779,6 +779,86 @@ class TestMaintenanceAndSpareParts(unittest.TestCase):
         # Verifica presencia del ID generado
         self.assertIn('activity_id', json_new) # Verifica ID
 
+    # Prueba unitaria para verificar KPIs e indicadores de actividades resueltas / completadas
+    def test_resolved_activities_kpis_and_filters(self): # Inicio de la prueba de resueltas
+        # Inicia sesion como administrador
+        self.login_as(role='admin_sistema') # Autentica sesion
+        # Crea una actividad pendiente
+        act_pend_id = create_maintenance_activity( # Registra actividad
+            title="Cambio de retén de motor", # Titulo
+            category="no_planificada_sin_parada", # Categoria
+            equipment_tag="MOTOR-01", # Equipo
+            priority="alta", # Prioridad
+            description="Fuga menor detectada", # Detalle
+            reported_by="Operador Test" # Usuario reportante
+        ) # Fin creacion
+        # Crea una actividad que sera completada
+        act_res_id = create_maintenance_activity( # Registra segunda actividad
+            title="Ajuste de correa transportadora", # Titulo
+            category="planificada_con_parada", # Categoria
+            equipment_tag="TR-02", # Equipo
+            priority="media", # Prioridad
+            description="Tensado preventivo", # Detalle
+            reported_by="Operador Test" # Usuario reportante
+        ) # Fin creacion
+        # Cierra la segunda actividad como completada
+        update_activity_status( # Modifica estado
+            activity_id=act_res_id, # ID de tarea
+            status='completada', # Estado resuelta
+            resolution_notes='Se tensó la correa a 45 Nm y se verificó alineación', # Notas tecnicas
+            operator_name='Técnico Mantenimiento' # Operador
+        ) # Fin actualizacion
+        # Obtiene los KPIs globales de mantenimiento
+        kpis = get_maintenance_dashboard_kpis() # Consulta KPIs
+        # Verifica que el conteo de pendientes sea 1
+        self.assertEqual(kpis['pending_count'], 1) # Comprueba pendientes
+        # Verifica que el conteo de completadas sea 1
+        self.assertEqual(kpis['completed_count'], 1) # Comprueba completadas
+        # Verifica que el alias resolved_count sea 1
+        self.assertEqual(kpis['resolved_count'], 1) # Comprueba alias resueltas
+        # Verifica que el conteo total sea 2
+        self.assertEqual(kpis['total_count'], 2) # Comprueba total
+        # Obtiene tareas filtradas por status completada
+        completed_acts = get_maintenance_activities(status='completada') # Filtra completadas
+        # Verifica que haya exactamente 1 actividad
+        self.assertEqual(len(completed_acts), 1) # Comprueba longitud
+        # Verifica que el ID coincida con la tarea resuelta
+        self.assertEqual(completed_acts[0]['id'], act_res_id) # Comprueba ID
+        # Verifica soporte del sinonimo resuelta
+        resolved_acts = get_maintenance_activities(status='resuelta') # Filtra por resuelta
+        # Verifica que devuelva la misma actividad
+        self.assertEqual(len(resolved_acts), 1) # Comprueba longitud
+        # Verifica el ID de la resuelta
+        self.assertEqual(resolved_acts[0]['id'], act_res_id) # Comprueba ID
+        # Obtiene tareas filtradas por status pendiente
+        pending_acts = get_maintenance_activities(status='pendiente') # Filtra pendientes
+        # Verifica que devuelva la actividad pendiente
+        self.assertEqual(len(pending_acts), 1) # Comprueba longitud
+        # Verifica el ID de la pendiente
+        self.assertEqual(pending_acts[0]['id'], act_pend_id) # Comprueba ID
+        # Realiza peticion GET a la vista de mantenimiento filtrando por completadas
+        resp_maint = self.client.get('/maintenance/?status=completada') # Ejecuta peticion GET
+        # Verifica respuesta exitosa HTTP 200
+        self.assertEqual(resp_maint.status_code, 200) # Comprueba codigo 200
+        # Decodifica contenido HTML
+        html_maint = resp_maint.get_data(as_text=True) # Obtiene texto HTML
+        # Verifica presencia del badge Solucionada
+        self.assertIn("✔ Solucionada", html_maint) # Comprueba badge solucionada
+        # Verifica presencia de la seccion de notas de solucion
+        self.assertIn("✔ Solución técnica:", html_maint) # Comprueba solucion tecnica
+        # Verifica presencia del badge de estado Resuelta
+        self.assertIn("✔ Resuelta", html_maint) # Comprueba badge resuelta
+        # Realiza peticion GET al cockpit dashboard
+        resp_dash = self.client.get('/') # Ejecuta peticion al dashboard
+        # Verifica respuesta exitosa HTTP 200
+        self.assertEqual(resp_dash.status_code, 200) # Comprueba codigo 200
+        # Decodifica contenido HTML del dashboard
+        html_dash = resp_dash.get_data(as_text=True) # Obtiene texto HTML
+        # Verifica que se muestre la tarjeta de tareas resueltas
+        self.assertIn("Tareas Resueltas", html_dash) # Comprueba texto tarjeta resueltas
+        # Verifica enlace a tareas completadas
+        self.assertIn("/maintenance/?status=completada", html_dash) # Comprueba enlace filtro
+
 # Bloque de ejecucion si el archivo se llama directamente
 if __name__ == '__main__':
     unittest.main()
