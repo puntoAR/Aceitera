@@ -67,8 +67,16 @@ def add_analysis():
         shift_id = request.form.get('shift_id')
         # Fecha en que se tomo la muestra
         sample_date = request.form.get('sample_date')
-        # Operador analista
-        operator_name = request.form.get('operator_name')
+        # Operador analista enviado en formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario', 'Analista'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Analista'
         # Observaciones
         notes = request.form.get('notes', '').strip()
 
@@ -114,8 +122,17 @@ def add_truck_dispatch():
     # Bloque para capturar excepciones
     try:
         # Extrae datos del transporte
-        shift_id = request.form.get('shift_id')
-        operator_name = request.form.get('operator_name')
+        shift_id = request.form.get('shift_id') # Turno operativo
+        # Operador responsable enviado en formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario', 'Analista'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Analista'
         truck_plate = request.form.get('truck_plate')
         trailer_plate = request.form.get('trailer_plate', '')
         driver_name = request.form.get('driver_name')

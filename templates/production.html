@@ -16,8 +16,8 @@
             <p style="color: #64748b;">
                 <!-- Turno activo -->
                 Turno Activo: <strong>{{ active_shift.shift_name }}</strong> &bull;
-                <!-- Operador en linea -->
-                Operador: <strong>{{ active_shift.operator_name }}</strong> &bull;
+                <!-- Operador en linea o usuario autenticado -->
+                Operador: <strong>{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}</strong> &bull;
                 <!-- Fecha de evaluacion de muestras -->
                 Fecha Muestras: <strong>{{ target_date }}</strong>
             <!-- Cierre de subtitulo -->
@@ -102,8 +102,9 @@
         </h3>
         <!-- Formulario para registrar pesada de linea -->
         <form action="{{ url_for('production.add_weighing') }}" method="POST">
-            <!-- Operador en linea -->
-            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+            <!-- Operador en linea o usuario logueado en sesion -->
+            <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
+
 
             <!-- Bloque de Identificacion de Fecha y Turno de la Muestra -->
             <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
@@ -209,6 +210,15 @@
                 <input class="form-input" type="text" id="notes" name="notes" placeholder="ej. Muestra tomada en prensa 2">
             </div>
 
+            <!-- Indicador visual del usuario que asienta la pesada -->
+            <div style="font-size: 0.8rem; color: #475569; margin-bottom: 0.85rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.35rem; padding: 0.45rem 0.65rem; display: flex; align-items: center; justify-content: space-between;">
+                <!-- Etiqueta de usuario -->
+                <span style="font-weight: 600;">👤 Usuario que registra:</span>
+                <!-- Nombre del usuario activo -->
+                <strong style="color: #1e40af;">{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}</strong>
+            <!-- Cierre de indicador visual -->
+            </div>
+
             <button type="submit" class="btn btn-primary" style="width: 100%;">
                 Guardar Pesada Horaria
             </button>
@@ -221,7 +231,8 @@
             + Registrar Parada / Detención
         </h3>
         <form action="{{ url_for('production.add_stop') }}" method="POST">
-            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+            <!-- Operador en linea o usuario logueado en sesion -->
+            <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
                 <div class="form-group">
@@ -259,20 +270,57 @@
                 </select>
             </div>
 
+            <!-- Indicador visual del usuario que asienta la parada -->
+            <div style="font-size: 0.8rem; color: #475569; margin-bottom: 0.85rem; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 0.35rem; padding: 0.45rem 0.65rem; display: flex; align-items: center; justify-content: space-between;">
+                <!-- Etiqueta de responsable -->
+                <span style="font-weight: 600;">👤 Usuario responsable:</span>
+                <!-- Nombre del usuario activo -->
+                <strong style="color: #b91c1c;">{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}</strong>
+            <!-- Cierre de indicador visual -->
+            </div>
+
             <button type="submit" class="btn btn-danger" style="width: 100%;">
                 Registrar Detención de Línea
             </button>
         </form>
 
-        <!-- Historial de paradas del turno -->
+        <!-- Historial de paradas de la fecha en curso -->
         <div style="margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
-            <h4 style="font-size: 0.9rem; font-weight: 600; color: #64748b; margin-bottom: 0.5rem;">Paradas registradas:</h4>
+            <!-- Cabecera de seccion con enlace para alternar fecha en curso o historial completo -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.4rem;">
+                <!-- Titulo con fecha en curso o indicacion de historial -->
+                <h4 style="font-size: 0.9rem; font-weight: 600; color: #475569; margin: 0;">
+                    <!-- Texto de titulo dinamico -->
+                    Paradas registradas ({% if show_all_stops %}Historial completo{% else %}Fecha: {{ target_date }}{% endif %}):
+                <!-- Cierre titulo -->
+                </h4>
+                <!-- Enlace de conmutacion de vista -->
+                <div style="font-size: 0.75rem;">
+                    <!-- Si esta viendo todas las paradas -->
+                    {% if show_all_stops %}
+                        <!-- Enlace para volver a la fecha en curso -->
+                        <a href="{{ url_for('production.index', target_date=target_date, all_stops='0') }}" style="color: #0284c7; text-decoration: none; font-weight: 600;">📅 Ver solo fecha en curso</a>
+                    <!-- Si esta viendo solo la fecha en curso -->
+                    {% else %}
+                        <!-- Enlace para ver todo el historial -->
+                        <a href="{{ url_for('production.index', target_date=target_date, all_stops='1') }}" style="color: #64748b; text-decoration: none;">📋 Ver historial completo</a>
+                    <!-- Cierre condicional -->
+                    {% endif %}
+                <!-- Cierre contenedor enlace -->
+                </div>
+            <!-- Cierre cabecera seccion -->
+            </div>
+            <!-- Itera sobre cada parada -->
             {% for stop in stops %}
             <div style="border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
                     <div>
                         <strong>{{ stop.duration_minutes }} min</strong> - {{ stop.reason }}
                         <span style="font-size: 0.72rem; background: #fee2e2; color: #991b1b; padding: 0.1rem 0.35rem; border-radius: 0.2rem; margin-left: 0.3rem; font-weight: 600;">{{ stop.shift_id }}</span>
+                        <!-- Muestra usuario que registro si esta disponible -->
+                        {% if stop.operator_name and stop.operator_name not in ['Operario de Linea 1', 'Operario'] %}
+                            <span style="font-size: 0.72rem; color: #64748b; margin-left: 0.25rem;">({{ stop.operator_name }})</span>
+                        {% endif %}
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.4rem;">
                         <span style="color: #94a3b8; font-size: 0.75rem;">{{ stop.start_time.split(' ')[0] if ' ' in stop.start_time else '' }} {{ stop.start_time.split(' ')[-1][:5] }}</span>
@@ -316,7 +364,8 @@
                 </div>
             </div>
             {% else %}
-            <p style="font-size: 0.85rem; color: #94a3b8;">Sin detenciones registradas en el turno.</p>
+            <!-- Mensaje si no hubo detenciones en la fecha -->
+            <p style="font-size: 0.85rem; color: #94a3b8;">Sin detenciones registradas en la fecha ({{ target_date }}).</p>
             {% endfor %}
         </div>
     </div>
@@ -425,8 +474,18 @@
                         </span>
                     <!-- Cierre de celda estado -->
                     </td>
-                    <!-- Operario que cargo el dato -->
-                    <td>{{ w.operator_name }}</td>
+                    <!-- Operario que cargo el dato con identificacion robusta -->
+                    <td>
+                        <!-- Identificacion prioritaria del operador real o usuario en sesion -->
+                        {% if w.operator_name and w.operator_name not in ['Operario de Linea 1', 'Operario'] %}
+                            <strong>{{ w.operator_name }}</strong>
+                        {% elif g.user and (w.sample_date == plant_today or (w.timestamp and w.timestamp.startswith(plant_today))) %}
+                            <strong>{{ g.user.full_name or g.user.username }}</strong>
+                        {% else %}
+                            {{ w.operator_name or 'Operario' }}
+                        {% endif %}
+                    <!-- Cierre celda operario -->
+                    </td>
                     <!-- Botones de edicion y eliminacion con trazabilidad -->
                     <td style="text-align: right; white-space: nowrap;">
                         <!-- Boton para desplegar formulario de edicion -->
@@ -543,6 +602,14 @@
                                     <!-- Cierre selector estado -->
                                     </select>
                                 <!-- Cierre campo estado -->
+                                </div>
+                                <!-- Campo editable: Operario responsable -->
+                                <div>
+                                    <!-- Etiqueta operario -->
+                                    <label style="font-size: 0.75rem; font-weight: 600; color: #374151; display: block; margin-bottom: 0.2rem;">Operario / Usuario</label>
+                                    <!-- Input operario -->
+                                    <input type="text" name="operator_name" value="{{ w.operator_name or (g.user.full_name if g.user else '') }}" class="form-input" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; width: 100%;">
+                                <!-- Cierre campo operario -->
                                 </div>
                                 <!-- Campo justificacion de auditoria -->
                                 <div style="grid-column: span 2;">

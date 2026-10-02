@@ -88,8 +88,8 @@
     </div>
 
     <form action="{{ url_for('laboratory.add_analysis') }}" method="POST">
-        <!-- Responsable de la carga -->
-        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+        <!-- Responsable de la carga o usuario autenticado -->
+        <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
         <!-- Bloque de Identificacion de Fecha y Turno de la Muestra -->
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
@@ -258,7 +258,8 @@
     <form action="{{ url_for('laboratory.add_truck_dispatch') }}" method="POST">
         <!-- Turno y responsable -->
         <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
-        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+        <!-- Responsable de la carga o usuario autenticado -->
+        <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
         <!-- Grupo 1: Estado del transporte y Precintos -->
         <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.25rem;">

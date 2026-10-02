@@ -620,8 +620,26 @@ REGISTERED_MIGRATIONS = [
         """, # Sentencias SQL
         # Callback para recuperar archivos de disco y poblar image_data
         'callback': lambda conn: backfill_sync_disk_and_cloud_images(conn) # Callback
-    } # Fin migracion 22
+    }, # Fin migracion 22
+    { # Abre definicion migracion 23
+        # Version 23: Identificacion fehaciente de usuario en produccion y filtrado de paradas por fecha en curso
+        'version': 23, # Version 23
+        # Nombre identificador de la migracion
+        'name': 'v23_fix_production_operator_and_stops_attribution', # Nombre
+        # Detalle de la migracion
+        'description': 'Identificacion de usuario real que carga pesadas y paradas en produccion, retro-atribucion de muestras del 2/10 hacia Javier y soporte de filtrado cronologico de paradas por fecha en curso', # Descripcion
+        # Sentencias SQL para asegurar indices de fecha en produccion
+        'sql': """
+            -- Asegura indice por fecha y turno en paradas de linea para agilizar filtrado diario
+            CREATE INDEX IF NOT EXISTS idx_line_stops_date ON line_stops(start_time);
+            -- Asegura indice por fecha de muestra en pesadas de produccion
+            CREATE INDEX IF NOT EXISTS idx_prod_weighings_sample_date ON production_weighings(sample_date);
+        """, # Sentencias SQL
+        # Callback Python para retro-atribuir muestras de produccion al usuario real
+        'callback': lambda conn: backfill_production_operator_attribution(conn) # Callback
+    } # Fin migracion 23
 ] # Fin REGISTERED_MIGRATIONS
+
 
 # Funcion de retro-compatibilidad para rellenar columnas estandar de balanza en registros preexistentes
 def backfill_weighbridge_standard_columns(conn):
@@ -1117,6 +1135,62 @@ def backfill_sync_disk_and_cloud_images(conn): # Define funcion backfill
     except Exception as e: # Captura general
         # Registra en el log de errores
         log_error('MIGRATIONS', f'Aviso en callback de migracion v22 (backfill_sync_disk_and_cloud_images): {e}') # Error log
+
+# Funcion de retro-atribucion de pesadas y paradas de produccion para migracion 23
+def backfill_production_operator_attribution(conn): # Define funcion de retro-atribucion
+    try: # Bloque de proteccion
+        target_name = 'JAVIER' # Nombre objetivo por defecto
+        try: # Bloque de busqueda de usuario
+            user_row = conn.execute("SELECT username, full_name FROM users WHERE LOWER(username) = 'javier' OR LOWER(full_name) LIKE '%javier%' LIMIT 1;").fetchone() # Busca usuario javier
+            if user_row: # Si existe
+                u_name = user_row['full_name'] if isinstance(user_row, dict) else (user_row[1] if user_row[1] else user_row[0]) # Toma nombre
+                if u_name and str(u_name).strip(): # Si no esta vacio
+                    target_name = str(u_name).strip() # Asigna nombre real
+        except Exception as u_err: # Captura error en busqueda de usuario
+            log_error('MIGRATION_23', 'Fallo al buscar usuario javier en base de datos', u_err) # Registra log
+
+        # 1. Actualiza pesadas cargadas el 2/10 con placeholder hacia el usuario real
+        conn.execute("""
+            UPDATE production_weighings
+            SET operator_name = ?
+            WHERE (operator_name IS NULL OR operator_name IN ('Operario de Linea 1', 'Operario', ''))
+              AND (sample_date = '2026-10-02' OR timestamp LIKE '2026-10-02%');
+        """, (target_name,)) # Ejecuta update de pesadas
+
+        # 2. Actualiza paradas cargadas el 2/10 con placeholder hacia el usuario real
+        conn.execute("""
+            UPDATE line_stops
+            SET operator_name = ?
+            WHERE (operator_name IS NULL OR operator_name IN ('Operario de Linea 1', 'Operario', ''))
+              AND (start_time LIKE '2026-10-02%');
+        """, (target_name,)) # Ejecuta update de paradas
+
+        # 3. Cruce con auditoria para asignar username autenticado en caso de existir registros historicos
+        try: # Bloque de cruce con auditoria
+            audit_rows = conn.execute("""
+                SELECT username, timestamp FROM audit_logs
+                WHERE category = 'PRODUCCION' AND action = 'PESADA_REGISTRADA'
+                  AND username NOT IN ('SISTEMA', 'DESCONOCIDO', 'anónimo', '')
+                ORDER BY timestamp DESC;
+            """).fetchall() # Consulta auditoria
+            for ar in audit_rows: # Recorre eventos
+                a_user = ar['username'] if isinstance(ar, dict) else ar[0] # Obtiene username
+                a_time = ar['timestamp'] if isinstance(ar, dict) else ar[1] # Obtiene timestamp
+                if a_user and a_time: # Si son validos
+                    time_prefix = a_time[:16] # Prefijo hasta minuto YYYY-MM-DD HH:MM
+                    conn.execute("""
+                        UPDATE production_weighings
+                        SET operator_name = ?
+                        WHERE (operator_name IS NULL OR operator_name IN ('Operario de Linea 1', 'Operario', ''))
+                          AND timestamp LIKE ?;
+                    """, (a_user, f"{time_prefix}%")) # Actualiza pesada coincidente
+        except Exception as a_err: # Captura fallo en auditoria
+            log_error('MIGRATION_23', 'Fallo en cruce de auditoria', a_err) # Registra log
+
+        conn.commit() # Confirma cambios
+        log_info('MIGRATIONS', f'Migracion v23: Muestras y paradas retro-atribuidas exitosamente a {target_name}.') # Informa exito
+    except Exception as e: # Captura general
+        log_error('MIGRATIONS', f'Error en backfill_production_operator_attribution: {e}') # Registra error
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

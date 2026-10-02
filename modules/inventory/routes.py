@@ -56,7 +56,16 @@ def add_tank_reading():
         tank_id = safe_int(request.form.get('tank_id'))
         level_m = safe_float(request.form.get('level_m'), 0.0)
         shift_id = request.form.get('shift_id')
-        operator_name = request.form.get('operator_name')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Operario'
         density_override = safe_float(request.form.get('density_override'), default=None)
         if density_override is not None and density_override <= 0:
             density_override = None
@@ -67,7 +76,7 @@ def add_tank_reading():
         # Registra el nivel mediante el servicio
         result = record_tank_level(tank_id, level_m, shift_id, operator_name, density_override)
         # Registra en auditoria
-        record_audit_event('INVENTARIO', 'CUBICAJE_TANQUE', f"Nivel registrado en {result['tank_code']}: {level_m}m -> {result['oil_kg']} kg ({result['liters']} L).")
+        record_audit_event('INVENTARIO', 'CUBICAJE_TANQUE', f"Nivel registrado en {result['tank_code']}: {level_m}m -> {result['oil_kg']} kg ({result['liters']} L).", user_override=operator_name)
         # Notifica exito
         flash(f'Nivel en {result["tank_code"]} registrado: {result["oil_kg"]} kg de aceite ({result["liters"]} L).', 'success')
     except Exception as e:
@@ -94,7 +103,16 @@ def add_silo_reading():
         if ph_override is not None and ph_override <= 0:
             ph_override = None
         shift_id = request.form.get('shift_id')
-        operator_name = request.form.get('operator_name')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Operario'
 
         if not silo_id:
             raise ValueError("Debe seleccionar un silo válido.")
@@ -105,7 +123,7 @@ def add_silo_reading():
             copete_height_m, shift_id, operator_name, ph_override
         )
         # Registra en auditoria
-        record_audit_event('INVENTARIO', 'CUBICAJE_SILO', f"Cubicaje registrado en {result['silo_code']}: {covered_sheets} chapas -> {result['stock_kg']} kg ({result['stock_tons']} Tn).")
+        record_audit_event('INVENTARIO', 'CUBICAJE_SILO', f"Cubicaje registrado en {result['silo_code']}: {covered_sheets} chapas -> {result['stock_kg']} kg ({result['stock_tons']} Tn).", user_override=operator_name)
         # Notifica exito
         flash(f'Cubicaje en {result["silo_code"]} registrado: {result["stock_kg"]} kg ({result["stock_tons"]} Tn).', 'success')
     except Exception as e:
@@ -130,7 +148,16 @@ def add_movement():
         quantity_kg = safe_float(request.form.get('quantity_kg'), 0.0)
         document_ref = request.form.get('document_ref', '')
         shift_id = request.form.get('shift_id')
-        operator_name = request.form.get('operator_name')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Operario'
         notes = request.form.get('notes', '')
 
         if not product or not movement_type:
@@ -139,7 +166,7 @@ def add_movement():
         # Registra el movimiento
         record_inventory_movement(product, movement_type, origin, destination, quantity_kg, document_ref, shift_id, operator_name, notes)
         # Registra en auditoria
-        record_audit_event('INVENTARIO', 'MOVIMIENTO_STOCK', f"Movimiento {movement_type} de {quantity_kg} kg ({product}) doc: {document_ref}.")
+        record_audit_event('INVENTARIO', 'MOVIMIENTO_STOCK', f"Movimiento {movement_type} de {quantity_kg} kg ({product}) doc: {document_ref}.", user_override=operator_name)
         # Notifica exito
         flash(f'Movimiento de {movement_type} de {quantity_kg} kg registrado exitosamente.', 'info')
     except Exception as e:

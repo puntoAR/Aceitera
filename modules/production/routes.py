@@ -33,16 +33,25 @@ def index():
     plant_today = get_plant_today_str()
     # Extrae la fecha objetivo del query param o usa la de hoy
     target_date = request.args.get('target_date', plant_today)
+    # Bandera para consultar todas las paradas o unicamente las de la fecha en curso
+    show_all_stops = request.args.get('all_stops', '0') == '1'
     # Obtiene las ultimas pesadas del turno activo ordenadas cronologicamente
     weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=30)
     # Obtiene el resumen de velocidad y proyecciones filtradas por fecha de muestra
     summary = get_shift_speed_summary(shift_id=active_shift['shift_id'], target_date=target_date)
-    # Obtiene las paradas registradas en el turno
-    stops = get_shift_stops(shift_id=active_shift['shift_id'])
-    # Renderiza la vista de produccion pasando fecha y turno
+    # Obtiene las paradas registradas en la fecha operativa en curso (o todo el historial si se solicita)
+    if show_all_stops:
+        # Consulta historial completo sin filtro de fecha
+        stops = get_shift_stops(target_date=None)
+    # Si se visualiza el reporte normal
+    else:
+        # Filtra exclusivamente por la fecha en curso
+        stops = get_shift_stops(target_date=target_date)
+    # Renderiza la vista de produccion pasando fecha, turno y bandera de paradas
     return render_template('production.html', active_shift=active_shift,
                            weighings=weighings, summary=summary, stops=stops,
-                           plant_today=plant_today, target_date=target_date)
+                           plant_today=plant_today, target_date=target_date,
+                           show_all_stops=show_all_stops)
 
 # Endpoint para registrar un nuevo muestreo de bolsa
 @production_bp.route('/weighing', methods=['POST'])
@@ -56,8 +65,22 @@ def add_weighing():
         shift_id = request.form.get('shift_id')
         # Extrae fecha de la toma de muestra del formulario
         sample_date = request.form.get('sample_date')
-        # Extrae nombre del operario responsable
-        operator_name = request.form.get('operator_name')
+        # Extrae nombre del operario enviado en el formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en sesion para identificar fehacientemente quien carga la muestra
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            # Si el formulario trajo un operario personalizado explicito
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                # Utiliza el operador explicito
+                operator_name = form_operator
+            # De lo contrario
+            else:
+                # Utiliza el nombre del usuario autenticado en la sesion
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        # Caso sin sesion web activa
+        else:
+            # Utiliza el operador del formulario o fallback
+            operator_name = form_operator or (active_shift.get('operator_name') if 'active_shift' in locals() and active_shift else None) or 'Operario'
         # Extrae punto de muestreo (semilla o expeller)
         sample_point = request.form.get('sample_point')
         # Extrae peso bruto
@@ -83,9 +106,9 @@ def add_weighing():
             sample_date=sample_date
         )
         # Registra pesada en auditoria
-        record_audit_event('PRODUCCION', 'PESADA_REGISTRADA', f"Pesada en {sample_point} (Muestra: {result.get('sample_date')} - {result.get('shift_id')}): {gross_weight_kg - tare_weight_kg:.2f} kg en {fill_time_seconds:.1f}s -> {result['speed_kg_h']} kg/h.")
+        record_audit_event('PRODUCCION', 'PESADA_REGISTRADA', f"Pesada en {sample_point} (Muestra: {result.get('sample_date')} - {result.get('shift_id')}): {gross_weight_kg - tare_weight_kg:.2f} kg en {fill_time_seconds:.1f}s -> {result['speed_kg_h']} kg/h.", user_override=operator_name)
         # Notifica exito al operario
-        flash(f'Pesada de {sample_point} registrada con éxito para la fecha {result.get("sample_date")}: {result["speed_kg_h"]} kg/h.', 'success')
+        flash(f'Pesada de {sample_point} registrada con éxito por {operator_name} para la fecha {result.get("sample_date")}: {result["speed_kg_h"]} kg/h.', 'success')
     # Captura posibles excepciones durante el guardado
     except Exception as e:
         # Registra error en log
@@ -106,7 +129,17 @@ def add_stop():
         stop_date = request.form.get('stop_date')
         duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
         reason = request.form.get('reason', 'Mantenimiento / Despeje')
-        operator_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Extrae nombre de operario del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            # Si el formulario trajo nombre explicito no generico
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                operator_name = form_operator
+            else:
+                operator_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            operator_name = form_operator or 'Operario'
         # Registra la parada (si shift_id o stop_date no vienen, usa turno y fecha por defecto según hora)
         result = record_line_stop(
             shift_id=shift_id,
@@ -137,7 +170,17 @@ def edit_stop(stop_id):
         shift_id = request.form.get('shift_id')
         stop_date = request.form.get('stop_date')
         edit_reason = request.form.get('edit_reason', '').strip()
-        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Extrae nombre de operario del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            # Si el formulario trajo operario especifico
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                op_name = form_operator
+            else:
+                op_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            op_name = form_operator or 'Operario'
 
         if not edit_reason:
             flash('Debe especificar el motivo de la modificación para el registro de auditoría.', 'warning')
@@ -164,7 +207,16 @@ def edit_stop(stop_id):
 def delete_stop_route(stop_id):
     try:
         delete_reason = request.form.get('delete_reason', '').strip()
-        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                op_name = form_operator
+            else:
+                op_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            op_name = form_operator or 'Operario'
 
         if not delete_reason:
             flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')
@@ -220,8 +272,16 @@ def edit_weighing(weighing_id):
         notes = request.form.get('notes', '').strip()
         # Extrae justificacion obligatoria del cambio
         edit_reason = request.form.get('edit_reason', '').strip()
-        # Obtiene el nombre del usuario responsable de la edicion
-        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en sesion para auditoria y asignacion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                op_name = form_operator
+            else:
+                op_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            op_name = form_operator or 'Operario'
 
         # Valida que se haya ingresado motivo de auditoria
         if not edit_reason:
@@ -261,7 +321,16 @@ def edit_weighing(weighing_id):
 def delete_weighing_route(weighing_id):
     try:
         delete_reason = request.form.get('delete_reason', '').strip()
-        op_name = request.form.get('operator_name') or (g.user.get('full_name') if hasattr(g, 'user') and g.user else 'Operario')
+        # Extrae operador del formulario
+        form_operator = request.form.get('operator_name')
+        # Prioriza el usuario autenticado en la sesion
+        if hasattr(g, 'user') and g.user and (g.user.get('full_name') or g.user.get('username')):
+            if form_operator and form_operator not in ('Operario de Linea 1', 'Operario'):
+                op_name = form_operator
+            else:
+                op_name = g.user.get('full_name') or g.user.get('username')
+        else:
+            op_name = form_operator or 'Operario'
 
         if not delete_reason:
             flash('Debe especificar el motivo de la eliminación para el registro de auditoría.', 'warning')

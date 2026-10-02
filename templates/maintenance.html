@@ -51,97 +51,221 @@
         </div>
     </div>
 
+    <!-- Estilos CSS responsivos para las tarjetas de indicadores KPI en celulares y computadoras -->
+    <style>
+        /* Contenedor en cuadricula para las tarjetas de indicadores clave */
+        .maint-kpi-grid {
+            display: grid; /* Despliegue en grilla */
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); /* Escritorio: columnas flexibles */
+            gap: 0.75rem; /* Separacion estandar entre tarjetas */
+            margin-bottom: 1.5rem; /* Margen inferior hacia las pestanas */
+        }
+
+        /* Estilo base comun para cada tarjeta de mantenimiento */
+        .maint-kpi-card {
+            text-decoration: none; /* Elimina subrayado de enlaces */
+            display: flex; /* Distribucion en caja flexible */
+            flex-direction: column; /* Apila elementos verticalmente */
+            justify-content: space-between; /* Distribuye titulo, valor y subtitulo */
+            background: #1e293b; /* Fondo azul noche industrial */
+            padding: 0.85rem; /* Relleno interior equilibrado */
+            border-radius: 0.65rem; /* Esquinas redondeadas suaves */
+            border: 1px solid #334155; /* Borde perimetral tenue */
+            transition: transform 0.15s ease, box-shadow 0.15s ease; /* Transicion de realce */
+            box-sizing: border-box; /* Calculo de caja contenido */
+            min-width: 0; /* Previene desbordamiento horizontal */
+        }
+
+        /* Efecto al pasar el cursor en computadoras de escritorio */
+        .maint-kpi-card:hover {
+            transform: translateY(-2px); /* Pequena elevacion visual */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25); /* Sombra acentuada */
+        }
+
+        /* Bordes superiores coloreados distintivos por tipo de tarea */
+        .maint-kpi-pending { border-top: 4px solid #f59e0b !important; } /* Borde ambar para tareas pendientes */
+        .maint-kpi-resolved { border-top: 4px solid #10b981 !important; } /* Borde esmeralda para tareas resueltas */
+        .maint-kpi-unplanned-stop { border-top: 4px solid #ef4444 !important; } /* Borde carmesi para paradas no programadas */
+        .maint-kpi-unplanned-no-stop { border-top: 4px solid #f97316 !important; } /* Borde naranja para operativas en marcha */
+        .maint-kpi-planned-stop { border-top: 4px solid #8b5cf6 !important; } /* Borde purpura para parada programada */
+        .maint-kpi-planned-no-stop { border-top: 4px solid #0ea5e9 !important; } /* Borde celeste para preventivo en marcha */
+        .maint-kpi-panol-crit { border-top: 4px solid #f43f5e !important; } /* Borde fucsia para reposicion de panol */
+        .maint-kpi-panol-ok { border-top: 4px solid #10b981 !important; } /* Borde verde para stock normal de panol */
+
+        /* Tipografia del titulo de la tarjeta */
+        .maint-kpi-title {
+            font-size: 0.72rem; /* Tamano compacto */
+            text-transform: uppercase; /* Mayusculas industriales */
+            color: #94a3b8; /* Gris pizarra de alta legibilidad */
+            font-weight: 700; /* Peso en negrita */
+            letter-spacing: 0.02em; /* Espaciado entre caracteres */
+            line-height: 1.2; /* Interlineado */
+        }
+
+        /* Tipografia del contador numerico */
+        .maint-kpi-val {
+            font-size: 1.75rem; /* Cifra de gran impacto */
+            font-weight: 800; /* Extra negrita */
+            margin-top: 0.25rem; /* Separacion del titulo */
+            line-height: 1.1; /* Altura compacta */
+        }
+
+        /* Tipografia del subtitulo aclaratorio */
+        .maint-kpi-sub {
+            font-size: 0.68rem; /* Tamano de apoyo */
+            color: #64748b; /* Gris tenue */
+            margin-top: 0.35rem; /* Separacion de la cifra */
+            line-height: 1.25; /* Interlineado confortable */
+            display: block; /* Asegura visualizacion de bloque */
+        }
+
+        /* REGLAS RESPONSIVAS ESPECIFICAS PARA CELULARES Y DISPOSITIVOS MOVILES (<= 768px) */
+        @media (max-width: 768px) {
+            /* Disposicion obligatoria de exactamente 2 columnas lado a lado */
+            .maint-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important; /* Fuerza 2 columnas por fila */
+                gap: 0.55rem !important; /* Espaciado optimo en pantallas estrechas */
+                margin-bottom: 1.15rem !important; /* Margen inferior adaptado */
+            }
+
+            /* Tarjetas adaptadas a dimensiones de celular */
+            .maint-kpi-card {
+                padding: 0.75rem 0.75rem !important; /* Relleno compacto exacto a la captura */
+                border-radius: 0.65rem !important; /* Radio de esquina suave */
+            }
+
+            /* Titulo visible y claro en 2 columnas */
+            .maint-kpi-title {
+                font-size: 0.70rem !important; /* Tamano exacto legible */
+                line-height: 1.15 !important; /* Altura ajustada */
+            }
+
+            /* Cifra en dispositivos moviles */
+            .maint-kpi-val {
+                font-size: 1.65rem !important; /* Valor grande y destacado */
+            }
+
+            /* Subtitulo siempre visible debajo del numero */
+            .maint-kpi-sub {
+                font-size: 0.68rem !important; /* Subtexto legible sin recortes */
+                margin-top: 0.3rem !important; /* Margen superior controlado */
+            }
+
+            /* Tarjeta de panol ocupando el ancho completo al final de las 2 columnas */
+            .maint-kpi-card-panol {
+                grid-column: span 2 !important; /* Abarca ambas columnas en celulares */
+            }
+        }
+    </style>
+
     <!-- Tarjetas de indicadores clave (KPIs) del modulo de mantenimiento -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div class="maint-kpi-grid">
         <!-- Tarjeta 1: Tareas Pendientes / Activas -->
-        <a href="{{ url_for('maintenance.index', status='pendiente') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f59e0b; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-kpi-card maint-kpi-pending" title="Ver tareas de mantenimiento pendientes o en curso">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Tareas Pendientes</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #f59e0b; margin-top: 0.2rem;">
+            <div class="maint-kpi-title">Tareas Pendientes</div>
+            <!-- Valor numerico en color ambar -->
+            <div class="maint-kpi-val" style="color: #f59e0b;">
                 {{ kpis.pending_count if kpis is defined else (activities | selectattr('status', 'in', ['pendiente', 'en_progreso']) | list | length) }}
+            <!-- Cierre valor -->
             </div>
-            <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">Intervenciones en espera o curso</div>
+            <!-- Subtitulo aclaratorio de intervenciones en espera -->
+            <div class="maint-kpi-sub">Intervenciones en espera o curso</div>
+        <!-- Cierre de enlace tarjeta 1 -->
         </a>
 
         <!-- Tarjeta 2: Tareas Resueltas / Solucionadas -->
-        <a href="{{ url_for('maintenance.index', status='completada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #10b981; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', status='completada') }}" class="maint-kpi-card maint-kpi-resolved" title="Ver actividades resueltas y concluidas">
             <!-- Titulo de la tarjeta resueltas -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #34d399; font-weight: 700;">✔ Tareas Resueltas</div>
+            <div class="maint-kpi-title" style="color: #34d399 !important;">✔ Tareas Resueltas</div>
             <!-- Valor numerico en verde esmeralda -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #34d399; margin-top: 0.2rem;">
+            <div class="maint-kpi-val" style="color: #34d399;">
                 {{ kpis.completed_count if kpis is defined else (activities | selectattr('status', 'equalto', 'completada') | list | length) }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio de resolucion -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">Solucionadas y concluidas</div>
+            <div class="maint-kpi-sub">Solucionadas y concluidas</div>
+        <!-- Cierre de enlace tarjeta 2 -->
         </a>
 
         <!-- Tarjeta 3: No Planificadas con Parada de Planta -->
-        <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #ef4444; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" class="maint-kpi-card maint-kpi-unplanned-stop" title="Ver roturas y emergencias con parada de planta">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. c/ Parada</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #f87171; margin-top: 0.2rem;">
+            <div class="maint-kpi-title">No Planif. c/ Parada</div>
+            <!-- Valor numerico en rojo -->
+            <div class="maint-kpi-val" style="color: #f87171;">
                 {{ kpis.unplanned_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'no_planificada_con_parada') | list | length) }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🚨 Trabas o roturas c/ parada</div>
+            <div class="maint-kpi-sub">🚨 Trabas o roturas c/ parada</div>
+        <!-- Cierre de enlace tarjeta 3 -->
         </a>
 
         <!-- Tarjeta 4: No Planificadas sin Parada (Operativas) -->
-        <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #f97316; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" class="maint-kpi-card maint-kpi-unplanned-no-stop" title="Ver urgencias resueltas con planta en marcha">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">No Planif. s/ Parada</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #fb923c; margin-top: 0.2rem;">
+            <div class="maint-kpi-title">No Planif. s/ Parada</div>
+            <!-- Valor numerico en naranja -->
+            <div class="maint-kpi-val" style="color: #fb923c;">
                 {{ kpis.unplanned_no_stop_count if kpis is defined else (activities | selectattr('category', 'in', ['no_planificada_sin_parada', 'operativa']) | list | length) }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">⚠️ Operativas en marcha</div>
+            <div class="maint-kpi-sub">⚠️ Operativas en marcha</div>
+        <!-- Cierre de enlace tarjeta 4 -->
         </a>
 
         <!-- Tarjeta 5: Planificadas con Parada de Planta -->
-        <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #8b5cf6; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" class="maint-kpi-card maint-kpi-planned-stop" title="Ver tareas programadas que requieren detener la planta">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas c/ Parada</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #c084fc; margin-top: 0.2rem;">
+            <div class="maint-kpi-title">Planificadas c/ Parada</div>
+            <!-- Valor numerico en violeta -->
+            <div class="maint-kpi-val" style="color: #c084fc;">
                 {{ kpis.planned_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'planificada_con_parada') | list | length) }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🛑 Requieren detener planta</div>
+            <div class="maint-kpi-sub">🛑 Requieren detener planta</div>
+        <!-- Cierre de enlace tarjeta 5 -->
         </a>
 
         <!-- Tarjeta 6: Planificadas sin Parada de Planta -->
-        <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" style="text-decoration: none; display: block; background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid #0ea5e9; transition: transform 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" class="maint-kpi-card maint-kpi-planned-no-stop" title="Ver mantenimiento preventivo de rutina en marcha">
             <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Planificadas s/ Parada</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: #38bdf8; margin-top: 0.2rem;">
+            <div class="maint-kpi-title">Planificadas s/ Parada</div>
+            <!-- Valor numerico en celeste -->
+            <div class="maint-kpi-val" style="color: #38bdf8;">
                 {{ kpis.planned_no_stop_count if kpis is defined else (activities | selectattr('category', 'equalto', 'planificada_sin_parada') | list | length) }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">🔄 Preventivo en marcha</div>
+            <div class="maint-kpi-sub">🔄 Preventivo en marcha</div>
+        <!-- Cierre de enlace tarjeta 6 -->
         </a>
 
         <!-- Tarjeta 7: Stock Critico en Pañol (Alerta de Reposicion) -->
-        <div onclick="switchTab('spare-parts')" style="background: #1e293b; padding: 0.85rem; border-radius: 0.6rem; border: 1px solid #334155; border-top: 4px solid {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; cursor: pointer; transition: transform 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
-            <!-- Titulo de la tarjeta -->
-            <div style="font-size: 0.72rem; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Stock Crítico Pañol</div>
-            <!-- Valor numerico -->
-            <div style="font-size: 1.65rem; font-weight: 800; color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %}; margin-top: 0.2rem;">
+        <div onclick="switchTab('spare-parts')" class="maint-kpi-card maint-kpi-card-panol {% if report_data.critical_items > 0 %}maint-kpi-panol-crit{% else %}maint-kpi-panol-ok{% endif %}" style="cursor: pointer;" title="Consultar repuestos y stock de pañol">
+            <!-- Titulo de la tarjeta de pañol -->
+            <div class="maint-kpi-title">Stock Crítico Pañol</div>
+            <!-- Valor numerico con alerta condicional -->
+            <div class="maint-kpi-val" style="color: {% if report_data.critical_items > 0 %}#f43f5e{% else %}#10b981{% endif %};">
                 {{ report_data.critical_items }}
+            <!-- Cierre valor -->
             </div>
             <!-- Subtitulo aclaratorio con alerta -->
-            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.15rem;">
+            <div class="maint-kpi-sub">
+                <!-- Condicional si hay items criticos -->
                 {% if report_data.critical_items > 0 %}
                     <strong style="color: #f43f5e;">⚠️ Requiere compra</strong>
                 {% else %}
                     <span style="color: #10b981;">Niveles normales</span>
                 {% endif %}
+            <!-- Cierre subtitulo -->
             </div>
+        <!-- Cierre contenedor tarjeta pañol -->
         </div>
+    <!-- Cierre contenedor de grilla de tarjetas -->
     </div>
 
     <!-- Barra de navegacion por pestanas (Tabs) -->

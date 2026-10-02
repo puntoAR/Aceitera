@@ -355,39 +355,62 @@
             flex-direction: column !important;
         }
 
+        /* Disposicion de tarjetas de mantenimiento en celulares y pantallas estrechas */
         .maint-sidebar-cards {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-            gap: 0.45rem !important;
-            margin-top: 0.4rem !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
+            display: grid !important; /* Despliegue en cuadricula */
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important; /* Dos columnas lado a lado en celular como en la captura */
+            gap: 0.55rem !important; /* Separacion comoda entre tarjetas */
+            margin-top: 0.45rem !important; /* Margen superior contenido */
+            width: 100% !important; /* Ancho completo */
+            box-sizing: border-box !important; /* Modelo de caja */
         }
 
+        /* Tarjeta de mantenimiento responsiva en celular */
         .maint-dash-card {
-            min-width: 0 !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-            padding: 0.55rem 0.35rem !important;
-            text-align: center !important;
-            align-items: center !important;
-            overflow: hidden !important;
+            min-width: 0 !important; /* Previene desbordamiento horizontal */
+            width: 100% !important; /* Ocupa columna completa */
+            box-sizing: border-box !important; /* Calculo de caja */
+            padding: 0.75rem 0.75rem !important; /* Relleno ergonomico amplio */
+            text-align: left !important; /* Alineacion a la izquierda */
+            align-items: flex-start !important; /* Elementos al inicio */
+            border-radius: 0.65rem !important; /* Esquinas redondeadas suaves */
+            overflow: hidden !important; /* Previene fugas de texto */
+            display: flex !important; /* Caja flexible */
+            flex-direction: column !important; /* Apilado vertical */
+            justify-content: space-between !important; /* Distribucion uniforme */
         }
 
+        /* Titulo de tipo de tarea en celular */
         .maint-dash-title {
-            font-size: 0.65rem !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            width: 100% !important;
+            font-size: 0.72rem !important; /* Tamano de fuente legible */
+            font-weight: 700 !important; /* Negrita */
+            text-transform: uppercase !important; /* Mayusculas */
+            color: #94a3b8 !important; /* Gris pizarra */
+            letter-spacing: 0.02em !important; /* Espaciado tipografico */
+            white-space: normal !important; /* Permite fluidez del texto */
+            overflow: visible !important; /* Titulo completo */
+            text-overflow: clip !important; /* Sin recorte */
+            width: 100% !important; /* Ancho completo */
+            line-height: 1.2 !important; /* Altura de linea */
         }
 
+        /* Valor numerico destacado en celular */
         .maint-dash-val {
-            font-size: 1.45rem !important;
+            font-size: 1.75rem !important; /* Cifra grande y destacada */
+            font-weight: 800 !important; /* Extra negrita */
+            line-height: 1.1 !important; /* Altura compacta */
+            margin-top: 0.2rem !important; /* Margen respecto al titulo */
         }
 
+        /* Subtitulo aclaratorio visible en celular */
         .maint-dash-sub {
-            display: none !important;
+            display: block !important; /* Garantiza visualizacion en celular tal como en la captura */
+            font-size: 0.68rem !important; /* Tamano descriptivo fino */
+            color: #64748b !important; /* Gris tenue de apoyo */
+            margin-top: 0.35rem !important; /* Separacion del numero */
+            line-height: 1.25 !important; /* Interlineado confortable */
+            text-align: left !important; /* Alineado a la izquierda */
+            width: 100% !important; /* Ancho completo */
         }
 
         .maint-sidebar-footer {
@@ -405,26 +428,48 @@
 
     /* Celulares muy angostos (< 480px) */
     @media (max-width: 480px) {
+        /* Contenedor principal con relleno estrecho */
         main.container, .container, .container-cockpit-wide {
+            /* Relleno izquierdo */
             padding-left: 0.45rem !important;
+            /* Relleno derecho */
             padding-right: 0.45rem !important;
         }
 
+        /* Mantiene estrictamente 2 columnas lado a lado en pantallas muy angostas */
         .maint-sidebar-cards {
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-            gap: 0.3rem !important;
+            /* Fuerza 2 columnas iguales */
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            /* Espaciado ajustado */
+            gap: 0.45rem !important;
         }
 
+        /* Tarjeta en celulares angostos */
         .maint-dash-card {
-            padding: 0.45rem 0.2rem !important;
+            /* Relleno comodo */
+            padding: 0.65rem 0.65rem !important;
+            /* Radio de curvatura suave */
+            border-radius: 0.60rem !important;
         }
 
+        /* Titulo ajustado */
         .maint-dash-title {
-            font-size: 0.60rem !important;
+            /* Tamano tipografico optimo */
+            font-size: 0.68rem !important;
         }
 
+        /* Valor numerico */
         .maint-dash-val {
-            font-size: 1.25rem !important;
+            /* Cifra destacada */
+            font-size: 1.55rem !important;
+        }
+
+        /* Subtitulo visible */
+        .maint-dash-sub {
+            /* Visible como bloque */
+            display: block !important;
+            /* Tamano descriptivo */
+            font-size: 0.65rem !important;
         }
     }
 </style>
@@ -1142,49 +1187,70 @@
         <div class="maint-sidebar-cards">
             <!-- Tarjeta 1: Tareas Pendientes -->
             <a href="{{ url_for('maintenance.index', status='pendiente') }}" class="maint-dash-card maint-card-pending" title="Ver tareas de mantenimiento pendientes o en curso">
-                <div class="maint-dash-title"><span class="mobile-hidden">Tareas </span>Pendientes</div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.pending_count }}</div>
-                <div class="maint-dash-sub">Intervenciones en espera</div>
+                <!-- Titulo de la tarjeta -->
+                <div class="maint-dash-title">Tareas Pendientes</div>
+                <!-- Valor numerico en color ambar -->
+                <div class="maint-dash-val" style="color: #f59e0b;">{{ data.maintenance_kpis.pending_count }}</div>
+                <!-- Subtitulo aclaratorio visible en celular -->
+                <div class="maint-dash-sub">Intervenciones en espera o curso</div>
+            <!-- Cierre de enlace tarjeta 1 -->
             </a>
 
             <!-- Tarjeta 2: Tareas Resueltas / Solucionadas -->
             <a href="{{ url_for('maintenance.index', status='completada') }}" class="maint-dash-card maint-card-completed" title="Ver actividades de mantenimiento resueltas y solucionadas">
                 <!-- Titulo destacado con distintivo de resolucion -->
-                <div class="maint-dash-title" style="color: #34d399 !important;"><span class="mobile-hidden">Tareas </span>Resueltas</div>
+                <div class="maint-dash-title" style="color: #34d399 !important;">✔ Tareas Resueltas</div>
                 <!-- Conteo numerico en verde esmeralda -->
                 <div class="maint-dash-val" style="color: #34d399 !important;">{{ data.maintenance_kpis.completed_count }}</div>
                 <!-- Subtitulo de intervenciones cerradas -->
                 <div class="maint-dash-sub">✔ Solucionadas e históricas</div>
-            <!-- Cierre de tarjeta -->
+            <!-- Cierre de tarjeta 2 -->
             </a>
 
-            <!-- Tarjeta 2: No Planificadas c/ Parada (Atascamientos, Roturas Forzadas) -->
+            <!-- Tarjeta 3: No Planificadas c/ Parada (Atascamientos, Roturas Forzadas) -->
             <a href="{{ url_for('maintenance.index', category='no_planificada_con_parada') }}" class="maint-dash-card maint-card-unplanned-stop" title="Ver emergencias y roturas que obligaron a parar la planta">
-                <div class="maint-dash-title">No Planificadas<span class="mobile-hidden"> c/ Parada</span></div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.unplanned_stop_count }}</div>
+                <!-- Titulo de la tarjeta -->
+                <div class="maint-dash-title">No Planificadas c/ Parada</div>
+                <!-- Valor numerico en rojo -->
+                <div class="maint-dash-val" style="color: #f87171;">{{ data.maintenance_kpis.unplanned_stop_count }}</div>
+                <!-- Subtitulo aclaratorio con emoji de alerta -->
                 <div class="maint-dash-sub">🚨 Roturas y trabas c/ parada</div>
+            <!-- Cierre de tarjeta 3 -->
             </a>
 
-            <!-- Tarjeta 3: No Planificadas s/ Parada / Operativas (En Marcha) -->
+            <!-- Tarjeta 4: No Planificadas s/ Parada / Operativas (En Marcha) -->
             <a href="{{ url_for('maintenance.index', category='no_planificada_sin_parada') }}" class="maint-dash-card maint-card-operative" title="Ver intervenciones de emergencia con planta en marcha">
-                <div class="maint-dash-title">No Planificadas<span class="mobile-hidden"> s/ Parada</span></div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.unplanned_no_stop_count }}</div>
-                <div class="maint-dash-sub">Operativas (En Marcha) - Urgencias del momento</div>
+                <!-- Titulo de la tarjeta -->
+                <div class="maint-dash-title">No Planificadas s/ Parada</div>
+                <!-- Valor numerico en naranja -->
+                <div class="maint-dash-val" style="color: #fb923c;">{{ data.maintenance_kpis.unplanned_no_stop_count }}</div>
+                <!-- Subtitulo aclaratorio con urgencias del momento -->
+                <div class="maint-dash-sub">Operativas en marcha - Urgencias del momento</div>
+            <!-- Cierre de tarjeta 4 -->
             </a>
 
-            <!-- Tarjeta 4: Planificadas c/ Parada -->
+            <!-- Tarjeta 5: Planificadas c/ Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_con_parada') }}" class="maint-dash-card maint-card-planned" title="Ver tareas programadas que requieren detener planta">
-                <div class="maint-dash-title">Planificadas<span class="mobile-hidden"> c/ Parada</span></div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.planned_stop_count }}</div>
+                <!-- Titulo de la tarjeta -->
+                <div class="maint-dash-title">Planificadas c/ Parada</div>
+                <!-- Valor numerico en violeta -->
+                <div class="maint-dash-val" style="color: #c084fc;">{{ data.maintenance_kpis.planned_stop_count }}</div>
+                <!-- Subtitulo aclaratorio -->
                 <div class="maint-dash-sub">Requieren detener planta</div>
+            <!-- Cierre de tarjeta 5 -->
             </a>
 
-            <!-- Tarjeta 5: Planificadas s/ Parada -->
+            <!-- Tarjeta 6: Planificadas s/ Parada -->
             <a href="{{ url_for('maintenance.index', category='planificada_sin_parada') }}" class="maint-dash-card maint-card-planned-no-stop" title="Ver mantenimiento preventivo de rutina con planta en marcha">
-                <div class="maint-dash-title">Planificadas<span class="mobile-hidden"> s/ Parada</span></div>
-                <div class="maint-dash-val">{{ data.maintenance_kpis.planned_no_stop_count }}</div>
+                <!-- Titulo de la tarjeta -->
+                <div class="maint-dash-title">Planificadas s/ Parada</div>
+                <!-- Valor numerico en celeste -->
+                <div class="maint-dash-val" style="color: #38bdf8;">{{ data.maintenance_kpis.planned_no_stop_count }}</div>
+                <!-- Subtitulo aclaratorio -->
                 <div class="maint-dash-sub">Preventivo con planta en marcha</div>
+            <!-- Cierre de tarjeta 6 -->
             </a>
+        <!-- Cierre de grilla de tarjetas del panel lateral -->
         </div>
 
         <!-- Acceso directo al pie del panel -->

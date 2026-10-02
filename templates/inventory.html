@@ -63,8 +63,10 @@
             + Registrar Nivel de Tanque de Aceite
         </h3>
         <form action="{{ url_for('inventory.add_tank_reading') }}" method="POST">
+            <!-- Turno activo -->
             <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
-            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+            <!-- Operador en linea o usuario logueado en sesion -->
+            <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label class="form-label" for="tank_id">Tanque de Aceite</label>
@@ -100,7 +102,8 @@
         </h3>
         <form action="{{ url_for('inventory.add_silo_reading') }}" method="POST">
             <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
-            <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+            <!-- Operador en linea o usuario logueado en sesion -->
+            <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
             <div class="form-group" style="margin-bottom: 0.75rem;">
                 <label class="form-label" for="silo_id">Silo</label>
@@ -158,7 +161,8 @@
     </h3>
     <form action="{{ url_for('inventory.add_movement') }}" method="POST">
         <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
-        <input type="hidden" name="operator_name" value="{{ active_shift.operator_name }}">
+        <!-- Operador en linea o usuario logueado en sesion -->
+        <input type="hidden" name="operator_name" value="{{ (g.user.full_name or g.user.username) if (g.user and (g.user.full_name or g.user.username)) else active_shift.operator_name }}">
 
         <div class="form-grid">
             <div class="form-group">
