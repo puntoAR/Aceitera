@@ -1,5 +1,5 @@
 // Service Worker para la Progressive Web App (PWA) de BioBalcarce
-const CACHE_NAME = 'biobalcarce-pwa-v1.3.3'; // Identificador unico de version de cache actualizada v1.3.3
+const CACHE_NAME = 'biobalcarce-pwa-v1.3.4'; // Identificador unico de version de cache actualizada v1.3.4
 const STATIC_ASSETS = [ // Lista de recursos estaticos a pre-cachear
     '/static/css/styles.css', // Hoja de estilos principal del sistema
     '/static/js/app.js', // Logica de interfaz y calculos en vivo

@@ -673,7 +673,20 @@ REGISTERED_MIGRATIONS = [
             UPDATE equipment_silos SET diameter_m = 4.30, sheet_height_m = 0.99, total_sheets = 3, bottom_cone_height_m = 1.00, copete_max_height_m = 0.99, default_ph = 41.5 WHERE code = 'SILO-EXP-R';
         """,
         'callback': lambda conn: force_recalculate_all_silo_readings(conn)
-    } # Fin migracion 25
+    }, # Fin migracion 25
+    { # Abre definicion migracion 26
+        # Version 26: Correccion de pesadas registradas en horario de la tarde con turno TM
+        'version': 26,
+        'name': 'v26_fix_afternoon_weighing_shifts',
+        'description': 'Corrección retroactiva de pesadas registradas después de las 14:00 con turno TM para asignarlas a Turno Tarde (TT)',
+        'sql': """
+            UPDATE production_weighings
+            SET shift_id = 'TT', time_slot = '14:00 - 22:00'
+            WHERE COALESCE(sample_date, date(timestamp)) = '2026-10-05'
+              AND (time(timestamp) >= '14:00:00' OR timestamp LIKE '% 14:%' OR timestamp LIKE '% 15:%')
+              AND shift_id = 'TM';
+        """
+    } # Fin migracion 26
 ] # Fin REGISTERED_MIGRATIONS
 
 

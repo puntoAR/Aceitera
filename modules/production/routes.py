@@ -15,8 +15,8 @@ from core.error_logger import log_error
 from core.audit import record_audit_event
 # Importa utilidades de conversion numerica segura
 from core.utils import safe_float
-# Importa funcion horaria oficial de fecha de planta
-from core.timezone import get_plant_today_str
+# Importa funcion horaria oficial de fecha de planta y franja horaria segun reloj
+from core.timezone import get_plant_today_str, determine_time_slot
 
 # Define el Blueprint para produccion
 production_bp = Blueprint('production', __name__, url_prefix='/production')
@@ -27,28 +27,39 @@ production_bp = Blueprint('production', __name__, url_prefix='/production')
 @roles_required('usuario', 'admin_sistema')
 # Controlador de vista principal
 def index():
-    # Obtiene el turno activo actual
+    # Obtiene el turno activo configurado en planta
     active_shift = get_active_shift()
     # Obtiene la fecha oficial de planta
     plant_today = get_plant_today_str()
     # Extrae la fecha objetivo del query param o usa la de hoy
-    target_date = request.args.get('target_date', plant_today)
+    target_date = request.args.get('target_date', plant_today).strip()
     # Bandera para consultar todas las paradas o unicamente las de la fecha en curso
     show_all_stops = request.args.get('all_stops', '0') == '1'
-    # Obtiene las ultimas pesadas del turno activo ordenadas cronologicamente
-    weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=30)
-    # Obtiene el resumen de velocidad y proyecciones filtradas por fecha de muestra
-    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'], target_date=target_date)
-    # Obtiene las paradas registradas en la fecha operativa en curso (o todo el historial si se solicita)
-    if show_all_stops:
-        # Consulta historial completo sin filtro de fecha
-        stops = get_shift_stops(target_date=None)
-    # Si se visualiza el reporte normal
+
+    # Obtiene el turno en curso segun el reloj oficial de planta (06-14: TM, 14-22: TT, 22-06: TN)
+    clock_slot = determine_time_slot()
+    clock_shift_id = clock_slot['shift_id']
+
+    # Filtro de turno en la vista: 'all' (por defecto para ver toda la jornada), 'TM', 'TT', 'TN'
+    selected_shift = request.args.get('shift', 'all').strip()
+
+    # Si se selecciona 'all', consulta todas las pesadas de la fecha en curso
+    if selected_shift == 'all':
+        weighings = get_recent_weighings(target_date=target_date, limit=50)
+        summary = get_shift_speed_summary(shift_id='all', target_date=target_date)
+        stops = get_shift_stops(target_date=None if show_all_stops else target_date)
     else:
-        # Filtra exclusivamente por la fecha en curso
-        stops = get_shift_stops(target_date=target_date)
-    # Renderiza la vista de produccion pasando fecha, turno y bandera de paradas
+        weighings = get_recent_weighings(shift_id=selected_shift, target_date=target_date, limit=50)
+        # Si no hay pesadas en la fecha exacta para ese turno, trae las ultimas del turno como respaldo
+        if not weighings:
+            weighings = get_recent_weighings(shift_id=selected_shift, limit=30)
+        summary = get_shift_speed_summary(shift_id=selected_shift, target_date=target_date)
+        stops = get_shift_stops(shift_id=selected_shift, target_date=None if show_all_stops else target_date)
+
+    # Renderiza la vista de produccion pasando fecha, turno seleccionado, turno de reloj y bandera de paradas
     return render_template('production.html', active_shift=active_shift,
+                           clock_shift_id=clock_shift_id,
+                           selected_shift=selected_shift,
                            weighings=weighings, summary=summary, stops=stops,
                            plant_today=plant_today, target_date=target_date,
                            show_all_stops=show_all_stops)
@@ -239,10 +250,15 @@ def api_shift_summary():
     active_shift = get_active_shift()
     # Obtiene la fecha objetivo desde los parametros o usa la fecha oficial de planta
     target_date = request.args.get('target_date', get_plant_today_str())
-    # Obtiene el resumen del turno activo para la fecha dada
-    summary = get_shift_speed_summary(shift_id=active_shift['shift_id'], target_date=target_date)
-    # Obtiene las ultimas 20 pesadas
-    weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=20)
+    # Obtiene el filtro de turno (por defecto 'all')
+    shift_param = request.args.get('shift', 'all').strip()
+    # Obtiene el resumen del turno para la fecha dada
+    summary = get_shift_speed_summary(shift_id=shift_param, target_date=target_date)
+    # Obtiene las ultimas 20 pesadas segun el filtro
+    if shift_param == 'all':
+        weighings = get_recent_weighings(target_date=target_date, limit=20)
+    else:
+        weighings = get_recent_weighings(shift_id=shift_param, target_date=target_date, limit=20)
     # Retorna respuesta en formato JSON
     return jsonify({'summary': summary, 'weighings': weighings})
 

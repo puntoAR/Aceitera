@@ -227,8 +227,6 @@ def get_recent_weighings(shift_id=None, limit=50, target_date=None):
             """, (limit,)).fetchall()
         # Retorna lista de diccionarios
         return [dict(row) for row in rows]
-        # Retorna lista de diccionarios
-        return [dict(row) for row in rows]
 
 # Registra una parada o detencion en la linea de proceso con seleccion de turno y fecha
 def record_line_stop(shift_id=None, duration_minutes=0.0, reason='Mantenimiento', operator_name=None, stop_date=None, start_time=None):
@@ -359,127 +357,111 @@ def delete_weighing(weighing_id, delete_reason='', operator_name=None):
     return True
 
 # Obtiene las paradas registradas para un turno y/o fecha operativa en curso
-def get_shift_stops(shift_id=None, target_date=None): # Define funcion de consulta de paradas
-    # Abre conexion a base de datos
-    with get_db_connection() as conn: # Context manager de base de datos
-        # Sanitiza fecha objetivo si fue provista
-        clean_date = str(target_date).strip() if target_date and str(target_date).strip() else None # Fecha limpia
-        # Si se filtro por turno y por fecha operativa en curso
-        if shift_id and clean_date: # Ambos filtros presentes
-            # Consulta paradas coincidentes por turno y fecha de inicio
+def get_shift_stops(shift_id=None, target_date=None):
+    with get_db_connection() as conn:
+        clean_date = str(target_date).strip() if target_date and str(target_date).strip() else None
+        is_all_shift = (shift_id is None or str(shift_id).strip().lower() in ('all', 'todos', ''))
+        if not is_all_shift and clean_date:
             rows = conn.execute("""
                 SELECT * FROM line_stops
                 WHERE shift_id = ? AND (date(start_time) = ? OR start_time LIKE ?)
                 ORDER BY start_time DESC;
-            """, (shift_id, clean_date, f"{clean_date}%")).fetchall() # Ejecuta consulta combinada
-        # Si se filtro exclusivamente por fecha operativa en curso (reporte de paradas diario)
-        elif clean_date: # Solo filtro por fecha
-            # Consulta todas las paradas que ocurrieron en la fecha especificada
+            """, (shift_id, clean_date, f"{clean_date}%")).fetchall()
+        elif clean_date:
             rows = conn.execute("""
                 SELECT * FROM line_stops
                 WHERE (date(start_time) = ? OR start_time LIKE ?)
                 ORDER BY start_time DESC;
-            """, (clean_date, f"{clean_date}%")).fetchall() # Ejecuta consulta por fecha
-        # Si se filtro unicamente por codigo de turno
-        elif shift_id: # Solo filtro por turno
-            # Consulta paradas del turno ordenadas cronologicamente
+            """, (clean_date, f"{clean_date}%")).fetchall()
+        elif not is_all_shift:
             rows = conn.execute("""
                 SELECT * FROM line_stops
                 WHERE shift_id = ?
                 ORDER BY start_time DESC;
-            """, (shift_id,)).fetchall() # Ejecuta consulta por turno
-        # Sin filtros especificos
-        else: # Historial general
-            # Retorna las ultimas 50 paradas de la planta
+            """, (shift_id,)).fetchall()
+        else:
             rows = conn.execute("""
                 SELECT * FROM line_stops
                 ORDER BY start_time DESC
                 LIMIT 50;
-            """).fetchall() # Ejecuta consulta global
-        # Retorna lista de diccionarios de paradas
-        return [dict(row) for row in rows] # Convierte filas a diccionarios
+            """).fetchall()
+        return [dict(row) for row in rows]
 
-# Calcula las metricas consolidadas de velocidad para un turno (semilla y expeller)
-def get_shift_speed_summary(shift_id, target_date=None): # Define calculo de resumen de turno
-    # Sanitiza o establece la fecha operativa objetivo
-    clean_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str() # Fecha de calculo
-    # Abre conexion a base de datos
-    with get_db_connection() as conn: # Context manager de conexion
-        # Obtiene las pesadas del turno filtradas por fecha de muestra (o fecha de carga como fallback)
-        rows = conn.execute("""
-            SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
-            FROM production_weighings
-            WHERE shift_id = ? AND COALESCE(sample_date, date(timestamp)) = ? AND line_status = 'operando';
-        """, (shift_id, clean_date)).fetchall() # Consulta pesadas del dia
-        # Si no hay registros exactos para esa fecha, busca los mas recientes del turno por fecha de muestra
-        if not rows: # Fallback si no hay pesadas en fecha exacta
-            # Consulta de respaldo para el turno
+# Calcula las metricas consolidadas de velocidad para un turno o la jornada completa (semilla y expeller)
+def get_shift_speed_summary(shift_id=None, target_date=None):
+    clean_date = str(target_date).strip() if target_date and str(target_date).strip() else get_plant_today_str()
+    is_all = (shift_id is None or str(shift_id).strip().lower() in ('all', 'todos', ''))
+    with get_db_connection() as conn:
+        if is_all:
             rows = conn.execute("""
                 SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
                 FROM production_weighings
-                WHERE shift_id = ? AND line_status = 'operando'
-                ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
-                LIMIT 30;
-            """, (shift_id,)).fetchall() # Pesadas recientes de respaldo
-        # Obtiene los minutos totales de parada del turno para la fecha indicada
-        stop_row = conn.execute("""
-            SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min
-            FROM line_stops
-            WHERE shift_id = ? AND (date(start_time) = ? OR start_time LIKE ?);
-        """, (shift_id, clean_date, f"{clean_date}%")).fetchone() # Suma minutos de parada del dia
-        # Si no hubo paradas en esa fecha y target_date fue None explícito (modo histórico), consulta general
-        if (not stop_row or stop_row['total_stop_min'] == 0) and target_date is None: # Solo si no se especifico target_date
-            # Consulta general de paradas historicas del turno solo como fallback
-            fallback_stop = conn.execute("""
+                WHERE COALESCE(sample_date, date(timestamp)) = ? AND line_status = 'operando';
+            """, (clean_date,)).fetchall()
+            if not rows and target_date is None:
+                rows = conn.execute("""
+                    SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
+                    FROM production_weighings
+                    WHERE line_status = 'operando'
+                    ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
+                    LIMIT 30;
+                """).fetchall()
+            stop_row = conn.execute("""
                 SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min
                 FROM line_stops
-                WHERE shift_id = ?;
-            """, (shift_id,)).fetchone() # Paradas historicas
-            # Si el turno general tuvo paradas
-            if fallback_stop and fallback_stop['total_stop_min'] > 0: # Si hay registros
-                stop_row = fallback_stop # Usa fallback solo para llamadas sin target_date
-    # Minutos totales detenidos
-    total_stop_minutes = stop_row['total_stop_min'] if stop_row else 0.0 # Minutos totales
-    # Horas detenidas
+                WHERE (date(start_time) = ? OR start_time LIKE ?);
+            """, (clean_date, f"{clean_date}%")).fetchone()
+        else:
+            rows = conn.execute("""
+                SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
+                FROM production_weighings
+                WHERE shift_id = ? AND COALESCE(sample_date, date(timestamp)) = ? AND line_status = 'operando';
+            """, (shift_id, clean_date)).fetchall()
+            if not rows and target_date is None:
+                rows = conn.execute("""
+                    SELECT sample_point, net_weight_kg, fill_time_seconds, speed_kg_h
+                    FROM production_weighings
+                    WHERE shift_id = ? AND line_status = 'operando'
+                    ORDER BY COALESCE(sample_date, date(timestamp)) DESC, timestamp DESC
+                    LIMIT 30;
+                """, (shift_id,)).fetchall()
+            stop_row = conn.execute("""
+                SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min
+                FROM line_stops
+                WHERE shift_id = ? AND (date(start_time) = ? OR start_time LIKE ?);
+            """, (shift_id, clean_date, f"{clean_date}%")).fetchone()
+
+        if (not stop_row or stop_row['total_stop_min'] == 0) and target_date is None:
+            if is_all:
+                fallback_stop = conn.execute("SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min FROM line_stops;").fetchone()
+            else:
+                fallback_stop = conn.execute("SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min FROM line_stops WHERE shift_id = ?;", (shift_id,)).fetchone()
+            if fallback_stop and fallback_stop['total_stop_min'] > 0:
+                stop_row = fallback_stop
+
+    total_stop_minutes = stop_row['total_stop_min'] if stop_row else 0.0
     stop_hours = total_stop_minutes / 60.0
-    # Horas efectivas de marcha en turno de 8 horas
-    effective_hours = max(0.0, 8.0 - stop_hours)
-    # Separa muestras de semilla y expeller
+    nominal_hours = 24.0 if is_all else 8.0
+    effective_hours = max(0.0, nominal_hours - stop_hours)
     seed_samples = [dict(r) for r in rows if r['sample_point'] == 'ingreso_semilla']
     expeller_samples = [dict(r) for r in rows if r['sample_point'] == 'salida_expeller']
-    # Lista de velocidades de semilla
     seed_speeds = [s['speed_kg_h'] for s in seed_samples]
-    # Lista de velocidades de expeller
     expeller_speeds = [s['speed_kg_h'] for s in expeller_samples]
-    # Promedio aritmetico de semilla
     seed_avg_arithmetic = calculate_arithmetic_average_speed(seed_speeds)
-    # Velocidad agregada de semilla
     seed_agg_speed = calculate_aggregated_speed(seed_samples)
-    # Promedio aritmetico de expeller
     expeller_avg_arithmetic = calculate_arithmetic_average_speed(expeller_speeds)
-    # Velocidad agregada de expeller
     expeller_agg_speed = calculate_aggregated_speed(expeller_samples)
-    # Produccion proyectada de 8h para semilla segun promedio
     seed_proj_8h = project_shift_production(seed_avg_arithmetic)
-    # Produccion proyectada de 24h para semilla segun ritmo diario
     seed_proj_24h = project_daily_production(seed_avg_arithmetic)
-    # Produccion estimada real de semilla considerando horas efectivas
     seed_estimated = calculate_estimated_production(seed_avg_arithmetic, effective_hours)
-    # Produccion proyectada de 8h para expeller
     expeller_proj_8h = project_shift_production(expeller_avg_arithmetic)
-    # Produccion proyectada de 24h para expeller segun ritmo diario
     expeller_proj_24h = project_daily_production(expeller_avg_arithmetic)
-    # Produccion estimada real de expeller considerando paradas
     expeller_estimated = calculate_estimated_production(expeller_avg_arithmetic, effective_hours)
-    # Rendimiento de Expeller por relacion porcentual de caudales horarios: (Promedio Expeller / Promedio Semilla) * 100
     expeller_yield_pct = round((expeller_avg_arithmetic / seed_avg_arithmetic * 100.0), 2) if seed_avg_arithmetic > 0 else 0.0
-    # Caudal masico horario estimado de aceite bruto: Promedio Semilla - Promedio Expeller
     oil_estimated_speed = round(max(0.0, seed_avg_arithmetic - expeller_avg_arithmetic), 2) if seed_avg_arithmetic > 0 else 0.0
-    # Produccion estimada de aceite en el turno considerando horas efectivas
     oil_estimated_shift_kg = round(oil_estimated_speed * effective_hours, 2)
-    # Retorna el resumen consolidado de velocidad del turno
     return {
-        'shift_id': shift_id,
+        'shift_id': 'all' if is_all else shift_id,
         'effective_hours': round(effective_hours, 2),
         'stop_minutes': round(total_stop_minutes, 1),
         'seed_sample_count': len(seed_samples),
