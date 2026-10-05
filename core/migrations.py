@@ -656,7 +656,24 @@ REGISTERED_MIGRATIONS = [
             UPDATE equipment_silos SET bottom_cone_height_m = 1.00, default_ph = 41.5 WHERE code = 'SILO-EXP-R';
         """,
         'callback': lambda conn: calibrate_silos_and_backfill_readings(conn)
-    } # Fin migracion 24
+    }, # Fin migracion 24
+    { # Abre definicion migracion 25
+        # Version 25: Recalibracion obligatoria de todos los silos, calculos historicos y forzado de refresco
+        'version': 25,
+        'name': 'v25_recalibrate_all_silos_and_backfill',
+        'description': 'Recalibración forzada integral de dimensiones y recálculo de todas las mediciones de silos (Silo 1 a 5 y Silos Aéreos Verde y Chapa Rota)',
+        'sql': """
+            -- Asegura dimensiones tecnicas maestras exactas en cada silo
+            UPDATE equipment_silos SET copete_max_height_m = 1.00 WHERE code = 'SILO-01' AND (copete_max_height_m IS NULL OR copete_max_height_m = 0.0);
+            UPDATE equipment_silos SET bottom_cone_height_m = 1.75, copete_max_height_m = 0.99 WHERE code = 'SILO-02';
+            UPDATE equipment_silos SET diameter_m = 7.40, sheet_height_m = 0.99, total_sheets = 6, bottom_cone_height_m = 2.00, copete_max_height_m = 2.00, default_ph = 40.0 WHERE code = 'SILO-03';
+            UPDATE equipment_silos SET diameter_m = 7.40, sheet_height_m = 0.99, total_sheets = 6, bottom_cone_height_m = 2.00, copete_max_height_m = 2.00, default_ph = 40.0 WHERE code = 'SILO-04';
+            UPDATE equipment_silos SET diameter_m = 11.50, sheet_height_m = 0.99, total_sheets = 8, bottom_cone_height_m = 1.00, copete_max_height_m = 3.00, default_ph = 40.0 WHERE code = 'SILO-05';
+            UPDATE equipment_silos SET diameter_m = 4.30, sheet_height_m = 0.99, total_sheets = 3, bottom_cone_height_m = 2.50, copete_max_height_m = 0.99, default_ph = 41.5 WHERE code = 'SILO-EXP-V';
+            UPDATE equipment_silos SET diameter_m = 4.30, sheet_height_m = 0.99, total_sheets = 3, bottom_cone_height_m = 1.00, copete_max_height_m = 0.99, default_ph = 41.5 WHERE code = 'SILO-EXP-R';
+        """,
+        'callback': lambda conn: force_recalculate_all_silo_readings(conn)
+    } # Fin migracion 25
 ] # Fin REGISTERED_MIGRATIONS
 
 
@@ -1287,6 +1304,74 @@ def calibrate_silos_and_backfill_readings(conn):
         log_info('MIGRATIONS', 'Migracion v24: Parametros geometricos y cubicajes de silos actualizados exitosamente.')
     except Exception as e:
         log_error('MIGRATIONS', f'Error en calibrate_silos_and_backfill_readings: {e}')
+
+# Recalcula todas las mediciones de silos en inventory_silos para sincronizacion garantizada (migracion 25)
+def force_recalculate_all_silo_readings(conn):
+    try:
+        from modules.calculations.silo_calc import (
+            calculate_silo_total_volume, convert_silo_volume_to_seed_mass, convert_silo_volume_to_expeller_mass
+        )
+        import json
+
+        silos = conn.execute("SELECT * FROM equipment_silos;").fetchall()
+        for silo in silos:
+            s_dict = dict(silo)
+            s_id = s_dict['id']
+            d_m = float(s_dict['diameter_m'])
+            sh_h = float(s_dict['sheet_height_m'] or 0.99)
+            cone_h = float(s_dict['bottom_cone_height_m'] or 0.0)
+            cone_type = s_dict.get('bottom_cone_type') or 'cone'
+            min_diam = float(s_dict.get('bottom_cone_min_diam_m') or 0.0)
+            product = s_dict.get('product_assigned', 'girasol')
+            def_ph = float(s_dict.get('default_ph') or (40.0 if product == 'girasol' else 41.5))
+
+            # Consulta TODAS las mediciones de este silo para recalcularlas
+            readings = conn.execute("SELECT * FROM inventory_silos WHERE silo_id = ? ORDER BY id ASC;", (s_id,)).fetchall()
+            for r in readings:
+                r_dict = dict(r)
+                cov_sheets = float(r_dict.get('covered_sheets') or 0.0)
+                part_h = float(r_dict.get('partial_sheet_height_m') or 0.0)
+                cone_st = r_dict.get('cone_occupied_status') or 'lleno'
+                cop_h = float(r_dict.get('copete_height_m') or 0.0)
+
+                vol_breakdown = calculate_silo_total_volume(
+                    d_m, sh_h, cov_sheets, part_h,
+                    cone_h, cone_type, min_diam, cone_st, cop_h
+                )
+                tot_vol = vol_breakdown['total_volume_m3']
+
+                # Factor de densidad
+                ph_used = float(r_dict.get('ph_applied') or def_ph)
+                if product == 'expeller':
+                    # Si el ph_applied anterior era el desactualizado (22.0), corregirlo a 41.5
+                    if ph_used <= 25.0:
+                        ph_used = 41.5
+                    density = ph_used * 10.0 if ph_used < 100.0 else ph_used
+                    mass_info = convert_silo_volume_to_expeller_mass(tot_vol, bulk_density_kg_m3=density)
+                else:
+                    mass_info = convert_silo_volume_to_seed_mass(tot_vol, hectolitric_weight_kg_hl=ph_used)
+
+                snapshot = json.dumps({
+                    'silo_code': s_dict['code'],
+                    'silo_name': s_dict['name'],
+                    'diameter_m': d_m,
+                    'sheet_height_m': sh_h,
+                    'cone_height_m': cone_h,
+                    'ph_applied': ph_used,
+                    'vol_breakdown': vol_breakdown,
+                    'recalculated_by_migration': 'v25'
+                })
+
+                conn.execute("""
+                    UPDATE inventory_silos
+                    SET volume_m3 = ?, stock_kg = ?, ph_applied = ?, params_snapshot = ?
+                    WHERE id = ?;
+                """, (tot_vol, mass_info['total_mass_kg'], ph_used, snapshot, r_dict['id']))
+
+        conn.commit()
+        log_info('MIGRATIONS', 'Migracion v25: Recalculo integral de todos los silos completado exitosamente.')
+    except Exception as e:
+        log_error('MIGRATIONS', f'Error en force_recalculate_all_silo_readings: {e}')
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

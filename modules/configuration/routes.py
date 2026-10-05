@@ -105,7 +105,21 @@ def update_silo(silo_id):
         # Notifica error
         flash(f'Error al actualizar silo: {str(e)}', 'danger')
     # Redirige a la pantalla de configuracion
-    return redirect(url_for('config.index'))
+    return redirect(url_for('config.index') + f'#silo-row-{silo_id}')
+
+# Endpoint para recalcular masivamente todas las mediciones de silos
+@config_bp.route('/silo/recalculate-all', methods=['POST'])
+@roles_required('admin_sistema', 'administrador')
+def recalculate_all_silos_route():
+    try:
+        from modules.configuration.service import recalculate_all_silos
+        recalculate_all_silos()
+        record_audit_event('CONFIGURACION', 'RECALCULAR_SILOS', "Recálculo masivo de existencias de silos ejecutado con parámetros maestros actuales.")
+        flash('Todas las mediciones de silos fueron recalculadas exitosamente con los parámetros geométricos y densidades actuales.', 'success')
+    except Exception as e:
+        log_error('CONFIG_ROUTE', 'Error al recalcular mediciones de silos', e)
+        flash(f'Error al recalcular mediciones: {str(e)}', 'danger')
+    return redirect(url_for('config.index') + '#silos-config')
 
 # Endpoint para cambiar el turno activo
 @config_bp.route('/shift/change', methods=['POST'])

@@ -24,8 +24,12 @@
     <meta name="apple-mobile-web-app-title" content="BioBalcarce">
     <!-- Icono de inicio para dispositivos Apple iOS -->
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/pwa_icon_192.png') }}">
+    <!-- Cabeceras HTTP para impedir cache estancado en navegadores moviles y desktop -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <!-- Vinculo a la hoja de estilos CSS propia (con versionado para invalidar cache del navegador) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=2.8">
 
 
 
@@ -57,7 +61,7 @@
             <a href="{{ url_for('laboratory.index') }}" class="nav-item">🧪 Laboratorio</a>
             <a href="{{ url_for('maintenance.index') }}" class="nav-item" style="color: #f59e0b; font-weight: 600;">🔧 Mantenimiento</a>
             <a href="{{ url_for('yield.index') }}" class="nav-item">📈 Rendimiento</a>
-            <a href="{{ url_for('config.index') }}" class="nav-item">⚙️ Equipos</a>
+            <a href="{{ url_for('config.index') }}" class="nav-item" title="Configuración y Calibración Geométrica de Silos y Tanques">⚙️ Equipos / Calibración</a>
             <a href="{{ url_for('admin.users_list') }}" class="nav-item" style="color: #60a5fa; font-weight: 600;">👥 Usuarios</a>
             <a href="{{ url_for('admin.audit_view') }}" class="nav-item" style="color: #34d399;">📋 Auditoría</a>
             <a href="{{ url_for('admin.errors_view') }}" class="nav-item" style="color: #f87171;">⚠️ Errores</a>
@@ -86,6 +90,9 @@
             {% endif %}
             {% if has_module_access(g.user, 'shifts') %}
             <a href="{{ url_for('dashboard.shifts') }}" class="nav-item">🔄 Guardias</a>
+            {% endif %}
+            {% if g.user.role in ('administrador', 'admin_sistema') or has_module_access(g.user, 'config') %}
+            <a href="{{ url_for('config.index') }}" class="nav-item" title="Configuración y Calibración Geométrica de Silos y Tanques">⚙️ Equipos / Calibración</a>
             {% endif %}
             {% endif %}
 
@@ -225,8 +232,11 @@
             window.addEventListener('load', function() {
                 // Registra sw.js con alcance general
                 navigator.serviceWorker.register('/sw.js')
-                    // Notifica en consola el registro exitoso
-                    .then(function(reg) { console.log('Service Worker PWA registrado:', reg.scope); })
+                    // Notifica en consola el registro exitoso y fuerza actualizacion
+                    .then(function(reg) {
+                        console.log('Service Worker PWA registrado:', reg.scope);
+                        try { reg.update(); } catch(e) {}
+                    })
                     // Registra advertencia si el navegador bloquea la operacion
                     .catch(function(err) { console.warn('Error al registrar Service Worker PWA:', err); });
             });

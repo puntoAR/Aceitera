@@ -148,6 +148,15 @@ def recalculate_silo_latest_reading(silo_id, conn=None):
         with get_db_connection() as c:
             _do_recalc(c)
 
+# Recalcula todas las mediciones de todos los silos con sus parametros actuales
+def recalculate_all_silos(conn=None):
+    from core.migrations import force_recalculate_all_silo_readings
+    if conn is not None:
+        force_recalculate_all_silo_readings(conn)
+    else:
+        with get_db_connection() as c:
+            force_recalculate_all_silo_readings(c)
+
 # Actualiza las dimensiones y parametros de calibracion de un silo
 def update_silo_config(silo_id, name, product_assigned, diameter_m, sheet_height_m, total_sheets,
                        bottom_cone_height_m, bottom_cone_type, min_diam_m, copete_max_height_m, default_ph, is_active=1):

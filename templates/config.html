@@ -98,6 +98,13 @@
                 Permite calibrar dimensiones de conos, copetes, virolas y factores de densidad de grano o expeller. Al guardar, el sistema <strong>recalcula automáticamente</strong> las existencias activas del dashboard.
             </p>
         </div>
+        {% if g.user and g.user.role in ('admin_sistema', 'administrador') %}
+        <form action="{{ url_for('config.recalculate_all_silos_route') }}" method="POST" style="margin: 0;" onsubmit="return confirm('¿Recalcular todas las mediciones registradas de silos usando los parámetros maestros configurados en esta tabla?');">
+            <button type="submit" class="btn" style="background: #15803d; color: #ffffff; font-size: 0.82rem; padding: 0.45rem 0.9rem; font-weight: 700; border-radius: 0.375rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                🔄 Recalcular Todos los Cubicajes
+            </button>
+        </form>
+        {% endif %}
     </div>
 
     <!-- Banner explicativo de calibracion y formulas de planta -->

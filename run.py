@@ -177,6 +177,16 @@ def serve_maintenance_upload(filename): # Manejador de la peticion
     except Exception: # En caso de error
         return send_from_directory(MAINTENANCE_UPLOADS_DIR, filename) # Fallback a directorio
 
+# Cabeceras globales para invalidar cache estatico en vistas HTML y APIs en vivo
+@app.after_request
+def add_cache_control_headers(response):
+    # Para cualquier respuesta HTML o JSON, previene cacheo obsoleto en Edge proxies o navegadores
+    if response.mimetype in ('text/html', 'application/json'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 # Inicializa la base de datos y esquemas relacionales al cargar la aplicacion (compatible con Vercel)
 with app.app_context():
     # Bloque protegido para inicializar base de datos sin abortar el contenedor en fallos transitorios

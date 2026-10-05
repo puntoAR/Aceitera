@@ -96,10 +96,14 @@
     <!-- ===================================================================== -->
     <!-- FORMULARIO 2: CUBICAJE DE SILO DE CEREAL / EXPELLER                  -->
     <!-- ===================================================================== -->
-    <div class="form-card" style="margin-bottom: 0;">
-        <h3 style="font-size: 1.15rem; font-weight: 700; color: #15803d; margin-bottom: 1rem;">
-            + Cubicar Silo (Semilla / Expeller)
-        </h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #15803d; margin: 0;">
+                + Cubicar Silo (Semilla / Expeller)
+            </h3>
+            <a href="{{ url_for('config.index') }}#silos-config" class="btn" style="font-size: 0.78rem; padding: 0.3rem 0.7rem; background: #f0fdf4; color: #166534; border: 1px solid #86efac; font-weight: 700; border-radius: 0.35rem; text-decoration: none;" title="Calibrar alturas de conos, copetes y densidad de silos">
+                ⚙️ Calibrar Silos
+            </a>
+        </div>
         <form action="{{ url_for('inventory.add_silo_reading') }}" method="POST">
             <input type="hidden" name="shift_id" value="{{ active_shift.shift_id }}">
             <!-- Operador en linea o usuario logueado en sesion -->

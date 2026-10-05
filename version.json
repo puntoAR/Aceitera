@@ -1,8 +1,9 @@
 {
-  "version": "1.3.1",
+  "version": "1.3.2",
   "release_date": "2026-10-05",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
+    "v1.3.2 - Botones directos de Calibrar Silos en encabezado de Dashboard, tarjetas y formulario de Cubicaje; migración v25 con recálculo integral forzado de todas las mediciones registradas; nuevo botón de recálculo masivo; invalidación de caché PWA v1.3.2 y cabeceras anti-caché",
     "v1.3.1 - Calibración técnica de silos (Silo 3 y 4: cono 2.00m, copete 2.00m; Silo Verde: cono 2.50m; Chapa Rota: cono 1.00m), densidad real de expeller (415 kg/m3 para 24-25 Tn), botón de calibración en dashboard y panel completo de configuración de parámetros de silos con recálculo automático",
     "v1.0.0 - Base modular inicial",
     "v1.0.1 - Calibracion geometrica de silos y tanques",
