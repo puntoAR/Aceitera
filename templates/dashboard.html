@@ -1718,16 +1718,23 @@
             <span class="modal-calc-info mobile-hidden" style="font-size: 0.75rem; color: #64748b;">
                 Cálculo: <strong>Chapas (&pi;&middot;r&sup2;&middot;H) + Cono (&pi;&middot;r&sup2;&middot;h/3) + Copete (&pi;&middot;r&sup2;&middot;h/3)</strong>
             </span>
-            <!-- Boton de accion para registrar nuevo cubicaje exclusivo para admin -->
-            {% if g.user and g.user.role == 'admin_sistema' %}
-            <a href="{{ url_for('inventory.index') }}" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
-                + Registrar Cubicaje de Silo
-            </a>
-            {% else %}
-            <span class="modal-read-hint mobile-hidden" style="font-size: 0.75rem; color: #64748b; font-style: italic;">
-                Modo lectura (inspección de silo)
-            </span>
-            {% endif %}
+            <!-- Boton de accion para registrar nuevo cubicaje y calibrar dimensiones -->
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                {% if g.user and g.user.role in ('admin_sistema', 'administrador') %}
+                <a href="{{ url_for('config.index') }}#silo-row-{{ s.id }}" class="btn" style="font-size: 0.8rem; padding: 0.35rem 0.75rem; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;" title="Ajustar alturas de cono, copete, diámetro o densidad">
+                    ⚙️ Calibrar Dimensiones
+                </a>
+                {% endif %}
+                {% if g.user and g.user.role in ('admin_sistema', 'administrador', 'usuario') %}
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
+                    + Registrar Cubicaje de Silo
+                </a>
+                {% else %}
+                <span class="modal-read-hint mobile-hidden" style="font-size: 0.75rem; color: #64748b; font-style: italic;">
+                    Modo lectura (inspección de silo)
+                </span>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

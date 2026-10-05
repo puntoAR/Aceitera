@@ -637,7 +637,26 @@ REGISTERED_MIGRATIONS = [
         """, # Sentencias SQL
         # Callback Python para retro-atribuir muestras de produccion al usuario real
         'callback': lambda conn: backfill_production_operator_attribution(conn) # Callback
-    } # Fin migracion 23
+    }, # Fin migracion 23
+    { # Abre definicion migracion 24
+        # Version 24: Calibracion geometrica y de densidad de silos de planta
+        'version': 24,
+        'name': 'v24_calibrate_silos_geometry_and_expeller_density',
+        'description': 'Calibración de altura de cono (2.00m) y copete (2.00m) en Silo 3 y 4, cono Silo Verde (2.50m) y Chapa Rota (1.00m), y ajuste de densidad aparente real de expeller (415 kg/m3)',
+        'sql': """
+            -- Actualiza Silo 1 con copete maximo de 1.00m
+            UPDATE equipment_silos SET copete_max_height_m = 1.00 WHERE code = 'SILO-01' AND (copete_max_height_m IS NULL OR copete_max_height_m = 0.0);
+            -- Actualiza Silo 3 con dimensiones tecnicas de fabrica
+            UPDATE equipment_silos SET bottom_cone_height_m = 2.00, copete_max_height_m = 2.00 WHERE code = 'SILO-03';
+            -- Actualiza Silo 4 con dimensiones tecnicas de fabrica
+            UPDATE equipment_silos SET bottom_cone_height_m = 2.00, copete_max_height_m = 2.00 WHERE code = 'SILO-04';
+            -- Actualiza Silo Aereo Verde con cono real de 2.50m y densidad de expeller de 415 kg/m3 (PH 41.5)
+            UPDATE equipment_silos SET bottom_cone_height_m = 2.50, default_ph = 41.5 WHERE code = 'SILO-EXP-V';
+            -- Actualiza Silo Aereo Chapa Rota con cono real de 1.00m y densidad de expeller de 415 kg/m3 (PH 41.5)
+            UPDATE equipment_silos SET bottom_cone_height_m = 1.00, default_ph = 41.5 WHERE code = 'SILO-EXP-R';
+        """,
+        'callback': lambda conn: calibrate_silos_and_backfill_readings(conn)
+    } # Fin migracion 24
 ] # Fin REGISTERED_MIGRATIONS
 
 
@@ -1191,6 +1210,83 @@ def backfill_production_operator_attribution(conn): # Define funcion de retro-at
         log_info('MIGRATIONS', f'Migracion v23: Muestras y paradas retro-atribuidas exitosamente a {target_name}.') # Informa exito
     except Exception as e: # Captura general
         log_error('MIGRATIONS', f'Error en backfill_production_operator_attribution: {e}') # Registra error
+
+# Funcion de calibracion geometrica y recalculacion de stock de silos para migracion 24
+def calibrate_silos_and_backfill_readings(conn):
+    try:
+        from modules.calculations.silo_calc import (
+            calculate_silo_total_volume, convert_silo_volume_to_seed_mass, convert_silo_volume_to_expeller_mass
+        )
+        import json
+
+        # 1. Asegura que los parametros maestros esten fijados
+        conn.execute("UPDATE equipment_silos SET bottom_cone_height_m = 2.00, copete_max_height_m = 2.00 WHERE code = 'SILO-03';")
+        conn.execute("UPDATE equipment_silos SET bottom_cone_height_m = 2.00, copete_max_height_m = 2.00 WHERE code = 'SILO-04';")
+        conn.execute("UPDATE equipment_silos SET bottom_cone_height_m = 2.50, default_ph = 41.5 WHERE code = 'SILO-EXP-V';")
+        conn.execute("UPDATE equipment_silos SET bottom_cone_height_m = 1.00, default_ph = 41.5 WHERE code = 'SILO-EXP-R';")
+
+        # 2. Recalcula las mediciones en inventory_silos para los silos calibrados
+        target_codes = ('SILO-03', 'SILO-04', 'SILO-EXP-V', 'SILO-EXP-R')
+        for code in target_codes:
+            silo = conn.execute("SELECT * FROM equipment_silos WHERE code = ?;", (code,)).fetchone()
+            if not silo:
+                continue
+            silo_dict = dict(silo)
+            d_m = float(silo_dict['diameter_m'])
+            sh_h = float(silo_dict['sheet_height_m'] or 0.99)
+            cone_h = float(silo_dict['bottom_cone_height_m'] or 0.0)
+            cone_type = silo_dict.get('bottom_cone_type') or 'cone'
+            min_diam = float(silo_dict.get('bottom_cone_min_diam_m') or 0.0)
+            product = silo_dict.get('product_assigned', 'girasol')
+            ph_val = float(silo_dict.get('default_ph') or (40.0 if product == 'girasol' else 41.5))
+
+            # Busca la ultima medicion de este silo
+            last_meas = conn.execute("""
+                SELECT * FROM inventory_silos
+                WHERE silo_id = ?
+                ORDER BY timestamp DESC, id DESC
+                LIMIT 1;
+            """, (silo_dict['id'],)).fetchone()
+
+            if last_meas:
+                m_dict = dict(last_meas)
+                cov_sheets = float(m_dict.get('covered_sheets') or 0.0)
+                part_h = float(m_dict.get('partial_sheet_height_m') or 0.0)
+                cone_st = m_dict.get('cone_occupied_status') or 'lleno'
+                cop_h = float(m_dict.get('copete_height_m') or 0.0)
+
+                vol_breakdown = calculate_silo_total_volume(
+                    d_m, sh_h, cov_sheets, part_h,
+                    cone_h, cone_type, min_diam, cone_st, cop_h
+                )
+                tot_vol = vol_breakdown['total_volume_m3']
+
+                if product == 'expeller':
+                    mass_info = convert_silo_volume_to_expeller_mass(tot_vol, bulk_density_kg_m3=ph_val * 10.0)
+                else:
+                    mass_info = convert_silo_volume_to_seed_mass(tot_vol, hectolitric_weight_kg_hl=ph_val)
+
+                new_snapshot = json.dumps({
+                    'silo_code': silo_dict['code'],
+                    'silo_name': silo_dict['name'],
+                    'diameter_m': d_m,
+                    'sheet_height_m': sh_h,
+                    'cone_height_m': cone_h,
+                    'ph_applied': ph_val,
+                    'vol_breakdown': vol_breakdown,
+                    'recalculated_by_migration': 'v24'
+                })
+
+                conn.execute("""
+                    UPDATE inventory_silos
+                    SET volume_m3 = ?, stock_kg = ?, ph_applied = ?, params_snapshot = ?
+                    WHERE id = ?;
+                """, (tot_vol, mass_info['total_mass_kg'], ph_val, new_snapshot, m_dict['id']))
+
+        conn.commit()
+        log_info('MIGRATIONS', 'Migracion v24: Parametros geometricos y cubicajes de silos actualizados exitosamente.')
+    except Exception as e:
+        log_error('MIGRATIONS', f'Error en calibrate_silos_and_backfill_readings: {e}')
 
 # Ejecuta una migracion especifica de forma segura
 def apply_single_migration(migration):

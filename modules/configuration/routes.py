@@ -22,7 +22,7 @@ config_bp = Blueprint('config', __name__, url_prefix='/config')
 
 # Vista principal para visualizar y editar la configuracion de equipos y parametros
 @config_bp.route('/', methods=['GET'])
-@roles_required('admin_sistema')
+@roles_required('admin_sistema', 'administrador')
 def index():
     # Obtiene todos los tanques registrados
     tanks = get_all_tanks(only_active=False)
@@ -37,7 +37,7 @@ def index():
 
 # Endpoint para actualizar la geometria de un tanque
 @config_bp.route('/tank/<int:tank_id>', methods=['POST'])
-@roles_required('admin_sistema')
+@roles_required('admin_sistema', 'administrador')
 def update_tank(tank_id):
     # Bloque de captura de excepciones para manejo seguro
     try:
@@ -71,7 +71,7 @@ def update_tank(tank_id):
 
 # Endpoint para actualizar la configuracion de un silo
 @config_bp.route('/silo/<int:silo_id>', methods=['POST'])
-@roles_required('admin_sistema')
+@roles_required('admin_sistema', 'administrador')
 def update_silo(silo_id):
     # Bloque para captura de excepciones
     try:

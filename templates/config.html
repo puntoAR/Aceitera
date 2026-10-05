@@ -82,57 +82,117 @@
 <!-- ========================================================================= -->
 <!-- CONFIGURACION DE SILOS DE CEREAL Y EXPELLER                              -->
 <!-- ========================================================================= -->
-<div class="form-card">
-    <h3 style="font-size: 1.2rem; font-weight: 700; color: #15803d; margin-bottom: 1rem;">
-        Silos de Semilla y Expeller (Geometría y Chapas)
-    </h3>
+<div class="form-card" id="silos-config" style="margin-top: 2rem; border-top: 4px solid #15803d; background: #ffffff;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-size: 1.4rem;">🌾</span>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #15803d; margin: 0;">
+                    Silos de Semilla y Expeller (Geometría, Tolvas y Densidad)
+                </h3>
+                <span style="background: #dcfce7; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 9999px;">
+                    Calibración de Capacidad
+                </span>
+            </div>
+            <p style="color: #64748b; font-size: 0.85rem; margin: 0.35rem 0 0 0;">
+                Permite calibrar dimensiones de conos, copetes, virolas y factores de densidad de grano o expeller. Al guardar, el sistema <strong>recalcula automáticamente</strong> las existencias activas del dashboard.
+            </p>
+        </div>
+    </div>
+
+    <!-- Banner explicativo de calibracion y formulas de planta -->
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.6rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.82rem; color: #166534; line-height: 1.5;">
+        <div style="font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
+            <span>📐</span> Guía de Parámetros de Calibración:
+        </div>
+        <ul style="margin: 0; padding-left: 1.25rem;">
+            <li><strong>Diámetro ($\varnothing$) y H. Chapa:</strong> Definen el cuerpo cilíndrico ($\pi \cdot r^2 \cdot H$). Virola estándar de planta = 0.99 m.</li>
+            <li><strong>H. Cono / Tolva:</strong> Altura vertical del cono de descarga (m). Silos 1, 2, 3, 4 y aéreos poseen tolva cónica activa.</li>
+            <li><strong>Tipo de Cono & Descarga:</strong> <em>Cónico completo</em> o <em>Tronco de cono</em> (especificar diámetro de boca inferior si aplica).</li>
+            <li><strong>Copete Máximo:</strong> Altura vertical máxima del cono del techo superior; restringe cotas excesivas en mediciones operativas.</li>
+            <li><strong>Factor Densidad / PH Ref:</strong>
+                Para <strong>Semilla</strong> representa el Peso Hectolítrico (ej. <code>40.0</code> kg/hl = 0.40 Tn/m³ = 400 kg/m³).
+                Para <strong>Expeller</strong> representa la densidad aparente dividida 10 (ej. <code>41.5</code> = 0.415 Tn/m³ = 415 kg/m³; capacidad real Silo Aéreo = 24-25 Tn).
+            </li>
+        </ul>
+    </div>
+
     <div class="table-responsive">
-        <table class="table">
+        <table class="table" style="font-size: 0.85rem;">
             <thead>
                 <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Producto</th>
-                    <th>Diámetro (m)</th>
-                    <th>H. Chapa (m)</th>
-                    <th>Chapas Tot.</th>
-                    <th>H. Cono (m)</th>
-                    <th>H. Copete (m)</th>
-                    <th>PH Ref</th>
-                    <th>Estado</th>
-                    <th>Versión</th>
-                    <th>Acción</th>
+                    <th style="min-width: 90px;">Código</th>
+                    <th style="min-width: 150px;">Nombre Silo</th>
+                    <th style="min-width: 110px;">Producto</th>
+                    <th style="min-width: 80px;" title="Diámetro interior del cilindro en metros">Ø Diám. (m)</th>
+                    <th style="min-width: 75px;" title="Altura unitaria de cada chapa/virola">H. Chapa</th>
+                    <th style="min-width: 65px;" title="Cantidad total de chapas de altura">Chapas</th>
+                    <th style="min-width: 80px;" title="Altura vertical del cono inferior en metros">H. Cono (m)</th>
+                    <th style="min-width: 130px;" title="Tipo de cono y diámetro de boca de descarga inferior">Geometría Cono</th>
+                    <th style="min-width: 85px;" title="Altura máxima permitida del copete superior">Máx Copete</th>
+                    <th style="min-width: 95px;" title="Peso Hectolítrico o Densidad / 10">Dens. / PH</th>
+                    <th style="min-width: 85px;">Estado</th>
+                    <th style="min-width: 50px;">Ver.</th>
+                    <th style="min-width: 80px;">Acción</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in silos %}
-                <tr>
+                <tr id="silo-row-{{ s.id }}">
                     <form action="{{ url_for('config.update_silo', silo_id=s.id) }}" method="POST">
-                        <td><strong>{{ s.code }}</strong></td>
-                        <td><input class="form-input" style="padding: 0.3rem;" type="text" name="name" value="{{ s.name }}" required></td>
                         <td>
-                            <select class="form-select" style="padding: 0.3rem;" name="product_assigned">
-                                <option value="girasol" {% if s.product_assigned == 'girasol' %}selected{% endif %}>Girasol</option>
-                                <option value="soja" {% if s.product_assigned == 'soja' %}selected{% endif %}>Soja</option>
-                                <option value="expeller" {% if s.product_assigned == 'expeller' %}selected{% endif %}>Expeller</option>
+                            <strong style="color: #0f172a;">{{ s.code }}</strong>
+                        </td>
+                        <td>
+                            <input class="form-input" style="padding: 0.35rem 0.5rem; font-size: 0.82rem;" type="text" name="name" value="{{ s.name }}" required>
+                        </td>
+                        <td>
+                            <select class="form-select" style="padding: 0.35rem 0.4rem; font-size: 0.82rem;" name="product_assigned">
+                                <option value="girasol" {% if s.product_assigned == 'girasol' %}selected{% endif %}>Girasol (Semilla)</option>
+                                <option value="soja" {% if s.product_assigned == 'soja' %}selected{% endif %}>Soja (Semilla)</option>
+                                <option value="expeller" {% if s.product_assigned == 'expeller' %}selected{% endif %}>Expeller Girasol</option>
                             </select>
                         </td>
-                        <td><input class="form-input" style="width: 70px; padding: 0.3rem;" type="number" step="0.01" name="diameter_m" value="{{ s.diameter_m }}" required></td>
-                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="sheet_height_m" value="{{ s.sheet_height_m }}" required></td>
-                        <td><input class="form-input" style="width: 55px; padding: 0.3rem;" type="number" step="1" name="total_sheets" value="{{ s.total_sheets }}" required></td>
-                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="bottom_cone_height_m" value="{{ s.bottom_cone_height_m }}" required></td>
-                        <td><input class="form-input" style="width: 65px; padding: 0.3rem;" type="number" step="0.01" name="copete_max_height_m" value="{{ s.copete_max_height_m }}"></td>
-                        <td><input class="form-input" style="width: 60px; padding: 0.3rem;" type="number" step="0.1" name="default_ph" value="{{ s.default_ph }}"></td>
                         <td>
-                            <select class="form-select" style="padding: 0.3rem; font-size: 0.8rem; width: 85px;" name="is_active">
+                            <input class="form-input" style="width: 75px; padding: 0.35rem 0.4rem; font-size: 0.82rem;" type="number" step="0.01" min="0.1" name="diameter_m" value="{{ s.diameter_m }}" title="Diámetro interior (m)" required>
+                        </td>
+                        <td>
+                            <input class="form-input" style="width: 70px; padding: 0.35rem 0.4rem; font-size: 0.82rem;" type="number" step="0.01" min="0.1" name="sheet_height_m" value="{{ s.sheet_height_m }}" title="Altura de virola/chapa (m)" required>
+                        </td>
+                        <td>
+                            <input class="form-input" style="width: 60px; padding: 0.35rem 0.4rem; font-size: 0.82rem;" type="number" step="1" min="1" max="50" name="total_sheets" value="{{ s.total_sheets }}" title="Cantidad total de chapas" required>
+                        </td>
+                        <td>
+                            <input class="form-input" style="width: 75px; padding: 0.35rem 0.4rem; font-size: 0.82rem;" type="number" step="0.01" min="0.0" name="bottom_cone_height_m" value="{{ s.bottom_cone_height_m }}" title="Altura cono inferior (m)" required>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                <select class="form-select" style="padding: 0.25rem 0.35rem; font-size: 0.76rem;" name="bottom_cone_type">
+                                    <option value="cone" {% if s.bottom_cone_type != 'frustum' %}selected{% endif %}>Cónico Regular</option>
+                                    <option value="frustum" {% if s.bottom_cone_type == 'frustum' %}selected{% endif %}>Tronco de Cono</option>
+                                </select>
+                                <div style="display: flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; color: #64748b;">
+                                    <span>Boca:</span>
+                                    <input class="form-input" style="width: 60px; padding: 0.2rem 0.3rem; font-size: 0.75rem;" type="number" step="0.01" min="0.0" name="bottom_cone_min_diam_m" value="{{ s.bottom_cone_min_diam_m or 0.0 }}" placeholder="0.00m" title="Diámetro boca de descarga inferior (m)">
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <input class="form-input" style="width: 75px; padding: 0.35rem 0.4rem; font-size: 0.82rem;" type="number" step="0.01" min="0.0" name="copete_max_height_m" value="{{ s.copete_max_height_m }}" title="Altura máxima de copete superior (m)">
+                        </td>
+                        <td>
+                            <input class="form-input" style="width: 80px; padding: 0.35rem 0.4rem; font-size: 0.82rem; font-weight: 700; color: #166534;" type="number" step="0.1" min="1.0" name="default_ph" value="{{ s.default_ph }}" title="Semilla: kg/hl (40=400kg/m3) | Expeller: Densidad/10 (41.5=415kg/m3)">
+                        </td>
+                        <td>
+                            <select class="form-select" style="padding: 0.35rem 0.4rem; font-size: 0.78rem; width: 80px;" name="is_active">
                                 <option value="1" {% if s.is_active == 1 %}selected{% endif %}>Activo</option>
                                 <option value="0" {% if s.is_active == 0 %}selected{% endif %}>Inactivo</option>
                             </select>
                         </td>
-                        <td>v{{ s.version }}</td>
+                        <td style="color: #64748b; font-size: 0.78rem;">v{{ s.version }}</td>
                         <td>
-                            <button type="submit" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
-                                Guardar
+                            <button type="submit" class="btn btn-success" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 700;" title="Guardar calibración y recalcular stock">
+                                💾 Guardar
                             </button>
                         </td>
                     </form>

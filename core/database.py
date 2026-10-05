@@ -860,30 +860,30 @@ def seed_initial_data():
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
             VALUES ('SILO-02', 'Silo 2 Semilla Girasol', 'girasol', 5.00, 0.99, 6, 1.75, 'cone', 0.99, 40.0);
             """)
-            # Silo 3: Radio 3.70m (D=7.40m), Hchapa 0.99m, Cono H=0.50m, Copete H=0.99m, Chapas 6
+            # Silo 3: Radio 3.70m (D=7.40m), Hchapa 0.99m, Cono H=2.00m, Copete H=2.00m, Chapas 6
             conn.execute("""
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
-            VALUES ('SILO-03', 'Silo 3 Semilla Girasol', 'girasol', 7.40, 0.99, 6, 0.50, 'cone', 0.99, 40.0);
+            VALUES ('SILO-03', 'Silo 3 Semilla Girasol', 'girasol', 7.40, 0.99, 6, 2.00, 'cone', 2.00, 40.0);
             """)
-            # Silo 4: Radio 3.70m (D=7.40m), Hchapa 0.99m, Cono H=4.00m, Copete H=0.99m, Chapas 6
+            # Silo 4: Radio 3.70m (D=7.40m), Hchapa 0.99m, Cono H=2.00m, Copete H=2.00m, Chapas 6
             conn.execute("""
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
-            VALUES ('SILO-04', 'Silo 4 Semilla Girasol', 'girasol', 7.40, 0.99, 6, 4.00, 'cone', 0.99, 40.0);
+            VALUES ('SILO-04', 'Silo 4 Semilla Girasol', 'girasol', 7.40, 0.99, 6, 2.00, 'cone', 2.00, 40.0);
             """)
             # Silo 5: Radio 5.75m (D=11.50m), Hchapa 0.99m, Cono H=1.00m, Copete H=3.00m, Chapas 8
             conn.execute("""
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
             VALUES ('SILO-05', 'Silo 5 Semilla Girasol', 'girasol', 11.50, 0.99, 8, 1.00, 'cone', 3.00, 40.0);
             """)
-            # Silo Aereo Verde: Dedicado para expeller D=4.30m, 3 chapas
+            # Silo Aereo Verde: Dedicado para expeller D=4.30m, 3 chapas, Cono H=2.50m, Copete H=0.99m, Densidad 415 kg/m3 (PH equiv. 41.5)
             conn.execute("""
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
-            VALUES ('SILO-EXP-V', 'Silo Aereo Verde (Expeller)', 'expeller', 4.30, 0.99, 3, 2.40, 'cone', 0.99, 22.0);
+            VALUES ('SILO-EXP-V', 'Silo Aereo Verde (Expeller)', 'expeller', 4.30, 0.99, 3, 2.50, 'cone', 0.99, 41.5);
             """)
-            # Silo Aereo Chapa Rota: Dedicado para expeller D=4.30m, 3 chapas
+            # Silo Aereo Chapa Rota: Dedicado para expeller D=4.30m, 3 chapas, Cono H=1.00m, Copete H=0.99m, Densidad 415 kg/m3 (PH equiv. 41.5)
             conn.execute("""
             INSERT INTO equipment_silos (code, name, product_assigned, diameter_m, sheet_height_m, total_sheets, bottom_cone_height_m, bottom_cone_type, copete_max_height_m, default_ph)
-            VALUES ('SILO-EXP-R', 'Silo Aereo Chapa Rota (Expeller)', 'expeller', 4.30, 0.99, 3, 2.40, 'cone', 0.99, 22.0);
+            VALUES ('SILO-EXP-R', 'Silo Aereo Chapa Rota (Expeller)', 'expeller', 4.30, 0.99, 3, 1.00, 'cone', 0.99, 41.5);
             """)
             # Confirma la insercion de los silos
             conn.commit()
