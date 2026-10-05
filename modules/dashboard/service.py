@@ -101,13 +101,10 @@ def get_shift_and_daily_performance(target_date=None, selected_shifts=None):
         # Agrega la fecha de la muestra al conjunto de fechas con datos
         dates_with_data.add(l['_op_date'])
 
-    if target_date:
-        active_op_date = target_date
-    elif current_op_date in dates_with_data:
-        active_op_date = current_op_date
-    elif dates_with_data:
-        active_op_date = sorted(list(dates_with_data), reverse=True)[0]
+    if target_date and str(target_date).strip():
+        active_op_date = str(target_date).strip()
     else:
+        # Por defecto SIEMPRE debe mostrar el dia en curso oficial de la planta
         active_op_date = current_op_date
 
     day_weighings = [w for w in weighings_rows if w.get('_op_date') == active_op_date]
@@ -293,14 +290,15 @@ def get_shift_and_daily_performance(target_date=None, selected_shifts=None):
     }
 
 # Genera el resumen consolidado ejecutivo de la planta en un golpe de vista
-def get_executive_dashboard_data(selected_shifts=None):
+def get_executive_dashboard_data(selected_shifts=None, target_date=None):
     # Obtiene existencias totales de los 3 stocks clave
     stocks = get_total_plant_stocks()
     # Obtiene datos del turno activo y guardia en marcha
     active_shift = get_active_shift()
 
-    # Obtiene metricas por franja horaria, comparativo de turnos y promedio del dia
-    shift_performance = get_shift_and_daily_performance(selected_shifts=selected_shifts)
+    # Obtiene metricas por franja horaria, comparativo de turnos y promedio del dia (por defecto el dia en curso)
+    shift_performance = get_shift_and_daily_performance(target_date=target_date, selected_shifts=selected_shifts)
+    active_op_date = shift_performance['operational_date']
 
     # Si hay pesadas computadas en el scope seleccionado, las usa para los pilares del cockpit
     if (shift_performance['consolidated_speed']['seed_sample_count'] > 0 or 
@@ -310,20 +308,37 @@ def get_executive_dashboard_data(selected_shifts=None):
         # Fallback al resumen del turno activo si la fecha operativa actual aún no contiene pesadas
         speed_summary = get_shift_speed_summary(active_shift['shift_id'])
 
-    # Obtiene las ultimas pesadas para la curva cronologica del grafico
-    recent_weighings = get_recent_weighings(shift_id=active_shift['shift_id'], limit=12)
-    chronological_weighings = list(reversed(recent_weighings))
+    # Obtiene EXCLUSIVAMENTE las pesadas de la jornada en curso para la curva cronologica del grafico y mini-tabla
+    with get_db_connection() as conn:
+        day_rows = conn.execute("""
+            SELECT * FROM production_weighings
+            WHERE COALESCE(sample_date, date(timestamp)) = ?
+            ORDER BY timestamp ASC;
+        """, (active_op_date,)).fetchall()
+        day_weighings_all = [dict(r) for r in day_rows]
+
+    # Filtra por turnos seleccionados si no es 'all'
+    if shift_performance['is_all_selected']:
+        day_weighings = day_weighings_all
+    else:
+        sel_set = set(shift_performance['selected_shifts'])
+        day_weighings = [w for w in day_weighings_all if w.get('shift_id') in sel_set]
+
     chart_labels = []
     seed_chart_data = []
     expeller_chart_data = []
-    for w in chronological_weighings:
-        time_part = w['timestamp'].split(' ')[-1][:5]
-        if time_part not in chart_labels:
+    for w in day_weighings:
+        ts = w.get('timestamp', '')
+        time_part = ts.split(' ')[-1][:5] if ' ' in ts else ts[:5]
+        if time_part and time_part not in chart_labels:
             chart_labels.append(time_part)
-        if w['sample_point'] == 'ingreso_semilla':
-            seed_chart_data.append({'time': time_part, 'speed': w['speed_kg_h']})
+        if w.get('sample_point') == 'ingreso_semilla':
+            seed_chart_data.append({'time': time_part, 'speed': w.get('speed_kg_h', 0.0)})
         else:
-            expeller_chart_data.append({'time': time_part, 'speed': w['speed_kg_h']})
+            expeller_chart_data.append({'time': time_part, 'speed': w.get('speed_kg_h', 0.0)})
+
+    # Mini-tabla de ultimos muestreos de linea del dia en curso (los mas recientes primero)
+    recent_day_weighings = list(reversed(day_weighings))
 
     latest_yield = get_latest_reconciliation()
     # Genera el dato de eficiencia y rendimiento en forma automatica a partir de la informacion registrada en el sistema
@@ -378,7 +393,7 @@ def get_executive_dashboard_data(selected_shifts=None):
         'chart_labels': chart_labels,
         'seed_chart_data': seed_chart_data,
         'expeller_chart_data': expeller_chart_data,
-        'recent_weighings': recent_weighings[:8],
+        'recent_weighings': recent_day_weighings[:8],
         'latest_yield': latest_yield,
         # Eficiencia automatica calculada en tiempo real
         'auto_efficiency': auto_efficiency,
@@ -387,7 +402,8 @@ def get_executive_dashboard_data(selected_shifts=None):
         # Historial de balances de masa y rendimiento
         'yield_history': yield_history,
         'all_recent_weighings': all_recent_weighings, # Historial de pesadas
-        'maintenance_kpis': maintenance_kpis # KPIs de mantenimiento
+        'maintenance_kpis': maintenance_kpis, # KPIs de mantenimiento
+        'operational_date': active_op_date # Fecha operativa activa (dia en curso)
     } # Fin del diccionario de dashboard
 
 # Alias retrocompatible para comparativo de turnos en el dashboard

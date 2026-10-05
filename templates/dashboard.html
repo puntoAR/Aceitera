@@ -1083,14 +1083,19 @@
                 <!-- Encabezado del grafico de evolucion horaria -->
                 <div class="cockpit-chart-header">
                     <!-- Titulo interactivo con cursor de clic para desplegar historial -->
-                    <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; cursor: pointer;" onclick="openSpeedHistoryModal()" title="Ver historial completo de pesadas y velocidades">
-                        📈 Evolución Horaria de Velocidad <span class="mobile-hidden">(kg/h)</span>
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; cursor: pointer;" onclick="openSpeedHistoryModal()" title="Ver historial completo de pesadas y velocidades">
+                            📈 Evolución Horaria de Velocidad <span class="mobile-hidden">(kg/h)</span>
+                        </span>
+                        <span style="font-size: 0.72rem; font-weight: 600; color: #15803d; background: #dcfce7; padding: 0.12rem 0.5rem; border-radius: 9999px; border: 1px solid #bbf7d0;" title="Mostrando exclusivamente los muestreos de la jornada en curso">
+                            Día en curso: {{ data.shift_performance.operational_date }}
+                        </span>
+                    </div>
                     <!-- Controles de accion rapida -->
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <!-- Acceso interactivo al modal de historial completo sin recargar pantalla -->
                         <button type="button" onclick="openSpeedHistoryModal()" style="background: none; border: none; color: #2563eb; font-weight: 700; cursor: pointer; padding: 0; font-size: 0.72rem;">
-                            📋 Ver Historial
+                            📋 Ver Historial Completo
                         </button>
                         <!-- Acceso rapido a registrar pesada exclusivo para admin -->
                         {% if g.user and g.user.role == 'admin_sistema' %}
@@ -1102,9 +1107,16 @@
                     </div>
                 </div>
                 <!-- Contenedor ajustado a altura fija compacta para evitar scroll con interactividad de clic -->
-                <div class="cockpit-chart-container" onclick="openSpeedHistoryModal()" style="cursor: pointer;" title="Haga clic en el gráfico para inspeccionar el historial completo de pesadas">
+                <div class="cockpit-chart-container" onclick="openSpeedHistoryModal()" style="cursor: pointer; position: relative;" title="Haga clic en el gráfico para inspeccionar el historial completo de pesadas">
                     <!-- Canvas para la libreria Chart.js -->
                     <canvas id="speedChart"></canvas>
+                    {% if not data.chart_labels %}
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); border-radius: 0.375rem; color: #64748b; font-size: 0.8rem; text-align: center; padding: 1rem; pointer-events: none;">
+                        <span style="font-size: 1.3rem; margin-bottom: 0.25rem;">⏱️</span>
+                        <strong>Sin pesadas registradas en el día en curso ({{ data.shift_performance.operational_date }})</strong>
+                        <span style="font-size: 0.7rem; color: #94a3b8; margin-top: 0.2rem;">Haga clic para ver el historial anterior en el modal</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -1155,8 +1167,10 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <!-- Mensaje cuando aun no hay registros -->
-                                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.5rem;">Sin pesadas registradas en el turno.</td>
+                                <!-- Mensaje cuando aun no hay registros en la jornada en curso -->
+                                <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.65rem; font-size: 0.78rem;">
+                                    Sin pesadas registradas en el día en curso ({{ data.shift_performance.operational_date }}).
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -2176,12 +2190,11 @@ document.addEventListener('DOMContentLoaded', () => {
         new Chart(ctx, {
             type: 'line', // Grafico de linea temporal
             data: {
-                // Si no hay etiquetas del turno, provee un rango de referencia
-                labels: labels.length > 0 ? labels : ['06:00', '08:00', '10:00', '12:00', '14:00'],
+                labels: labels,
                 datasets: [
                     {
                         label: 'Ingreso Semilla (kg/h)', // Serie de semilla
-                        data: seedValues.length > 0 ? seedValues : [1800, 1850, 1820, 1900, 1880], // Datos
+                        data: seedValues, // Datos reales del dia en curso
                         borderColor: '#2563eb', // Linea azul vibrante
                         backgroundColor: 'rgba(37, 99, 235, 0.08)', // Area rellena suave
                         tension: 0.3, // Curvatura suave
@@ -2192,7 +2205,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     {
                         label: 'Salida Expeller (kg/h)', // Serie de expeller
-                        data: expellerValues.length > 0 ? expellerValues : [950, 980, 960, 1000, 990], // Datos
+                        data: expellerValues, // Datos reales del dia en curso
                         borderColor: '#d97706', // Linea ambar industrial
                         backgroundColor: 'rgba(217, 119, 6, 0.08)', // Area rellena suave
                         tension: 0.3, // Curvatura

@@ -346,10 +346,12 @@ def change_password():
 def index():
     # Obtiene parametro de turnos seleccionados (ej: 'all', 'TM', 'TT', 'TN', o 'TM,TT')
     shifts_param = request.args.get('shifts', 'all').strip()
-    # Obtiene el paquete completo de datos consolidados segun el filtro de turnos
-    data = get_executive_dashboard_data(selected_shifts=shifts_param)
+    # Obtiene parametro de fecha si se solicita una jornada especifica (por defecto None = dia en curso)
+    date_param = request.args.get('date', '').strip() or None
+    # Obtiene el paquete completo de datos consolidados segun el filtro de turnos y fecha
+    data = get_executive_dashboard_data(selected_shifts=shifts_param, target_date=date_param)
     # Renderiza la plantilla del dashboard
-    return render_template('dashboard.html', data=data, selected_shifts_param=shifts_param)
+    return render_template('dashboard.html', data=data, selected_shifts_param=shifts_param, selected_date_param=date_param)
 
 # Vista de gestion y cambio de turno operativo
 @dashboard_bp.route('/shifts', methods=['GET', 'POST'])
@@ -386,5 +388,6 @@ def shifts():
 def api_kpis():
     # Obtiene parametro de turnos seleccionados
     shifts_param = request.args.get('shifts', 'all').strip()
+    date_param = request.args.get('date', '').strip() or None
     # Retorna los datos ejecutivos en formato JSON
-    return jsonify(get_executive_dashboard_data(selected_shifts=shifts_param))
+    return jsonify(get_executive_dashboard_data(selected_shifts=shifts_param, target_date=date_param))
