@@ -378,6 +378,71 @@ class TestShiftsMaintenanceEdits(unittest.TestCase):
             self.assertIsNotNone(audit_del)
             self.assertIn('Cargado por error', audit_del['details'])
 
+    def test_line_stop_with_comments_service_and_http(self):
+        """Valida que las paradas registren y editen comentarios detallados tanto por servicio como por HTTP."""
+        # 1. Registro por servicio con comentarios
+        comment_text = "Rotura de prensa #2 por cuerpo extraño metálico en zaranda"
+        stop = record_line_stop(
+            shift_id='TM',
+            duration_minutes=45.0,
+            reason='Mantenimiento Mecánico',
+            operator_name='Técnico Juan',
+            comments=comment_text
+        )
+        self.assertEqual(stop['comments'], comment_text)
+        stop_id = stop['id']
+
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+            self.assertEqual(row['comments'], comment_text)
+
+        # 2. Edición por servicio actualizando comentarios
+        new_comment_text = "Rotura de prensa #2 reparada con cambio de tornillo y chaveta"
+        update_line_stop(
+            stop_id=stop_id,
+            duration_minutes=50.0,
+            reason='Mantenimiento Mecánico',
+            edit_reason='Ajuste de detalle técnico',
+            operator_name='Supervisor Mecánica',
+            shift_id='TM',
+            comments=new_comment_text
+        )
+
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT * FROM line_stops WHERE id = ?;", (stop_id,)).fetchone()
+            self.assertEqual(row['comments'], new_comment_text)
+            audit = conn.execute("SELECT * FROM audit_logs WHERE action = 'EDICION_PARADA' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIn(new_comment_text, audit['details'])
+
+        # 3. Registro por endpoint HTTP con comentarios
+        with self.app.session_transaction() as sess:
+            sess['user_id'] = 1
+            sess['username'] = 'admin'
+            sess['role'] = 'admin_sistema'
+            sess['full_name'] = 'Administrador'
+
+        http_comment = "Falla de contactor en tablero principal de prensa #3"
+        res = self.app.post('/production/stop', data={
+            'duration_minutes': '20',
+            'reason': 'Mantenimiento Eléctrico',
+            'shift_id': 'TT',
+            'stop_date': '2026-10-15',
+            'comments': http_comment
+        }, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+
+        with get_db_connection() as conn:
+            http_stop = conn.execute("SELECT * FROM line_stops WHERE reason = 'Mantenimiento Eléctrico' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIsNotNone(http_stop)
+            self.assertEqual(http_stop['comments'], http_comment)
+            audit_stop = conn.execute("SELECT * FROM audit_logs WHERE action = 'PARADA_LINEA' ORDER BY id DESC LIMIT 1;").fetchone()
+            self.assertIn(http_comment, audit_stop['details'])
+
+        # 4. Renderizado en vista HTML
+        resp_view = self.app.get('/production/?all_stops=1')
+        self.assertIn(http_comment, resp_view.get_data(as_text=True))
+        self.assertIn("💬 Detalle:", resp_view.get_data(as_text=True))
+
     def test_weighing_delete_with_audit(self):
         """Valida la eliminación de pesadas de producción con registro en bitácora de auditoría."""
         w = record_weighing(shift_id='TM', operator_name='Op', sample_point='salida_expeller',

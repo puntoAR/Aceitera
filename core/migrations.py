@@ -686,7 +686,16 @@ REGISTERED_MIGRATIONS = [
               AND (time(timestamp) >= '14:00:00' OR timestamp LIKE '% 14:%' OR timestamp LIKE '% 15:%')
               AND shift_id = 'TM';
         """
-    } # Fin migracion 26
+    }, # Fin migracion 26
+    { # Abre definicion migracion 27
+        # Version 27: Incorporacion de columna comments en line_stops para observaciones tecnicas
+        'version': 27,
+        'name': 'v27_add_comments_column_to_line_stops',
+        'description': 'Agrega columna comments a line_stops para permitir registrar detalles y observaciones específicas de cada parada',
+        'sql': """
+            ALTER TABLE line_stops ADD COLUMN comments TEXT DEFAULT '';
+        """
+    } # Fin migracion 27
 ] # Fin REGISTERED_MIGRATIONS
 
 

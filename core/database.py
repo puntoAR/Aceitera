@@ -460,7 +460,8 @@ def init_db():
             end_time TIMESTAMP,                     -- Hora de reanudacion de marcha
             duration_minutes REAL,                  -- Duracion total en minutos
             reason TEXT NOT NULL,                   -- Motivo de la detencion
-            operator_name TEXT NOT NULL             -- Operario que registro el evento
+            operator_name TEXT NOT NULL,            -- Operario que registro el evento
+            comments TEXT DEFAULT ''                -- Comentarios u observaciones detalladas
         );
         """)
 

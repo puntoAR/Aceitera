@@ -140,6 +140,7 @@ def add_stop():
         stop_date = request.form.get('stop_date')
         duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
         reason = request.form.get('reason', 'Mantenimiento / Despeje')
+        comments = request.form.get('comments', '').strip()
         # Extrae nombre de operario del formulario
         form_operator = request.form.get('operator_name')
         # Prioriza el usuario autenticado en sesion
@@ -157,10 +158,14 @@ def add_stop():
             duration_minutes=duration_minutes,
             reason=reason,
             operator_name=operator_name,
-            stop_date=stop_date
+            stop_date=stop_date,
+            comments=comments
         )
         # Registra parada en auditoria
-        record_audit_event('PRODUCCION', 'PARADA_LINEA', f"Parada de {duration_minutes} min registrada en turno {result['shift_id']} ({result['start_time']}). Motivo: {reason}.", status='ADVERTENCIA', user_override=operator_name)
+        audit_msg = f"Parada de {duration_minutes} min registrada en turno {result['shift_id']} ({result['start_time']}). Motivo: {reason}."
+        if comments:
+            audit_msg += f" Detalle: {comments}"
+        record_audit_event('PRODUCCION', 'PARADA_LINEA', audit_msg, status='ADVERTENCIA', user_override=operator_name)
         # Emite notificacion de advertencia informativa
         flash(f"Parada de línea registrada ({duration_minutes} min en turno {result['shift_id']}): {reason}", 'warning')
     except Exception as e:
@@ -178,6 +183,7 @@ def edit_stop(stop_id):
     try:
         duration_minutes = safe_float(request.form.get('duration_minutes'), 0.0)
         reason = request.form.get('reason', '').strip()
+        comments = request.form.get('comments')
         shift_id = request.form.get('shift_id')
         stop_date = request.form.get('stop_date')
         edit_reason = request.form.get('edit_reason', '').strip()
@@ -204,7 +210,8 @@ def edit_stop(stop_id):
             edit_reason=edit_reason,
             operator_name=op_name,
             shift_id=shift_id,
-            stop_date=stop_date
+            stop_date=stop_date,
+            comments=comments
         )
         flash(f'Parada #{stop_id} actualizada correctamente.', 'success')
     except Exception as e:

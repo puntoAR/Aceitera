@@ -162,6 +162,16 @@ class TestOperatorIdentificationAndStopsFilter(unittest.TestCase): # Define clas
         self.assertNotEqual(row['operator_name'], 'Operario de Linea 1') # Ya no es generico
         self.assertTrue('Javier' in row['operator_name'] or 'JAVIER' in row['operator_name']) # Actualizado a Javier
 
+    # Prueba 5: Verificacion de migracion v27 (columna comments en line_stops)
+    def test_migration_27_comments_column_exists(self):
+        from core.migrations import apply_pending_migrations, get_applied_migration_versions
+        apply_pending_migrations()
+        applied = get_applied_migration_versions()
+        self.assertIn(27, applied)
+        with get_db_connection() as conn:
+            columns = [col['name'] for col in conn.execute("PRAGMA table_info(line_stops);").fetchall()]
+            self.assertIn('comments', columns)
+
 # Ejecucion del test en ejecucion directa
 if __name__ == '__main__': # Si se corre directamente
     unittest.main() # Ejecuta pruebas unitarias

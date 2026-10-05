@@ -228,10 +228,10 @@ def get_recent_weighings(shift_id=None, limit=50, target_date=None):
         # Retorna lista de diccionarios
         return [dict(row) for row in rows]
 
-# Registra una parada o detencion en la linea de proceso con seleccion de turno y fecha
-def record_line_stop(shift_id=None, duration_minutes=0.0, reason='Mantenimiento', operator_name=None, stop_date=None, start_time=None):
+# Registra una parada o detencion en la linea de proceso con seleccion de turno, fecha y observaciones
+def record_line_stop(shift_id=None, duration_minutes=0.0, reason='Mantenimiento', operator_name=None, stop_date=None, start_time=None, comments=''):
     """
-    Registra una parada o detención de planta.
+    Registra una parada o detención de planta con motivo y comentarios detallados.
     Si shift_id o stop_date no se proporcionan, toma automáticamente el turno al que corresponde
     el horario de carga y el día de carga oficial de planta (UTC-3).
     """
@@ -257,27 +257,29 @@ def record_line_stop(shift_id=None, duration_minutes=0.0, reason='Mantenimiento'
         final_start_time = now_str
 
     duration_val = float(duration_minutes or 0.0)
+    comments_clean = str(comments or '').strip()
 
     with get_db_connection() as conn:
         cursor = conn.execute("""
-            INSERT INTO line_stops (shift_id, start_time, duration_minutes, reason, operator_name)
-            VALUES (?, ?, ?, ?, ?);
-        """, (clean_shift, final_start_time, duration_val, reason, operator_name or 'Operario'))
+            INSERT INTO line_stops (shift_id, start_time, duration_minutes, reason, operator_name, comments)
+            VALUES (?, ?, ?, ?, ?, ?);
+        """, (clean_shift, final_start_time, duration_val, reason, operator_name or 'Operario', comments_clean))
         conn.commit()
         stop_id = cursor.lastrowid
 
-    log_info('PRODUCTION', f'Parada ID {stop_id} registrada: {duration_val} min en turno {clean_shift} ({reason}) el {final_start_time}.')
+    log_info('PRODUCTION', f'Parada ID {stop_id} registrada: {duration_val} min en turno {clean_shift} ({reason}) el {final_start_time}. Detalle: {comments_clean}.')
     return {
         'id': stop_id,
         'shift_id': clean_shift,
         'start_time': final_start_time,
         'duration_minutes': duration_val,
         'reason': reason,
-        'operator_name': operator_name
+        'operator_name': operator_name,
+        'comments': comments_clean
     }
 
 # Actualiza y ajusta una detencion de linea historica con registro en auditoria
-def update_line_stop(stop_id, duration_minutes, reason, edit_reason='', operator_name=None, shift_id=None, stop_date=None):
+def update_line_stop(stop_id, duration_minutes, reason, edit_reason='', operator_name=None, shift_id=None, stop_date=None, comments=None):
     """
     Modifica una detención de planta y registra la trazabilidad en la bitácora de auditoría.
     """
@@ -296,17 +298,19 @@ def update_line_stop(stop_id, duration_minutes, reason, edit_reason='', operator
         else:
             new_start_time = old_dict['start_time']
 
+        new_comments = str(comments).strip() if comments is not None else old_dict.get('comments', '')
+
         conn.execute("""
             UPDATE line_stops
-            SET duration_minutes = ?, reason = ?, shift_id = ?, start_time = ?
+            SET duration_minutes = ?, reason = ?, shift_id = ?, start_time = ?, comments = ?
             WHERE id = ?;
-        """, (duration_val, reason, new_shift, new_start_time, stop_id))
+        """, (duration_val, reason, new_shift, new_start_time, new_comments, stop_id))
         conn.commit()
 
     details = (
         f"Parada #{stop_id} modificada por {operator_name or 'usuario'}. Motivo del ajuste: '{edit_reason or 'Corrección de datos'}'. "
-        f"Antes: [{old_dict.get('duration_minutes')} min, Turno {old_dict.get('shift_id')}, Motivo: {old_dict.get('reason')}, Inicio: {old_dict.get('start_time')}]. "
-        f"Ahora: [{duration_val} min, Turno {new_shift}, Motivo: {reason}, Inicio: {new_start_time}]."
+        f"Antes: [{old_dict.get('duration_minutes')} min, Turno {old_dict.get('shift_id')}, Motivo: {old_dict.get('reason')}, Obs: '{old_dict.get('comments', '')}', Inicio: {old_dict.get('start_time')}]. "
+        f"Ahora: [{duration_val} min, Turno {new_shift}, Motivo: {reason}, Obs: '{new_comments}', Inicio: {new_start_time}]."
     )
     record_audit_event('PRODUCCION', 'EDICION_PARADA', details, user_override=operator_name)
     log_info('PRODUCTION', details)

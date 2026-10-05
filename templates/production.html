@@ -280,7 +280,7 @@
                 <input class="form-input" type="number" step="1" id="duration_minutes" name="duration_minutes" placeholder="ej. 30" required>
             </div>
 
-            <div class="form-group" style="margin-bottom: 1.25rem;">
+            <div class="form-group" style="margin-bottom: 0.85rem;">
                 <label class="form-label" for="reason">Motivo de la Parada</label>
                 <select class="form-select" id="reason" name="reason" required>
                     <option value="Atasco / Despeje de Prensa">Atasco / Despeje de Prensa</option>
@@ -291,6 +291,14 @@
                     <option value="Limpieza y Calibración">Limpieza y Calibración</option>
                     <option value="Cambio de Turno / Guardia">Cambio de Turno / Guardia</option>
                 </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.15rem;">
+                <label class="form-label" for="stop_comments" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Observaciones / Detalle Técnico</span>
+                    <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">(Opcional)</span>
+                </label>
+                <textarea class="form-input" id="stop_comments" name="comments" rows="2" placeholder="Ej: Rotura en prensa #2, bloqueo por cuerpo extraño, cambio de correas, falla inherente al proceso vs rotura de equipo..." style="font-size: 0.82rem; padding: 0.45rem 0.6rem; resize: vertical; line-height: 1.35;"></textarea>
             </div>
 
             <!-- Indicador visual del usuario que asienta la parada -->
@@ -354,6 +362,11 @@
                         </form>
                     </div>
                 </div>
+                {% if stop.comments %}
+                <div style="font-size: 0.78rem; color: #334155; margin-top: 0.35rem; margin-bottom: 0.25rem; background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 0.25rem 0.55rem; border-radius: 0 0.25rem 0.25rem 0; line-height: 1.35;">
+                    <span style="color: #64748b; font-weight: 600; margin-right: 0.25rem;">💬 Detalle:</span>{{ stop.comments }}
+                </div>
+                {% endif %}
                 <!-- Mini form inline para editar la parada -->
                 <div id="edit-stop-{{ stop.id }}" style="display: none; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 0.35rem; padding: 0.5rem; margin-top: 0.4rem;">
                     <form action="{{ url_for('production.edit_stop', stop_id=stop.id) }}" method="POST" style="margin: 0;">
@@ -374,6 +387,10 @@
                         <div style="margin-bottom: 0.4rem;">
                             <label style="font-size: 0.7rem; color: #475569; display: block;">Motivo de Parada</label>
                             <input type="text" name="reason" value="{{ stop.reason }}" class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.4rem;" required>
+                        </div>
+                        <div style="margin-bottom: 0.4rem;">
+                            <label style="font-size: 0.7rem; color: #475569; display: block;">Detalle / Observaciones Técnicas</label>
+                            <input type="text" name="comments" value="{{ stop.comments or '' }}" placeholder="Detalle técnico específico..." class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.4rem;">
                         </div>
                         <div style="margin-bottom: 0.4rem;">
                             <label style="font-size: 0.7rem; color: #b91c1c; font-weight: 600; display: block;">Motivo de Edición (Auditoría)</label>

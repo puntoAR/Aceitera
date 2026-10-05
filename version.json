@@ -1,8 +1,9 @@
 {
-  "version": "1.3.4",
+  "version": "1.3.5",
   "release_date": "2026-10-05",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
+    "v1.3.5 - Campo de observaciones y detalle técnico en paradas de línea: registro y edición de comentarios específicos para aclarar causas de detención (ej. mantenimiento de rotura vs proceso inherente, número de prensa o cambio de correas), migración estructural v27 en line_stops y trazabilidad completa en auditoría",
     "v1.3.4 - Visibilidad integral de muestreos de producción: selector de turnos en vivo (Todos los Turnos, TM, TT, TN), detección automática de turno en formulario según reloj de planta (UTC-3), corrección retroactiva de pesada de expeller a Turno Tarde (migración v26) y visualización de hora de carga exacta con segundos",
     "v1.3.3 - Corrección de evolución horaria de velocidad y muestreos: exclusividad estricta del día en curso por defecto, erradicación de mezclas con datos históricos pasados y eliminación de valores simulados",
     "v1.3.2 - Botones directos de Calibrar Silos en encabezado de Dashboard, tarjetas y formulario de Cubicaje; migración v25 con recálculo integral forzado de todas las mediciones registradas; nuevo botón de recálculo masivo; invalidación de caché PWA v1.3.2 y cabeceras anti-caché",
