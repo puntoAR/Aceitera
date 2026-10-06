@@ -490,62 +490,124 @@
     <div class="cockpit-dashboard">
 
         <!-- ================================================================= -->
-        <!-- BARRA DE SELECCION INTERACTIVA DE TURNOS Y PROMEDIO DEL DIA       -->
+        <!-- BARRA DE SELECCION INTERACTIVA: FECHAS/PERIODOS Y TURNOS          -->
         <!-- ================================================================= -->
         {% if data.shift_performance %}
-        <div class="shift-filter-toolbar" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.65rem; padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
-            <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
-                <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; margin-right: 0.25rem;">
-                    ⏱️ Franja & Turno:
-                </span>
-                <!-- Opcion Dia Completo (Por Defecto) -->
-                <a href="{{ url_for('dashboard.index', shifts='all') }}"
-                   class="btn-shift-pill {% if data.shift_performance.is_all_selected %}btn-shift-pill-active{% endif %}"
-                   title="Mostrar consolidado promedio de las 24 horas del día">
-                    📅 Día Completo (24h)
-                </a>
-                <!-- Opcion Turno Mañana -->
-                <a href="{{ url_for('dashboard.index', shifts='TM') }}"
-                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TM' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
-                   title="Ver solo Turno Mañana (06:00 - 14:00)">
-                    🌅 Mañana (06-14)
-                    {% if data.shift_performance.current_shift_id == 'TM' %}
-                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+        {% set dt_args = {'start_date': data.shift_performance.start_date, 'end_date': data.shift_performance.end_date} if not data.shift_performance.is_today else {} %}
+        {% if data.shift_performance.month_param %}{% set _ = dt_args.update({'month': data.shift_performance.month_param}) %}{% endif %}
+        <div class="shift-filter-toolbar" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.65rem; padding: 0.75rem 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 0.65rem;">
+            
+            <!-- FILA 1: SELECTOR DE FECHAS, ATAJOS RAPIDOS Y MES COMPLETO -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; padding-bottom: 0.55rem; border-bottom: 1px solid #f1f5f9;">
+                <!-- Atajos rápidos -->
+                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; margin-right: 0.15rem;">
+                        📅 Período:
+                    </span>
+                    <!-- Atajo Hoy -->
+                    <a href="{{ url_for('dashboard.index', shifts=selected_shifts_param) }}"
+                       class="btn-shift-pill {% if data.shift_performance.is_today %}btn-shift-pill-active{% endif %}"
+                       title="Ver día en curso oficial de planta">
+                        Hoy
+                    </a>
+                    <!-- Atajo Ayer -->
+                    <a href="{{ url_for('dashboard.index', shifts=selected_shifts_param, date=data.shift_performance.date_info.yesterday_str) }}"
+                       class="btn-shift-pill {% if data.shift_performance.is_single_day and not data.shift_performance.is_today and data.shift_performance.start_date == data.shift_performance.date_info.yesterday_str %}btn-shift-pill-active{% endif %}"
+                       title="Ver jornada de ayer">
+                        Ayer
+                    </a>
+                    <!-- Atajo Últimos 7 Días -->
+                    <a href="{{ url_for('dashboard.index', shifts=selected_shifts_param, start_date=data.shift_performance.date_info.last_7d_start, end_date=data.shift_performance.date_info.today_str) }}"
+                       class="btn-shift-pill {% if data.shift_performance.days_count == 7 and data.shift_performance.end_date == data.shift_performance.date_info.today_str %}btn-shift-pill-active{% endif %}"
+                       title="Ver últimos 7 días móviles">
+                        Últimos 7 días
+                    </a>
+                    <!-- Atajo Mes en Curso -->
+                    <a href="{{ url_for('dashboard.index', shifts=selected_shifts_param, month=data.shift_performance.date_info.cur_month_str) }}"
+                       class="btn-shift-pill {% if data.shift_performance.scope_mode == 'month' and data.shift_performance.month_param == data.shift_performance.date_info.cur_month_str %}btn-shift-pill-active{% endif %}"
+                       title="Ver todo el mes en curso">
+                        Mes en Curso
+                    </a>
+                </div>
+
+                <!-- Formulario interactivo para Rango Personalizado o Mes -->
+                <form method="GET" action="{{ url_for('dashboard.index') }}" style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin: 0;">
+                    <input type="hidden" name="shifts" value="{{ selected_shifts_param }}">
+                    <label style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Desde:</label>
+                    <input type="date" name="start_date" value="{{ data.shift_performance.start_date }}" class="form-input" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; height: auto; width: auto; min-width: 125px;" required>
+                    <label style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Hasta:</label>
+                    <input type="date" name="end_date" value="{{ data.shift_performance.end_date }}" class="form-input" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; height: auto; width: auto; min-width: 125px;" required>
+                    <button type="submit" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.65rem; white-space: nowrap;">
+                        🔍 Filtrar
+                    </button>
+                    <!-- Selector directo de Mes -->
+                    <div style="display: inline-flex; align-items: center; gap: 0.25rem; margin-left: 0.3rem; border-left: 1px solid #e2e8f0; padding-left: 0.45rem;">
+                        <label style="font-size: 0.72rem; color: #64748b; font-weight: 600;" title="Filtrar un mes completo">Mes:</label>
+                        <input type="month" name="month" value="{{ data.shift_performance.month_param or data.shift_performance.date_info.cur_month_str }}" onchange="this.form.start_date.disabled=true; this.form.end_date.disabled=true; this.form.submit();" class="form-input" style="font-size: 0.75rem; padding: 0.2rem 0.35rem; height: auto; width: auto;" title="Elegir mes completo">
+                    </div>
+                    {% if not data.shift_performance.is_today %}
+                    <a href="{{ url_for('dashboard.index', shifts=selected_shifts_param) }}" class="btn" style="font-size: 0.73rem; padding: 0.22rem 0.5rem; background: #e2e8f0; color: #334155; text-decoration: none; border-radius: 0.3rem;" title="Volver al día actual">
+                        ↺ Restablecer a Hoy
+                    </a>
                     {% endif %}
-                </a>
-                <!-- Opcion Turno Tarde -->
-                <a href="{{ url_for('dashboard.index', shifts='TT') }}"
-                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TT' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
-                   title="Ver solo Turno Tarde (14:00 - 22:00)">
-                    ☀️ Tarde (14-22)
-                    {% if data.shift_performance.current_shift_id == 'TT' %}
-                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
-                    {% endif %}
-                </a>
-                <!-- Opcion Turno Noche -->
-                <a href="{{ url_for('dashboard.index', shifts='TN') }}"
-                   class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TN' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
-                   title="Ver solo Turno Noche (22:00 - 06:00)">
-                    🌙 Noche (22-06)
-                    {% if data.shift_performance.current_shift_id == 'TN' %}
-                    <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
-                    {% endif %}
-                </a>
+                </form>
             </div>
 
-            <!-- Indicador del alcance visualizado -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <span style="background: #f1f5f9; color: #1e293b; font-size: 0.76rem; padding: 0.25rem 0.6rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
-                    🔍 Vista: <strong>{{ data.shift_performance.selected_scope_label }}</strong>
-                </span>
-                <span style="background: #f8fafc; color: #64748b; font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem; border: 1px solid #e2e8f0;">
-                    Jornada: <strong>{{ data.shift_performance.operational_date }}</strong>
-                </span>
+            <!-- FILA 2: FRANJA & TURNO Y RÓTULO DEL PERÍODO -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.03em; margin-right: 0.15rem;">
+                        ⏱️ Franja & Turno:
+                    </span>
+                    <!-- Opcion Dia Completo (Por Defecto) -->
+                    <a href="{{ url_for('dashboard.index', shifts='all', **dt_args) }}"
+                       class="btn-shift-pill {% if data.shift_performance.is_all_selected %}btn-shift-pill-active{% endif %}"
+                       title="Mostrar consolidado promedio de las 24 horas del período">
+                        📅 24 Horas
+                    </a>
+                    <!-- Opcion Turno Mañana -->
+                    <a href="{{ url_for('dashboard.index', shifts='TM', **dt_args) }}"
+                       class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TM' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                       title="Ver solo Turno Mañana (06:00 - 14:00)">
+                        🌅 Mañana (06-14)
+                        {% if data.shift_performance.is_today and data.shift_performance.current_shift_id == 'TM' %}
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                        {% endif %}
+                    </a>
+                    <!-- Opcion Turno Tarde -->
+                    <a href="{{ url_for('dashboard.index', shifts='TT', **dt_args) }}"
+                       class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TT' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                       title="Ver solo Turno Tarde (14:00 - 22:00)">
+                        ☀️ Tarde (14-22)
+                        {% if data.shift_performance.is_today and data.shift_performance.current_shift_id == 'TT' %}
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                        {% endif %}
+                    </a>
+                    <!-- Opcion Turno Noche -->
+                    <a href="{{ url_for('dashboard.index', shifts='TN', **dt_args) }}"
+                       class="btn-shift-pill {% if not data.shift_performance.is_all_selected and 'TN' in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}btn-shift-pill-active{% endif %}"
+                       title="Ver solo Turno Noche (22:00 - 06:00)">
+                        🌙 Noche (22-06)
+                        {% if data.shift_performance.is_today and data.shift_performance.current_shift_id == 'TN' %}
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; margin-left: 0.2rem;" title="Turno en curso"></span>
+                        {% endif %}
+                    </a>
+                </div>
+
+                <!-- Indicador del alcance visualizado -->
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="background: #f1f5f9; color: #1e293b; font-size: 0.76rem; padding: 0.25rem 0.6rem; border-radius: 0.375rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+                        🔍 Vista: <strong>{{ data.shift_performance.selected_scope_label }}</strong>
+                    </span>
+                    <span style="background: #f8fafc; color: #0369a1; font-size: 0.74rem; font-weight: 700; padding: 0.25rem 0.55rem; border-radius: 0.375rem; border: 1px solid #bae6fd;">
+                        📅 {{ data.shift_performance.scope_date_label }}
+                    </span>
+                </div>
             </div>
         </div>
 
-        <!-- BANNER DEL TURNO EN CURSO CON PROMEDIOS PARCIALES EN TIEMPO REAL -->
-        {% if data.shift_performance.current_shift %}
+        <!-- BANNER SUPERIOR: TURNO EN CURSO (EN VIVO) O RESUMEN CONSOLIDADO DEL PERIODO -->
+        {% if data.shift_performance.is_today and data.shift_performance.current_shift %}
         {% set cur_s = data.shift_performance.current_shift %}
         <div class="shift-live-banner" style="background: linear-gradient(90deg, #eff6ff, #f8fafc); border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 0.55rem; padding: 0.55rem 0.85rem; margin-bottom: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
             <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
@@ -577,6 +639,38 @@
                 {% endif %}
             </div>
         </div>
+        {% else %}
+        <!-- Banner informativo para jornada historica o rango/mes cerrado -->
+        <div class="shift-live-banner" style="background: linear-gradient(90deg, #f8fafc, #f1f5f9); border: 1px solid #cbd5e1; border-left: 4px solid #475569; border-radius: 0.55rem; padding: 0.55rem 0.85rem; margin-bottom: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="background: #475569; color: #ffffff; font-size: 0.72rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">
+                    🗓️ Período Histórico
+                </span>
+                <span style="font-weight: 700; color: #0f172a; font-size: 0.85rem;">
+                    {{ data.shift_performance.scope_date_label }}
+                </span>
+                <span style="color: #64748b; font-size: 0.78rem;">
+                    &bull; Muestras registradas: <strong style="color: #0f172a;">{{ data.shift_performance.total_weighings_samples + data.shift_performance.total_lab_samples }}</strong>
+                    ({{ data.speed_summary.seed_sample_count }} semilla, {{ data.speed_summary.expeller_sample_count }} expeller, {{ data.shift_performance.total_lab_samples }} lab)
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.85rem; font-size: 0.78rem; flex-wrap: wrap;">
+                <span>
+                    Ritmo Semilla Medio: <strong style="color: #1d4ed8;">{{ "{:,.0f}".format(data.speed_summary.seed_avg_speed).replace(",", ".") }} kg/h</strong>
+                </span>
+                <span>
+                    Salida Expeller Media: <strong style="color: #854d0e;">{{ "{:,.0f}".format(data.speed_summary.expeller_avg_speed).replace(",", ".") }} kg/h</strong>
+                </span>
+                <span>
+                    Rend. Línea: <strong style="color: #15803d;">{{ data.speed_summary.expeller_yield_pct }}%</strong>
+                </span>
+                {% if data.shift_performance.avg_fat_p2 is not none %}
+                <span>
+                    Grasa P2 Promedio: <strong style="color: #b45309;">{{ data.shift_performance.avg_fat_p2 }}%</strong>
+                </span>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
         {% endif %}
 
@@ -591,12 +685,18 @@
             <div>
                 <!-- Titulo del pilar -->
                 <div class="cockpit-kpi-header">
-                    <!-- Etiqueta -->
+                    <!-- Titulo del pilar -->
                     <span class="cockpit-kpi-title">1. Existencias de Planta</span>
-                    <!-- Icono o badge -->
-                    <span style="font-size: 0.72rem; color: #b45309; font-weight: 700; background: #fef3c7; padding: 0.15rem 0.45rem; border-radius: 9999px;">
-                        Capacidad Total
+                    <!-- Icono o badge segun si es en vivo o corte de fecha -->
+                    {% if data.shift_performance.is_today %}
+                    <span style="font-size: 0.72rem; color: #166534; font-weight: 700; background: #dcfce7; padding: 0.15rem 0.45rem; border-radius: 9999px;">
+                        En vivo (Actual)
                     </span>
+                    {% else %}
+                    <span style="font-size: 0.72rem; color: #b45309; font-weight: 700; background: #fef3c7; padding: 0.15rem 0.45rem; border-radius: 9999px;" title="Corte de existencias a la fecha final del período">
+                        Corte: {{ data.shift_performance.end_date }}
+                    </span>
+                    {% endif %}
                 </div>
 
                 <!-- Fila de Stock de Aceite -->
@@ -656,6 +756,12 @@
                 <!-- Ocupacion de expeller -->
                 <span>Expeller: <strong>{{ data.stocks.total_expeller_pct_fill }}%</strong></span>
             </div>
+            {% if not data.shift_performance.is_today and data.stocks.latest_inventory_timestamp %}
+            <div style="padding: 0.35rem 0.75rem; background: #f8fafc; border-top: 1px dashed #e2e8f0; font-size: 0.68rem; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
+                <span>Último cubicaje registrado:</span>
+                <strong style="color: #0f172a;">{{ data.stocks.latest_inventory_timestamp }}</strong>
+            </div>
+            {% endif %}
         </div>
 
         <!-- PILAR 2: VELOCIDADES DE PROCESO Y RITMO DE MARCHA -->
@@ -684,19 +790,25 @@
                             <span style="font-size: 0.85rem; font-weight: 600; color: #64748b;">kg/h</span>
                         </div>
                     </div>
-                    <!-- Proyeccion del turno a 8h -->
+                    <!-- Proyeccion del turno a 8h o Proyeccion del periodo -->
                     <div style="text-align: right;">
-                        <!-- Etiqueta -->
+                        {% if data.shift_performance.is_single_day %}
                         <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Proy. Turno (8h)</div>
-                        <!-- Valor en Tn -->
                         <div style="font-size: 1.2rem; font-weight: 800; color: #0f172a;">
                             {{ "{:,.1f}".format(data.speed_summary.seed_proj_8h / 1000.0).replace(",", ".") }}
                             <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Tn</span>
                         </div>
+                        {% else %}
+                        <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Est. Período ({{ data.speed_summary.days_count }}d)</div>
+                        <div style="font-size: 1.2rem; font-weight: 800; color: #0f172a;">
+                            {{ "{:,.1f}".format(data.speed_summary.seed_estimated_tn).replace(",", ".") }}
+                            <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Tn</span>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Ritmo de salida de expeller y proyeccion 24h -->
+                <!-- Ritmo de salida de expeller y proyeccion 24h o estimado expeller periodo -->
                 <div class="speed-subkpi-grid">
                     <!-- Salida de expeller -->
                     <div>
@@ -707,14 +819,19 @@
                             {{ "{:,.0f}".format(data.speed_summary.expeller_avg_speed).replace(",", ".") }} kg/h
                         </div>
                     </div>
-                    <!-- Proyeccion 24 horas -->
+                    <!-- Proyeccion 24 horas o estimado expeller periodo -->
                     <div>
-                        <!-- Etiqueta -->
+                        {% if data.shift_performance.is_single_day %}
                         <span style="font-size: 0.7rem; color: #64748b;">Ritmo Día (24h):</span>
-                        <!-- Valor -->
                         <div style="font-size: 0.95rem; font-weight: 700; color: #334155;">
                             {{ "{:,.1f}".format(data.speed_summary.seed_proj_24h / 1000.0).replace(",", ".") }} Tn
                         </div>
+                        {% else %}
+                        <span style="font-size: 0.7rem; color: #64748b;">Expeller Período:</span>
+                        <div style="font-size: 0.95rem; font-weight: 700; color: #334155;">
+                            {{ "{:,.1f}".format(data.speed_summary.expeller_estimated_tn).replace(",", ".") }} Tn
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -724,12 +841,12 @@
                     <strong style="color: #b45309; font-size: 0.85rem;">{{ data.speed_summary.expeller_yield_pct }}%</strong>
                 </div>
             </div>
-            <!-- Pie de tarjeta con horas efectivas de marcha -->
+            <!-- Pie de tarjeta con horas efectivas de marcha y paradas -->
             <div class="cockpit-kpi-footer">
                 <!-- Horas efectivas -->
-                <span>Marcha efectiva: <strong>{{ data.speed_summary.effective_hours }} h</strong></span>
+                <span>Marcha: <strong>{{ data.speed_summary.effective_hours }} h</strong> <small style="color: #64748b;">(de {{ data.speed_summary.total_hours_budget }} h)</small></span>
                 <!-- Paradas -->
-                <span>Paradas: <strong style="color: {{ '#ef4444' if data.speed_summary.stop_minutes > 0 else '#10b981' }};">{{ data.speed_summary.stop_minutes }} min</strong></span>
+                <span>Paradas: <strong style="color: {{ '#ef4444' if data.speed_summary.stop_minutes > 0 else '#10b981' }};">{{ data.speed_summary.stop_minutes }} min</strong> <small style="color: #64748b;">({{ data.speed_summary.stop_hours }} h)</small></span>
             </div>
         </div>
 
@@ -850,12 +967,16 @@
                     <span>📊</span> Comparativo de Performance por Turno de Planta
                 </h3>
                 <p style="font-size: 0.74rem; color: #64748b; margin: 0.15rem 0 0 0;">
+                    {% if data.shift_performance.is_single_day %}
                     Jornada Operativa: <strong>{{ data.shift_performance.operational_date }}</strong> &bull; Resumen de molienda, extracción de expeller, calidad analítica y eficiencia operativa por franja horaria.
+                    {% else %}
+                    Período Operativo: <strong>{{ data.shift_performance.scope_date_label }}</strong> &bull; Comparativo consolidado de turnos a lo largo de los {{ data.shift_performance.days_count }} días analizados.
+                    {% endif %}
                 </p>
             </div>
             <div>
-                <a href="{{ url_for('dashboard.index', shifts='all') }}" style="font-size: 0.74rem; font-weight: 700; color: #2563eb; text-decoration: none;">
-                    ↺ Restablecer a Día Completo
+                <a href="{{ url_for('dashboard.index', shifts='all', **dt_args) }}" style="font-size: 0.74rem; font-weight: 700; color: #2563eb; text-decoration: none;">
+                    ↺ Ver Todos los Turnos (24h)
                 </a>
             </div>
         </div>
@@ -931,14 +1052,14 @@
 
                     <!-- Eficiencia y Paradas -->
                     <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #475569; padding: 0 0.2rem;">
-                        <span>Marcha efectiva: <strong>{{ s.effective_hours }} h</strong></span>
+                        <span>Marcha: <strong>{{ s.effective_hours }} h</strong> <small style="color: #64748b;">(de {{ (data.shift_performance.days_count * 8)|int }}h)</small></span>
                         <span>Paradas: <strong style="color: {{ '#ef4444' if s.stop_minutes > 0 else '#10b981' }}">{{ s.stop_minutes }} min</strong></span>
                     </div>
                 </div>
 
                 <!-- Botón de acción para filtrar por este turno -->
                 <div style="margin-top: 0.6rem; border-top: 1px solid #e2e8f0; padding-top: 0.45rem;">
-                    <a href="{{ url_for('dashboard.index', shifts=s.shift_id) }}"
+                    <a href="{{ url_for('dashboard.index', shifts=s.shift_id, **dt_args) }}"
                        style="display: block; text-align: center; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.5rem; border-radius: 0.375rem; text-decoration: none; {% if not data.shift_performance.is_all_selected and s.shift_id in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}background: #1e293b; color: #ffffff;{% else %}background: #ffffff; color: #334155; border: 1px solid #cbd5e1;{% endif %}">
                         {% if not data.shift_performance.is_all_selected and s.shift_id in data.shift_performance.selected_shifts and data.shift_performance.selected_shifts|length == 1 %}
                         ✓ Turno Seleccionado en Cockpit
@@ -1085,10 +1206,10 @@
                     <!-- Titulo interactivo con cursor de clic para desplegar historial -->
                     <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
                         <span style="font-size: 0.85rem; font-weight: 700; color: #0f172a; cursor: pointer;" onclick="openSpeedHistoryModal()" title="Ver historial completo de pesadas y velocidades">
-                            📈 Evolución Horaria de Velocidad <span class="mobile-hidden">(kg/h)</span>
+                            📈 {% if data.shift_performance.is_single_day %}Evolución Horaria de Velocidad{% else %}Evolución de Velocidades ({{ data.speed_summary.seed_sample_count + data.speed_summary.expeller_sample_count }} Muestras){% endif %} <span class="mobile-hidden">(kg/h)</span>
                         </span>
-                        <span style="font-size: 0.72rem; font-weight: 600; color: #15803d; background: #dcfce7; padding: 0.12rem 0.5rem; border-radius: 9999px; border: 1px solid #bbf7d0;" title="Mostrando exclusivamente los muestreos de la jornada en curso">
-                            Día en curso: {{ data.shift_performance.operational_date }}
+                        <span style="font-size: 0.72rem; font-weight: 600; color: #15803d; background: #dcfce7; padding: 0.12rem 0.5rem; border-radius: 9999px; border: 1px solid #bbf7d0;" title="Mostrando exclusivamente los muestreos del período seleccionado">
+                            {{ data.shift_performance.scope_date_label }}
                         </span>
                     </div>
                     <!-- Controles de accion rapida -->
@@ -1113,7 +1234,7 @@
                     {% if not data.chart_labels %}
                     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); border-radius: 0.375rem; color: #64748b; font-size: 0.8rem; text-align: center; padding: 1rem; pointer-events: none;">
                         <span style="font-size: 1.3rem; margin-bottom: 0.25rem;">⏱️</span>
-                        <strong>Sin pesadas registradas en el día en curso ({{ data.shift_performance.operational_date }})</strong>
+                        <strong>Sin pesadas registradas en el período seleccionado ({{ data.shift_performance.scope_date_label }})</strong>
                         <span style="font-size: 0.7rem; color: #94a3b8; margin-top: 0.2rem;">Haga clic para ver el historial anterior en el modal</span>
                     </div>
                     {% endif %}
@@ -1148,8 +1269,13 @@
                         <tbody>
                             {% for w in data.recent_weighings[:4] %}
                             <tr>
-                                <!-- Hora -->
-                                <td><strong>{{ w.timestamp.split(' ')[-1][:5] }}</strong></td>
+                                <!-- Hora / Fecha -->
+                                <td>
+                                    <strong>{{ w.timestamp.split(' ')[-1][:5] }}</strong>
+                                    {% if not data.shift_performance.is_single_day and ' ' in w.timestamp %}
+                                    <small style="color: #64748b; font-weight: normal; display: block; font-size: 0.68rem;">{{ w.timestamp.split(' ')[0][8:10] }}/{{ w.timestamp.split(' ')[0][5:7] }}</small>
+                                    {% endif %}
+                                </td>
                                 <!-- Punto de muestra -->
                                 <td>
                                     {% if w.sample_point == 'ingreso_semilla' %}
@@ -1167,9 +1293,9 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <!-- Mensaje cuando aun no hay registros en la jornada en curso -->
+                                <!-- Mensaje cuando aun no hay registros en la jornada o periodo -->
                                 <td colspan="5" style="text-align: center; color: #94a3b8; padding: 0.65rem; font-size: 0.78rem;">
-                                    Sin pesadas registradas en el día en curso ({{ data.shift_performance.operational_date }}).
+                                    Sin pesadas registradas en el período seleccionado ({{ data.shift_performance.scope_date_label }}).
                                 </td>
                             </tr>
                             {% endfor %}

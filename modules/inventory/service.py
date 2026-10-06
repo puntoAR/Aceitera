@@ -342,8 +342,8 @@ def record_inventory_movement(product, movement_type, origin, destination, quant
     # Registra en log el movimiento
     log_info('INVENTORY', f'Movimiento registrado: {movement_type} de {quantity_kg} kg de {product}.')
 
-# Obtiene los 3 stocks clave actuales de la planta en un golpe de vista
-def get_total_plant_stocks():
+# Obtiene los 3 stocks clave actuales de la planta en un golpe de vista (o al corte de una fecha especifica)
+def get_total_plant_stocks(as_of_date=None):
     # Inicializa los acumuladores de existencias
     total_oil_kg = 0.0
     total_oil_liters = 0.0
@@ -351,6 +351,8 @@ def get_total_plant_stocks():
     total_expeller_kg = 0.0
     tanks_summary = []
     silos_summary = []
+    clean_as_of = str(as_of_date).strip() if as_of_date and str(as_of_date).strip() else None
+    latest_inventory_ts = None
     # Abre conexion para consultar las ultimas mediciones de cada equipo activo
     with get_db_connection() as conn:
         # Consulta el ultimo registro de cada tanque de aceite activo
@@ -380,14 +382,31 @@ def get_total_plant_stocks():
             max_liters = round(max_vol_m3 * 1000.0, 1)
             max_oil_kg = round(max_liters * density, 1)
 
-            # Obtiene la ultima medicion de este tanque
-            last_reading = conn.execute("""
-                SELECT level_m, volume_m3, liters, oil_kg, timestamp
-                FROM inventory_tanks
-                WHERE tank_id = ?
-                ORDER BY timestamp DESC
-                LIMIT 1;
-            """, (t['id'],)).fetchone()
+            # Obtiene la medicion de este tanque (al corte de fecha o la mas reciente disponible)
+            if clean_as_of:
+                last_reading = conn.execute("""
+                    SELECT level_m, volume_m3, liters, oil_kg, timestamp
+                    FROM inventory_tanks
+                    WHERE tank_id = ? AND (date(timestamp) <= ? OR timestamp <= ?)
+                    ORDER BY timestamp DESC, id DESC
+                    LIMIT 1;
+                """, (t['id'], clean_as_of, f"{clean_as_of} 23:59:59")).fetchone()
+                if not last_reading:
+                    last_reading = conn.execute("""
+                        SELECT level_m, volume_m3, liters, oil_kg, timestamp
+                        FROM inventory_tanks
+                        WHERE tank_id = ?
+                        ORDER BY timestamp ASC, id ASC
+                        LIMIT 1;
+                    """, (t['id'],)).fetchone()
+            else:
+                last_reading = conn.execute("""
+                    SELECT level_m, volume_m3, liters, oil_kg, timestamp
+                    FROM inventory_tanks
+                    WHERE tank_id = ?
+                    ORDER BY timestamp DESC, id DESC
+                    LIMIT 1;
+                """, (t['id'],)).fetchone()
 
             # Si tiene medicion registrada
             if last_reading:
@@ -396,6 +415,9 @@ def get_total_plant_stocks():
                 level_m = round(float(last_reading['level_m']), 2)
                 total_oil_kg += oil_kg
                 total_oil_liters += liters
+                ts_val = last_reading['timestamp']
+                if not latest_inventory_ts or ts_val > latest_inventory_ts:
+                    latest_inventory_ts = ts_val
                 pct_fill = round((liters / max_liters) * 100.0, 1) if max_liters > 0 else 0.0
                 pct_height = round((level_m / max_level_m) * 100.0, 1) if max_level_m > 0 else 0.0
                 pct_fill = max(0.0, min(100.0, pct_fill))
@@ -485,15 +507,34 @@ def get_total_plant_stocks():
             max_stock_kg = round(max_mass_calc['total_mass_kg'], 1)
             max_stock_tons = round(max_mass_calc['total_tons'], 2)
 
-            # Obtiene la ultima lectura de este silo
-            last_silo = conn.execute("""
-                SELECT covered_sheets, partial_sheet_height_m, cone_occupied_status,
-                       copete_height_m, volume_m3, stock_kg, timestamp
-                FROM inventory_silos
-                WHERE silo_id = ?
-                ORDER BY timestamp DESC
-                LIMIT 1;
-            """, (s['id'],)).fetchone()
+            # Obtiene la lectura de este silo (al corte de fecha o la mas reciente disponible)
+            if clean_as_of:
+                last_silo = conn.execute("""
+                    SELECT covered_sheets, partial_sheet_height_m, cone_occupied_status,
+                           copete_height_m, volume_m3, stock_kg, timestamp
+                    FROM inventory_silos
+                    WHERE silo_id = ? AND (date(timestamp) <= ? OR timestamp <= ?)
+                    ORDER BY timestamp DESC, id DESC
+                    LIMIT 1;
+                """, (s['id'], clean_as_of, f"{clean_as_of} 23:59:59")).fetchone()
+                if not last_silo:
+                    last_silo = conn.execute("""
+                        SELECT covered_sheets, partial_sheet_height_m, cone_occupied_status,
+                               copete_height_m, volume_m3, stock_kg, timestamp
+                        FROM inventory_silos
+                        WHERE silo_id = ?
+                        ORDER BY timestamp ASC, id ASC
+                        LIMIT 1;
+                    """, (s['id'],)).fetchone()
+            else:
+                last_silo = conn.execute("""
+                    SELECT covered_sheets, partial_sheet_height_m, cone_occupied_status,
+                           copete_height_m, volume_m3, stock_kg, timestamp
+                    FROM inventory_silos
+                    WHERE silo_id = ?
+                    ORDER BY timestamp DESC, id DESC
+                    LIMIT 1;
+                """, (s['id'],)).fetchone()
 
             # Si existe medicion previa
             if last_silo:
@@ -502,6 +543,9 @@ def get_total_plant_stocks():
                 v_m3 = round(float(last_silo['volume_m3']), 2)
                 cone_st = last_silo['cone_occupied_status'] or 'lleno'
                 cop_h = round(float(last_silo['copete_height_m'] or 0.0), 2)
+                ts_val = last_silo['timestamp']
+                if not latest_inventory_ts or ts_val > latest_inventory_ts:
+                    latest_inventory_ts = ts_val
                 if s['product_assigned'] == 'expeller':
                     total_expeller_kg += kg
                 else:
@@ -596,5 +640,7 @@ def get_total_plant_stocks():
         'total_expeller_capacity_tons': total_expeller_capacity_tons,
         'total_expeller_pct_fill': total_expeller_pct_fill,
         'tanks': tanks_summary,
-        'silos': silos_summary
+        'silos': silos_summary,
+        'as_of_date': clean_as_of,
+        'latest_inventory_timestamp': latest_inventory_ts
     }

@@ -435,15 +435,7 @@ def get_shift_speed_summary(shift_id=None, target_date=None):
                 WHERE shift_id = ? AND (date(start_time) = ? OR start_time LIKE ?);
             """, (shift_id, clean_date, f"{clean_date}%")).fetchone()
 
-        if (not stop_row or stop_row['total_stop_min'] == 0) and target_date is None:
-            if is_all:
-                fallback_stop = conn.execute("SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min FROM line_stops;").fetchone()
-            else:
-                fallback_stop = conn.execute("SELECT COALESCE(SUM(duration_minutes), 0.0) as total_stop_min FROM line_stops WHERE shift_id = ?;", (shift_id,)).fetchone()
-            if fallback_stop and fallback_stop['total_stop_min'] > 0:
-                stop_row = fallback_stop
-
-    total_stop_minutes = stop_row['total_stop_min'] if stop_row else 0.0
+        total_stop_minutes = float(stop_row['total_stop_min'] or 0.0) if stop_row else 0.0
     stop_hours = total_stop_minutes / 60.0
     nominal_hours = 24.0 if is_all else 8.0
     effective_hours = max(0.0, nominal_hours - stop_hours)

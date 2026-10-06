@@ -346,12 +346,30 @@ def change_password():
 def index():
     # Obtiene parametro de turnos seleccionados (ej: 'all', 'TM', 'TT', 'TN', o 'TM,TT')
     shifts_param = request.args.get('shifts', 'all').strip()
-    # Obtiene parametro de fecha si se solicita una jornada especifica (por defecto None = dia en curso)
+    # Obtiene parametros de fecha (dia puntual, rango desde/hasta o mes completo)
     date_param = request.args.get('date', '').strip() or None
-    # Obtiene el paquete completo de datos consolidados segun el filtro de turnos y fecha
-    data = get_executive_dashboard_data(selected_shifts=shifts_param, target_date=date_param)
+    start_date_param = request.args.get('start_date', '').strip() or None
+    end_date_param = request.args.get('end_date', '').strip() or None
+    month_param = request.args.get('month', '').strip() or None
+
+    # Obtiene el paquete completo de datos consolidados segun los filtros
+    data = get_executive_dashboard_data(
+        selected_shifts=shifts_param,
+        target_date=date_param,
+        start_date=start_date_param,
+        end_date=end_date_param,
+        month=month_param
+    )
     # Renderiza la plantilla del dashboard
-    return render_template('dashboard.html', data=data, selected_shifts_param=shifts_param, selected_date_param=date_param)
+    return render_template(
+        'dashboard.html',
+        data=data,
+        selected_shifts_param=shifts_param,
+        selected_date_param=date_param,
+        selected_start_date=start_date_param,
+        selected_end_date=end_date_param,
+        selected_month_param=month_param
+    )
 
 # Vista de gestion y cambio de turno operativo
 @dashboard_bp.route('/shifts', methods=['GET', 'POST'])
@@ -386,8 +404,18 @@ def shifts():
 @dashboard_bp.route('/api/kpis', methods=['GET'])
 @roles_required('gerencia', 'administrador', 'admin_sistema')
 def api_kpis():
-    # Obtiene parametro de turnos seleccionados
+    # Obtiene parametros de turnos y fecha
     shifts_param = request.args.get('shifts', 'all').strip()
     date_param = request.args.get('date', '').strip() or None
+    start_date_param = request.args.get('start_date', '').strip() or None
+    end_date_param = request.args.get('end_date', '').strip() or None
+    month_param = request.args.get('month', '').strip() or None
+
     # Retorna los datos ejecutivos en formato JSON
-    return jsonify(get_executive_dashboard_data(selected_shifts=shifts_param, target_date=date_param))
+    return jsonify(get_executive_dashboard_data(
+        selected_shifts=shifts_param,
+        target_date=date_param,
+        start_date=start_date_param,
+        end_date=end_date_param,
+        month=month_param
+    ))
