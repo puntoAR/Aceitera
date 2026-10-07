@@ -387,7 +387,10 @@ def get_total_plant_stocks(as_of_date=None):
                 last_reading = conn.execute("""
                     SELECT level_m, volume_m3, liters, oil_kg, timestamp
                     FROM inventory_tanks
-                    WHERE tank_id = ? AND (date(timestamp) <= ? OR timestamp <= ?)
+                    WHERE tank_id = ? AND (
+                        substr(replace(timestamp, 'T', ' '), 1, 10) <= ?
+                        OR timestamp <= ?
+                    )
                     ORDER BY timestamp DESC, id DESC
                     LIMIT 1;
                 """, (t['id'], clean_as_of, f"{clean_as_of} 23:59:59")).fetchone()
@@ -396,7 +399,7 @@ def get_total_plant_stocks(as_of_date=None):
                         SELECT level_m, volume_m3, liters, oil_kg, timestamp
                         FROM inventory_tanks
                         WHERE tank_id = ?
-                        ORDER BY timestamp ASC, id ASC
+                        ORDER BY timestamp DESC, id DESC
                         LIMIT 1;
                     """, (t['id'],)).fetchone()
             else:
@@ -513,7 +516,10 @@ def get_total_plant_stocks(as_of_date=None):
                     SELECT covered_sheets, partial_sheet_height_m, cone_occupied_status,
                            copete_height_m, volume_m3, stock_kg, timestamp
                     FROM inventory_silos
-                    WHERE silo_id = ? AND (date(timestamp) <= ? OR timestamp <= ?)
+                    WHERE silo_id = ? AND (
+                        substr(replace(timestamp, 'T', ' '), 1, 10) <= ?
+                        OR timestamp <= ?
+                    )
                     ORDER BY timestamp DESC, id DESC
                     LIMIT 1;
                 """, (s['id'], clean_as_of, f"{clean_as_of} 23:59:59")).fetchone()
@@ -523,7 +529,7 @@ def get_total_plant_stocks(as_of_date=None):
                                copete_height_m, volume_m3, stock_kg, timestamp
                         FROM inventory_silos
                         WHERE silo_id = ?
-                        ORDER BY timestamp ASC, id ASC
+                        ORDER BY timestamp DESC, id DESC
                         LIMIT 1;
                     """, (s['id'],)).fetchone()
             else:

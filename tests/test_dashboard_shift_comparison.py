@@ -183,6 +183,16 @@ class TestDashboardDateRangeAndPerformance(unittest.TestCase):
             stocks_oct4 = get_total_plant_stocks(as_of_date='2026-10-04')
             self.assertEqual(stocks_oct4['total_oil_kg'], 18400.0)
 
+    def test_live_dashboard_stock_parity_with_inventory(self):
+        with self.app.app_context():
+            # In live mode (is_today is True by default), dashboard stocks must match get_total_plant_stocks() exactly
+            dash_data = get_executive_dashboard_data()
+            inv_stocks = get_total_plant_stocks()
+            self.assertEqual(dash_data['stocks']['total_seed_tons'], inv_stocks['total_seed_tons'])
+            self.assertEqual(dash_data['stocks']['total_expeller_tons'], inv_stocks['total_expeller_tons'])
+            self.assertEqual(dash_data['stocks']['total_oil_kg'], inv_stocks['total_oil_kg'])
+            self.assertTrue(dash_data['shift_performance']['is_today'])
+
     def test_executive_dashboard_chart_multi_day_labels(self):
         with self.app.app_context():
             data = get_executive_dashboard_data(start_date='2026-10-01', end_date='2026-10-02')

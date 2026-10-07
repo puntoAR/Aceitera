@@ -1,8 +1,9 @@
 {
-  "version": "1.3.6",
-  "release_date": "2026-10-06",
+  "version": "1.3.7",
+  "release_date": "2026-10-07",
   "app_name": "BioBalcarce Control Industrial",
   "changelog": [
+    "v1.3.7 - Sincronización en tiempo real del stock de planta en Dashboard: visualización inmediata del último cubicaje registrado en silos y tanques sin discrepancias con el módulo de Cubicaje (/inventory/), comparación de fechas ISO normalizada con substr y corrección de orden de ordenamiento a DESC en consultas históricas al corte",
     "v1.3.6 - Selector interactivo de fechas en Dashboard: visualización de cualquier día particular, franja de días personalizada o mes completo; consolidación semántica de métricas para períodos (existencias de planta al corte de la fecha final del período, promedios analíticos aritméticos de laboratorio, velocidades medias de proceso, horas de marcha presupuestadas vs efectivas con paradas netas y curva de evolución con todas las muestras cronológicas del período)",
     "v1.3.5 - Campo de observaciones y detalle técnico en paradas de línea: registro y edición de comentarios específicos para aclarar causas de detención (ej. mantenimiento de rotura vs proceso inherente, número de prensa o cambio de correas), migración estructural v27 en line_stops y trazabilidad completa en auditoría",
     "v1.3.4 - Visibilidad integral de muestreos de producción: selector de turnos en vivo (Todos los Turnos, TM, TT, TN), detección automática de turno en formulario según reloj de planta (UTC-3), corrección retroactiva de pesada de expeller a Turno Tarde (migración v26) y visualización de hora de carga exacta con segundos",

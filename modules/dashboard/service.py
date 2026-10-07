@@ -442,10 +442,13 @@ def get_executive_dashboard_data(selected_shifts=None, target_date=None, start_d
     s_date = shift_performance['start_date']
     e_date = shift_performance['end_date']
     is_single_day = shift_performance['is_single_day']
+    is_live_today = shift_performance.get('is_today', True)
     active_shift = get_active_shift()
 
-    # Obtiene existencias totales al corte de fecha del período (último cubicaje disponible registrado hasta e_date)
-    stocks = get_total_plant_stocks(as_of_date=e_date)
+    # Obtiene existencias de planta: en modo en vivo ("Hoy" / día actual) se toma siempre el stock vivo en tiempo real (as_of_date=None)
+    # garantizando sincronización 100% idéntica e inmediata con el módulo de Cubicaje (/inventory/).
+    # Para consultas de períodos históricos en el pasado, se consulta al corte de e_date.
+    stocks = get_total_plant_stocks(as_of_date=None if is_live_today else e_date)
 
     # Resumen de velocidades consolidado para el período
     speed_summary = shift_performance['consolidated_speed']
