@@ -36,9 +36,9 @@ class TestRolesAndSecurity(unittest.TestCase):
         # Limpia usuarios creados durante tests y asegura estado de claves de prueba
         with get_db_connection() as conn:
             # Elimina codigos de recuperacion asociados a usuarios que no son base
-            conn.execute("DELETE FROM password_reset_codes WHERE user_id NOT IN (SELECT id FROM users WHERE username IN ('admin', 'gerente', 'operario', 'laboratorio'));")
+            conn.execute("DELETE FROM password_reset_codes WHERE user_id NOT IN (SELECT id FROM users WHERE username IN ('admin', 'gerente', 'operario', 'laboratorio', 'jroman'));")
             # Elimina usuarios secundarios creados en tests anteriores
-            conn.execute("DELETE FROM users WHERE username NOT IN ('admin', 'gerente', 'operario', 'laboratorio');")
+            conn.execute("DELETE FROM users WHERE username NOT IN ('admin', 'gerente', 'operario', 'laboratorio', 'jroman');")
             # Asegura la existencia de operario
             conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('operario', 'Operario de Planta', 'usuario', '1111', '30000000', '5492266000003', 'aprobado');")
             # Restablece clave predeterminada de operario
@@ -47,6 +47,8 @@ class TestRolesAndSecurity(unittest.TestCase):
             conn.execute("UPDATE users SET pin = '3333', must_change_password = 0 WHERE username = 'gerente';")
             # Restablece clave predeterminada de admin
             conn.execute("UPDATE users SET pin = '1234', must_change_password = 0 WHERE username = 'admin';")
+            # Restablece clave predeterminada de jroman
+            conn.execute("UPDATE users SET pin = 'Admin2026*', must_change_password = 0 WHERE username = 'jroman';")
             # Confirma las operaciones
             conn.commit()
 
@@ -738,6 +740,24 @@ class TestRolesAndSecurity(unittest.TestCase):
             conn.execute("DELETE FROM users WHERE dni = '36442025';")
             # Confirma borrado
             conn.commit()
+
+    # Prueba 19: Validacion de ingreso del usuario administrador jroman
+    def test_jroman_admin_login_and_access(self):
+        # 1. Autenticacion con username jroman y contrasena Admin2026*
+        auth = authenticate_user('jroman', 'Admin2026*')
+        self.assertTrue(auth['success'])
+        self.assertEqual(auth['user']['role'], 'admin_sistema')
+        self.assertEqual(auth['user']['username'], 'jroman')
+
+        # 2. Inicio de sesion web via POST /login
+        resp_login = self.client.post('/login', data={'username': 'jroman', 'pin': 'Admin2026*'}, follow_redirects=True)
+        self.assertEqual(resp_login.status_code, 200)
+        self.assertIn(b'J. Rom', resp_login.data)
+
+        # 3. Acceso a paneles administrativos restringidos a admin_sistema
+        for admin_route in ['/admin/users', '/admin/audit', '/admin/errors', '/config/']:
+            r = self.client.get(admin_route)
+            self.assertEqual(r.status_code, 200, f"Error al acceder a {admin_route} como jroman")
 
 # Permite ejecutar las pruebas individualmente
 if __name__ == '__main__':

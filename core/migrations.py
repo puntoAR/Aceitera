@@ -695,7 +695,17 @@ REGISTERED_MIGRATIONS = [
         'sql': """
             ALTER TABLE line_stops ADD COLUMN comments TEXT DEFAULT '';
         """
-    } # Fin migracion 27
+    }, # Fin migracion 27
+    { # Abre definicion migracion 28
+        # Version 28: Creacion de usuario administrador jroman
+        'version': 28,
+        'name': 'v28_create_jroman_admin_user',
+        'description': 'Crea el usuario administrador jroman con rol admin_sistema y credenciales oficiales de acceso',
+        'sql': """
+            INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active)
+            VALUES ('jroman', 'J. Román - Administrador del Sistema', 'admin_sistema', 'Admin2026*', '10000006', '5492266000006', 'aprobado', 0, 1);
+        """
+    } # Fin migracion 28
 ] # Fin REGISTERED_MIGRATIONS
 
 

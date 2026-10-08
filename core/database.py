@@ -805,6 +805,8 @@ def seed_initial_data():
         # Inserta usuarios y perfiles predeterminados si no existen en el sistema
         # Inserta usuario Administrador del Sistema si no existe
         conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('admin', 'Administrador del Sistema', 'admin_sistema', '1234', '10000000', '5492266000001', 'aprobado');")
+        # Inserta usuario Administrador jroman si no existe
+        conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status, must_change_password, is_active) VALUES ('jroman', 'J. Román - Administrador del Sistema', 'admin_sistema', 'Admin2026*', '10000006', '5492266000006', 'aprobado', 0, 1);")
         # Inserta usuario Gerencia si no existe
         conn.execute("INSERT OR IGNORE INTO users (username, full_name, role, pin, dni, phone, approval_status) VALUES ('gerente', 'Gerencia General', 'gerencia', '3333', '20000000', '5492266000002', 'aprobado');")
         # Inserta usuario Operario de Planta si no existe
