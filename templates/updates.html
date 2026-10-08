@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 <!-- Extiende plantilla base -->
 
-{% block title %}Centro de Actualizaciones y Respaldos - BioBalcarce{% endblock %}
+{% block title %}Centro de Actualizaciones y Respaldos - Control de Planta{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -95,7 +95,7 @@
                 Búsqueda de Actualizaciones en Línea
             </h3>
             <p style="font-size: 0.875rem; color: #64748b;">
-                Verifica directamente en el servidor o repositorio oficial si existen mejoras o parches para BioBalcarce.
+                Verifica directamente en el servidor o repositorio oficial si existen mejoras o parches para el sistema.
             </p>
         </div>
         <form action="{{ url_for('updater.check_online') }}" method="POST" style="margin: 0; display: flex; gap: 0.5rem; align-items: center;">

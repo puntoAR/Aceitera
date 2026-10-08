@@ -1,4 +1,4 @@
-# Script de pruebas de integracion extremo a extremo para el sistema BioBalcarce
+# Script de pruebas de integracion extremo a extremo para el sistema Aceitera
 # Importa unittest para organizar y ejecutar la suite
 import unittest
 # Importa sys y os para configurar el path
@@ -17,7 +17,7 @@ from modules.yield_balance.service import reconcile_shift, get_recent_reconcilia
 from modules.dashboard.service import get_executive_dashboard_data
 
 # Clase de prueba de integracion completa
-class TestBioBalcarceIntegration(unittest.TestCase):
+class TestAceiteraIntegration(unittest.TestCase):
     # Metodo que se ejecuta antes de cada prueba para garantizar estado limpio
     def setUp(self):
         # Configura la app Flask en modo de pruebas

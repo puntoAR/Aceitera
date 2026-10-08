@@ -39,7 +39,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
             # Restablece la configuracion de licencia a su estado inicial por defecto
             conn.execute("""
                 UPDATE system_licensing_config
-                SET client_name = 'BioBalcarce S.A.',
+                SET client_name = 'Aceitera S.A.',
                     license_mode = 'libre_uso',
                     license_key = 'PTAR-TEST-2026',
                     expiration_date = '2027-09-01',
@@ -71,7 +71,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
             gross_weight_kg=42500,
             tare_weight_kg=14500,
             origin_name="Necochea",
-            destination_name="Planta Balcarce",
+            destination_name="Planta Aceitera",
             operator_name="Operario Balanza"
         )
         self.assertIsNotNone(w_id)
@@ -248,9 +248,9 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
             gross_weight_kg=40000, # Peso bruto
             tare_weight_kg=15000, # Tara
             client="Cliente Agro SA", # Cliente
-            recipient="Planta Balcarce", # Destinatario
+            recipient="Planta Aceitera", # Destinatario
             origin_destination="Necochea", # Procedencia/Destino
-            exporter="BioBalcarce Export", # Exportador
+            exporter="Aceitera Export", # Exportador
             customs="Aduana Mar del Plata", # Aduana
             lot="LOT-01-2026" # Lote
         ) # Cierra llamada
@@ -284,7 +284,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
     def test_import_weighings_from_27_columns_standard(self): # Prueba de importación de las 27 columnas estándar
         """Verifica la importación con la cabecera exacta de 27 columnas de balanza industrial""" # Docstring
         header_line = "ID\tFecha Egreso\tFecha Ingreso\tProducto\tCliente\tTransportista\tDestinatario\tPatente Chasis\tPatente Acoplado\tProcedencia/Destino\tNombre Chofer\tPrecintos\tObservaciones\tID Usuario\tPeso Egreso\tPeso Ingreso\tPeso Neto\tExportador\tTara Manual\tNacionalidad Chofer\tBultos\tAduana\tLOT\tDNI Chofer\tUsuario\tPesada Unica\tDestinacion\n" # Cabecera tabulada
-        row_line = "901\t2026-09-30 15:00\t2026-09-30 14:15\tSemilla\tAcopio del Sur\tTransBalcarce\tBioBalcarce\tAB987CD\tEF654GH\tNecochea\tJuan Lopez\tP-901\tGrano seco\t1\t14200\t44200\t30000\tBioBalcarce SA\tNO\tArgentina\tGranel\tBalcarce\tL-2026\t30111222\toperador1\tNO\tConsumo\n" # Renglón tabulado
+        row_line = "901\t2026-09-30 15:00\t2026-09-30 14:15\tSemilla\tAcopio del Sur\tTransPampa\tAceitera\tAB987CD\tEF654GH\tNecochea\tJuan Lopez\tP-901\tGrano seco\t1\t14200\t44200\t30000\tAceitera SA\tNO\tArgentina\tGranel\tPlanta Central\tL-2026\t30111222\toperador1\tNO\tConsumo\n" # Renglón tabulado
         tsv_content = (header_line + row_line).encode('utf-8') # Concatena y codifica en bytes
         result = import_weighings_from_file(tsv_content, "balanza_estandar.csv", sync_inventory=False) # Importa archivo
         self.assertTrue(result['success']) # Verifica éxito de importación
@@ -294,14 +294,14 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         self.assertEqual(w['truck_plate'], "AB987CD") # Comprueba patente chasis
         self.assertEqual(w['trailer_plate'], "EF654GH") # Comprueba patente acoplado
         self.assertEqual(w['client'], "Acopio del Sur") # Comprueba cliente
-        self.assertEqual(w['recipient'], "BioBalcarce") # Comprueba destinatario
+        self.assertEqual(w['recipient'], "Aceitera") # Comprueba destinatario
         self.assertEqual(w['origin_destination'], "Necochea") # Comprueba procedencia destino
         self.assertEqual(w['entry_weight_kg'], 44200.0) # Comprueba peso ingreso
         self.assertEqual(w['exit_weight_kg'], 14200.0) # Comprueba peso egreso
         self.assertEqual(w['net_weight_kg'], 30000.0) # Comprueba peso neto
-        self.assertEqual(w['exporter'], "BioBalcarce SA") # Comprueba exportador
+        self.assertEqual(w['exporter'], "Aceitera SA") # Comprueba exportador
         self.assertEqual(w['driver_nationality'], "Argentina") # Comprueba nacionalidad
-        self.assertEqual(w['customs'], "Balcarce") # Comprueba aduana
+        self.assertEqual(w['customs'], "Planta Central") # Comprueba aduana
         self.assertEqual(w['lot'], "L-2026") # Comprueba lote
 
     def test_import_weighings_from_csv(self):
@@ -528,7 +528,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
     def test_licensing_status_and_defaults(self):
         """Verifica estado por defecto y calculos de fecha de la licencia"""
         status = get_licensing_status()
-        self.assertEqual(status['client_name'], 'BioBalcarce S.A.')
+        self.assertEqual(status['client_name'], 'Aceitera S.A.')
         self.assertEqual(status['license_mode'], 'libre_uso')
         self.assertTrue(status['is_active'])
         self.assertFalse(status['is_restricted'])
@@ -538,7 +538,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         # Configura trial con 45 dias futuros
         future_date = (date.today() + timedelta(days=45)).isoformat()
         update_licensing_config(
-            client_name="BioBalcarce S.A.",
+            client_name="Aceitera S.A.",
             license_mode="trial",
             expiration_date=future_date,
             is_active=1
@@ -552,7 +552,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         # Ahora simula trial vencido hace 5 dias con restricciones activas
         past_date = (date.today() - timedelta(days=5)).isoformat()
         update_licensing_config(
-            client_name="BioBalcarce S.A.",
+            client_name="Aceitera S.A.",
             license_mode="trial",
             expiration_date=past_date,
             block_data_entry=1,
@@ -574,7 +574,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         # Configura bloqueo de carga de datos y de reportes
         past_date = (date.today() - timedelta(days=10)).isoformat()
         update_licensing_config(
-            client_name="BioBalcarce S.A.",
+            client_name="Aceitera S.A.",
             license_mode="trial",
             expiration_date=past_date,
             block_data_entry=1,
@@ -610,7 +610,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         """Verifica la ruta /config/licensing/update exclusiva para admin_sistema"""
         self.client.post('/login', data={'username': 'admin', 'pin': '1234'})
         resp = self.client.post('/config/licensing/update', data={
-            'client_name': 'BioBalcarce Planta Nueva',
+            'client_name': 'Aceitera Planta Nueva',
             'license_mode': 'suscripcion',
             'expiration_date': '2028-12-31',
             'is_active': '1',
@@ -620,7 +620,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         }, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         status = get_licensing_status()
-        self.assertEqual(status['client_name'], 'BioBalcarce Planta Nueva')
+        self.assertEqual(status['client_name'], 'Aceitera Planta Nueva')
         self.assertEqual(status['license_mode'], 'suscripcion')
         self.assertEqual(status['max_users'], 100)
 
@@ -630,7 +630,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
     def test_floating_update_notification_visibility(self):
         """Verifica que la notificacion flotante de actualizacion solo sea visible para admin_sistema"""
         os.makedirs(PENDING_UPDATES_DIR, exist_ok=True)
-        test_zip = os.path.join(PENDING_UPDATES_DIR, 'BioBalcarce_Update_v1.2.0.zip')
+        test_zip = os.path.join(PENDING_UPDATES_DIR, 'Aceitera_Update_v1.2.0.zip')
 
         # Crea un paquete ZIP de actualizacion comprobado simulado en updates/pending
         import zipfile
@@ -671,7 +671,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         """Verifica que se identifique el ticket 1095 y las cabeceras truncadas como Transport, Patente A, Destinata, etc.""" # Docstring
         # Cabecera truncada idéntica a BALANZA TOTAL.xls
         header_line = "ID\tFecha Egreso\tFecha Ingreso\tProducto\tCliente\tTransport\tDestinata\tPatente C\tPatente A\tProceden\tNombre C\tPrecintos\tObservaci\tID Usuaric\tPeso Egre\tPeso Ingre\tPeso Net\tExportado\tTara Ma\tNacionali\tBultos\tAduana\tLOT\tDNI Chofe\tUsuario\tPesada Un\tDestinaci\n" # Cabecera con nombres truncados
-        row_line = "1095\t11/6/2026 09:40\t11/6/2026 08:30\tSemilla\tAgronorte\tTransChaco\tBioBalcarce\tAA111BB\tCC222DD\tBalcarce\tMario Gomez\tPR-11\tCarga conforme\t1\t15000\t45000\t30000\tBioBalcarce Export\tNO\tArgentina\tGranel\tAduana MdP\tLOT-1095\t20123456\tbalancero1\tNO\tExportacion\n" # Fila de ticket 1095
+        row_line = "1095\t11/6/2026 09:40\t11/6/2026 08:30\tSemilla\tAgronorte\tTransChaco\tAceitera\tAA111BB\tCC222DD\tPlanta Central\tMario Gomez\tPR-11\tCarga conforme\t1\t15000\t45000\t30000\tAceitera Export\tNO\tArgentina\tGranel\tAduana MdP\tLOT-1095\t20123456\tbalancero1\tNO\tExportacion\n" # Fila de ticket 1095
         tsv_content = (header_line + row_line).encode('utf-8') # Codifica en bytes
         result = import_weighings_from_file(tsv_content, "BALANZA TOTAL.xls", sync_inventory=False) # Importa
         self.assertTrue(result['success']) # Exito
@@ -683,7 +683,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         self.assertEqual(w['trailer_plate'], "CC222DD") # Acoplado
         self.assertEqual(w['truck_plate'], "AA111BB") # Chasis
         self.assertEqual(w['driver_name'], "Mario Gomez") # Chofer
-        self.assertEqual(w['exporter'], "BioBalcarce Export") # Exportador
+        self.assertEqual(w['exporter'], "Aceitera Export") # Exportador
         self.assertEqual(w['manual_tare'], "NO") # Tara manual
         self.assertEqual(w['net_weight_kg'], 30000.0) # Neto en kg
 
@@ -748,7 +748,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
 
         # Importa archivo con ticket 1095 y transporte para la misma patente y fecha
         header = "ID\tFecha Egreso\tPatente Chasis\tTransportista\tOperacion\tProducto\tPeso Egreso\tPeso Ingreso\n" # Cabeceras
-        row = "1095\t2026-06-11 09:40:00\tREIMP11\tTransBio\tegreso\taceite\t30000\t10000\n" # Renglon de actualizacion
+        row = "1095\t2026-06-11 09:40:00\tREIMP11\tTransLogistica\tegreso\taceite\t30000\t10000\n" # Renglon de actualizacion
         tsv = (header + row).encode('utf-8') # Codifica
         result = import_weighings_from_file(tsv, "BALANZA.xls") # Ejecuta re-importacion
         self.assertTrue(result['success']) # Exito
@@ -757,7 +757,7 @@ class TestWeighbridgeAndLicensing(unittest.TestCase):
         weighings = get_recent_weighings() # Consulta pesadas
         self.assertEqual(len(weighings), 1) # Exactamente 1 fila sin duplicados
         self.assertEqual(weighings[0]['ticket_number'], "1095") # Ticket actualizado
-        self.assertEqual(weighings[0]['transport_company'], "TransBio") # Transporte actualizado
+        self.assertEqual(weighings[0]['transport_company'], "TransLogistica") # Transporte actualizado
 
     def test_migration_18_applied(self): # Prueba de aplicacion de migracion 18
         """Verifica que la migracion 18 de indices de ticket se aplique correctamente""" # Docstring

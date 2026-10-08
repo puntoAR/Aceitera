@@ -1,8 +1,8 @@
-# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — BioBalcarce v1.1.7
+# Sistema Industrial Modular de Control de Proceso, Existencias y Rendimiento — Aceitera v1.1.7
 
-Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para la planta de extracción y prensado de oleaginosas de **BioBalcarce** (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
+Solución tecnológica integral a medida, sin licencias propietarias ni costos recurrentes, desarrollada para plantas de extracción y prensado de oleaginosas (extrusión de semilla de girasol para la obtención de expeller y aceite crudo filtrado).
 
-**Repositorio oficial en GitHub:** [https://github.com/puntoAR/Bio-Balcarce](https://github.com/puntoAR/Bio-Balcarce)
+**Repositorio oficial en GitHub:** [https://github.com/puntoAR/Aceitera](https://github.com/puntoAR/Aceitera)
 
 ---
 
@@ -57,13 +57,13 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
 3. **Optimización Responsiva para Celulares:**
    - En pantallas móviles se priorizan los indicadores directos (KPIs), ocultando automáticamente fórmulas extensas y campos secundarios para una lectura limpia e inmediata.
 
-1. **PWA (Progressive Web App) para Celulares (Android e iOS):**
+6. **PWA (Progressive Web App) para Celulares (Android e iOS):**
    - Instalación directa en dispositivos móviles mediante **Web App Manifest** y **Service Worker**.
    - Acceso con un solo toque desde la pantalla de inicio con los iconos oficiales en alta resolución (192x192 y 512x512 px) y soporte adaptativo *maskable*.
    - **Enmascaramiento de URL en móviles:** Al abrirse desde el icono del celular, la aplicación se ejecuta en modo *standalone* (a pantalla completa), eliminando la barra de navegación del navegador web para brindar una experiencia 100% idéntica a una aplicación nativa.
-   - Banner de instalación inteligente en pantalla (*"📲 Instalar BioBalcarce"*).
+   - Banner de instalación inteligente en pantalla (*"📲 Instalar Aceitera"*).
 
-2. **Creación Directa de Perfiles de Usuario por el Administrador:**
+7. **Creación Directa de Perfiles de Usuario por el Administrador:**
    - El Administrador del Sistema puede crear usuarios directamente desde el panel sin depender de solicitudes de registro previas.
    - **Nombres de usuario comunes y personalizados:** Se puede asignar cualquier identificador (`jmartinez`, `carlos_gomez`, `supervisor1`, etc.), sin quedar restringido a las cuentas de prueba iniciales (`admin`, `gerente`, `operario`).
    - **Asignación inmediata de los 3 niveles de acceso de planta:**
@@ -72,14 +72,14 @@ Solución tecnológica integral a medida, sin licencias propietarias ni costos r
      3. **Operario / Usuario Común (`usuario`):** Carga operativa de producción (pesadas y paradas), cubicaje de silos y tanques, determinaciones de laboratorio y despacho de camiones cisterna.
    - Generador asistido de contraseñas seguras y casilla para exigir cambio obligatorio de clave en el primer ingreso.
 
-3. **Despliegue Serverless en Vercel:**
-   - Archivo de configuración [vercel.json](file:///E:/PROYECTOS/biobalcarce-control-planta/vercel.json) y punto de entrada WSGI [api/index.py](file:///E:/PROYECTOS/biobalcarce-control-planta/api/index.py).
+8. **Despliegue Serverless en Vercel:**
+   - Archivo de configuración [vercel.json](file:///vercel.json) y punto de entrada WSGI [api/index.py](file:///api/index.py).
    - Detección automática del entorno Vercel (`VERCEL=1`) redirigiendo la persistencia a `/tmp/data` y logs a `/tmp/logs`.
    - Inicialización automática de esquema relacional y migraciones en caliente en cada despliegue.
 
-4. **Privacidad del Repositorio y Enmascaramiento de URL:**
+9. **Privacidad del Repositorio y Enmascaramiento de URL:**
    - **Ocultamiento del código fuente:** El repositorio en GitHub puede configurarse como **Privado** (*Private*). Vercel soporta de forma nativa repositorios privados sin costos ni configuraciones adicionales.
-   - **Dominio propio:** En Vercel (*Project Settings -> Domains*) es posible configurar un subdominio institucional (ej. `planta.biobalcarce.com.ar` o `app.puntoar.com.ar`) para enmascarar la URL por defecto de Vercel.
+   - **Dominio propio:** En Vercel (*Project Settings -> Domains*) es posible configurar un subdominio institucional (ej. `planta.tuempresa.com` o `app.puntoar.com.ar`) para enmascarar la URL por defecto de Vercel.
 
 ---
 
@@ -89,14 +89,14 @@ Por diseño de las plataformas Serverless (como Vercel o AWS Lambda), el disco l
 
 1. **Crear base de datos gratuita en Turso:**
    - Ingresa a [https://turso.tech](https://turso.tech) e inicia sesión con tu cuenta de GitHub.
-   - Haz clic en **Create Database**, ingresa el nombre `biobalcarce` y selecciona la región más cercana (ej. `gru` San Pablo o `iad` Washington).
+   - Haz clic en **Create Database**, ingresa el nombre `aceitera` y selecciona la región más cercana (ej. `gru` San Pablo o `iad` Washington).
 2. **Copiar URL y Token de Acceso:**
-   - En el panel de Turso obtendrás la URL: `https://biobalcarce-[tu-usuario].turso.io`.
+   - En el panel de Turso obtendrás la URL: `https://aceitera-[tu-usuario].turso.io`.
    - Haz clic en **Create Token** para generar un token de autenticación.
 3. **Cargar las Variables en Vercel:**
    - En tu proyecto de Vercel, ve a **Settings** &rarr; **Environment Variables**.
    - Agrega:
-     - `TURSO_DATABASE_URL` = `https://biobalcarce-[tu-usuario].turso.io`
+     - `TURSO_DATABASE_URL` = `https://aceitera-[tu-usuario].turso.io`
      - `TURSO_AUTH_TOKEN` = `[tu-token-de-turso]`
    - Haz un nuevo despliegue o pulsa **Redeploy**.
    - ¡Listo! A partir de ese momento todos los datos se sincronizan y persisten para siempre en la nube sin importar los reinicios de Vercel.
@@ -107,15 +107,15 @@ Por diseño de las plataformas Serverless (como Vercel o AWS Lambda), el disco l
 
 ### En Teléfonos Android (Google Chrome / Edge):
 1. Ingrese a la URL de la aplicación desde el navegador del celular.
-2. Aparecerá automáticamente un aviso en la parte inferior: **"Instalar BioBalcarce - Acceso directo en tu celular"**.
+2. Aparecerá automáticamente un aviso en la parte inferior: **"Instalar Aceitera - Acceso directo en tu celular"**.
 3. Presione el botón **📲 Instalar** y confirme.
-4. El icono de BioBalcarce se agregará a la pantalla de inicio de su teléfono. Al abrirlo, se iniciará a pantalla completa sin barra de direcciones URL.
+4. El icono de Aceitera se agregará a la pantalla de inicio de su teléfono. Al abrirlo, se iniciará a pantalla completa sin barra de direcciones URL.
 
 ### En Teléfonos Apple iPhone / iPad (Safari):
 1. Abra la URL de la aplicación en **Safari**.
 2. Toque el botón **Compartir** (icono de cuadrado con flecha hacia arriba ⎋ en la barra inferior).
 3. Seleccione la opción **"Agregar a la pantalla de inicio"** (o *"Add to Home Screen"* ➕).
-4. Confirme el nombre **BioBalcarce** y pulse **Agregar**.
+4. Confirme el nombre **Aceitera** y pulse **Agregar**.
 
 ---
 
@@ -125,8 +125,8 @@ Por diseño de las plataformas Serverless (como Vercel o AWS Lambda), el disco l
 
 1. Clone o descargue el repositorio desde GitHub:
    ```bash
-   git clone https://github.com/puntoAR/Bio-Balcarce.git
-   cd Bio-Balcarce
+   git clone https://github.com/puntoAR/Aceitera.git
+   cd Aceitera
    ```
 2. Ejecute con doble clic el archivo **`instalar_aplicacion.bat`**.
    Este script automáticamente:
@@ -134,14 +134,14 @@ Por diseño de las plataformas Serverless (como Vercel o AWS Lambda), el disco l
    - Crea el entorno virtual aislado `.venv`.
    - Instala todas las dependencias requeridas (`Flask`, `Pillow`, `requests`, etc.).
    - Inicializa el esquema relacional de SQLite y aplica las migraciones automáticas.
-   - Genera el acceso directo **"BioBalcarce - Control de Planta"** en el Escritorio de Windows con el icono oficial.
+   - Genera el acceso directo **"Aceitera - Control de Planta"** en el Escritorio de Windows con el icono oficial.
 
 ---
 
 ## Estructura del Código
 
 ```
-biobalcarce-control-planta/
+Aceitera/
 │
 ├── run.py                           # Servidor web Flask, ruteo y endpoints PWA (/manifest.json, /sw.js)
 ├── config.py                        # Configuración física, rutas locales y soporte serverless Vercel (/tmp)
@@ -185,7 +185,7 @@ biobalcarce-control-planta/
 │   ├── css/styles.css               # Estilos industriales mobile-first
 │   ├── js/app.js                    # Interactividad, asistente de cálculo y detector de instalación PWA
 │   └── images/                      # Logotipos, fondos e iconos
-│       ├── biobalcarce.ico          # Icono multirresolución de Windows
+│       ├── aceitera.ico             # Icono multirresolución de Windows
 │       ├── pwa_icon_192.png         # Icono PWA estándar 192x192 px
 │       ├── pwa_icon_512.png         # Icono PWA estándar 512x512 px
 │       ├── pwa_icon_maskable_192.png # Icono PWA maskable 192x192 px para Android
@@ -225,4 +225,4 @@ Para validar que todo el sistema matemático, las reglas de negocio, los flujos 
 
 ---
 
-Desarrollado para **BioBalcarce** por **puntoAR** — *El valor de estar presentes*.
+Desarrollado por **puntoAR** — *Soluciones de Software Industrial*.

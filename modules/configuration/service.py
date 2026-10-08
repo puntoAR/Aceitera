@@ -4,7 +4,7 @@ import json
 from core.database import get_db_connection
 # Importa el registrador de eventos para auditar cambios de configuracion
 from core.error_logger import log_info, log_error
-# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+# Importa la funcion horaria oficial de planta (Argentina UTC-3)
 from core.timezone import get_plant_now_str
 
 # Obtiene la lista completa de tanques de aceite configurados en planta

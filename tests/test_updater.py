@@ -40,7 +40,7 @@ class TestInPlaceUpdater(unittest.TestCase):
         # Crea un respaldo
         backup_path = create_backup(label="unit_test")
         self.assertTrue(os.path.exists(backup_path))
-        self.assertTrue(os.path.exists(os.path.join(backup_path, 'biobalcarce.db')))
+        self.assertTrue(os.path.exists(os.path.join(backup_path, os.path.basename(DATABASE_PATH))))
 
         # Lista respaldos y comprueba que figure
         backups = list_backups()
@@ -87,7 +87,7 @@ class TestInPlaceUpdater(unittest.TestCase):
             json.dump({
                 'version': '1.0.5',
                 'release_date': '2026-09-22',
-                'app_name': 'BioBalcarce Control Industrial',
+                'app_name': 'Aceitera Control Industrial',
                 'changelog': ['v1.0.5 - Parche de optimizacion']
             }, f)
 

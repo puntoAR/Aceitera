@@ -219,7 +219,7 @@ def serve_image_by_id(image_id): # Funcion del endpoint
         # Retorna la respuesta con la imagen real
         return resp # Retorna
     # Si la imagen no está disponible, sirve un SVG placeholder SIN cachear para reintentos inmediatos
-    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message=f"Fotografía #{image_id} archivada") # Placeholder
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento Industrial", message=f"Fotografía #{image_id} archivada") # Placeholder
     # Crea respuesta con el SVG vectorial
     resp = make_response(svg_bytes) # Crea respuesta
     # Asigna MIME type SVG
@@ -265,7 +265,7 @@ def serve_image_by_filename(filename): # Funcion del endpoint
         # Retorna la respuesta
         return resp # Retorna
     # Fallback SVG si no se encuentra en ningun repositorio (sin cachear)
-    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible") # Genera svg
+    svg_bytes, svg_mime = get_placeholder_image_svg(title="Mantenimiento Industrial", message="Fotografía no disponible") # Genera svg
     # Crea respuesta
     resp = make_response(svg_bytes) # Crea respuesta
     # Asigna MIME SVG
@@ -407,7 +407,7 @@ def export_csv():
     # Crea la respuesta HTTP con el archivo adjunto
     response = Response(output.getvalue(), mimetype='text/csv; charset=utf-8')
     # Define la cabecera para descarga con nombre fechado
-    response.headers['Content-Disposition'] = 'attachment; filename=Reporte_Repuestos_BioBalcarce.csv'
+    response.headers['Content-Disposition'] = 'attachment; filename=Reporte_Repuestos_Aceitera.csv'
     # Retorna el archivo CSV generado
     return response
 

@@ -93,7 +93,7 @@ def check_filesystem():
 def check_database_integrity():
     # Verifica si el archivo de base de datos existe
     if not os.path.exists(DATABASE_PATH):
-        print_status("Archivo de base de datos SQLite", "ERROR", f"No se encontro biobalcarce.db en {DATABASE_PATH}")
+        print_status("Archivo de base de datos SQLite", "ERROR", f"No se encontro el archivo de base de datos en {DATABASE_PATH}")
         return False
 
     # Conecta directamente a SQLite para correr comandos de integridad PRAGMA
@@ -235,7 +235,7 @@ def analyze_error_logs():
         if "OperationalError: no such table" in last_chunk:
             print("  -> Causa probable: Tablas no creadas. Solucion: Ejecute 'python run.py' para inicializar la base de datos.")
         elif "Permission denied" in last_chunk:
-            print("  -> Causa probable: Permisos de archivo bloqueados en disco. Solucion: Verifique que no haya otro programa abriendo 'biobalcarce.db'.")
+            print("  -> Causa probable: Permisos de archivo bloqueados en disco. Solucion: Verifique que no haya otro programa abriendo el archivo de base de datos.")
         elif "ZeroDivisionError" in last_chunk:
             print("  -> Causa probable: Muestra ingresada con tiempo de llenado igual a cero. Solucion: Asegure tiempos positivos en la pesada.")
         elif "Address already in use" in last_chunk:
@@ -248,7 +248,7 @@ def analyze_error_logs():
 def main():
     # Limpia la pantalla o imprime salto
     print(f"\n{COLOR_BOLD}======================================================================{COLOR_RESET}")
-    print(f"{COLOR_BOLD}   BIOBALCARCE - HERRAMIENTA INDEPENDIENTE DE DIAGNOSTICO DE PLANTA   {COLOR_RESET}")
+    print(f"{COLOR_BOLD}   ACEITERA - HERRAMIENTA INDEPENDIENTE DE DIAGNOSTICO DE PLANTA   {COLOR_RESET}")
     print(f"{COLOR_BOLD}   Fecha y Hora de Auditoria: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}   {COLOR_RESET}")
     print(f"{COLOR_BOLD}======================================================================{COLOR_RESET}")
 

@@ -1,6 +1,6 @@
 @echo off
 REM Desactiva el eco de comandos en la consola para una presentacion limpia
-title BioBalcarce - Restauracion de Respaldo
+title Aceitera - Restauracion de Respaldo
 REM Imprime encabezado visual para el operador de planta
 echo ======================================================
 echo    RESTAURACION DE RESPALDO ANTERIOR (ROLLBACK)

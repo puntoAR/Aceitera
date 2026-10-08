@@ -1,12 +1,12 @@
-// Service Worker para la Progressive Web App (PWA) de BioBalcarce
-const CACHE_NAME = 'biobalcarce-pwa-v1.3.7'; // Identificador unico de version de cache actualizada v1.3.7
+// Service Worker para la Progressive Web App (PWA) de Control de Planta Aceitera
+const CACHE_NAME = 'aceitera-pwa-v1.3.7'; // Identificador unico de version de cache actualizada v1.3.7
 const STATIC_ASSETS = [ // Lista de recursos estaticos a pre-cachear
     '/static/css/styles.css', // Hoja de estilos principal del sistema
     '/static/js/app.js', // Logica de interfaz y calculos en vivo
     '/static/images/logo_simple.png', // Logotipo de girasol para barra superior
     '/static/images/logo_full.png', // Logotipo completo institucional
     '/static/images/oil_plant_bg.jpg', // Fondo industrial de planta aceitera
-    '/static/images/biobalcarce.ico', // Icono multirresolucion de la planta
+    '/static/images/favicon.ico', // Icono de la planta
     '/static/images/pwa_icon_192.png', // Icono PWA de 192 px para dispositivos moviles
     '/static/images/pwa_icon_512.png', // Icono PWA de 512 px para pantalla de inicio
     '/static/manifest.json' // Manifiesto de aplicacion web para instalacion

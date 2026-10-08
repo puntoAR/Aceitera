@@ -34,7 +34,7 @@ def get_current_version_info():
     return {
         'version': '1.0.0',
         'release_date': '2026-09-21',
-        'app_name': 'BioBalcarce Control Industrial',
+        'app_name': 'Aceitera Control Industrial',
         'changelog': []
     }
 

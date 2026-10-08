@@ -25,7 +25,7 @@ from core.audit import record_audit_event
 from core.error_logger import log_error, log_info
 # Importa configuraciones del sistema para rutas y extensiones
 import config
-# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+# Importa funciones horarias oficiales de planta (Argentina UTC-3)
 from core.timezone import get_plant_now, get_plant_now_str
 
 # Registra una nueva actividad o solicitud de intervencion de mantenimiento
@@ -233,7 +233,7 @@ def _process_and_encode_image(file_storage, max_dimension=1280, quality=80):
         return 'image/jpeg', None, b''
 
 # Genera un placeholder SVG cuando la imagen histórica no está disponible
-def get_placeholder_image_svg(title="Mantenimiento BioBalcarce", message="Fotografía no disponible"):
+def get_placeholder_image_svg(title="Mantenimiento Industrial", message="Fotografía no disponible"):
     """
     Retorna un gráfico SVG vectorial estilizado para servir como fallback
     ante fotografías anteriores cuya copia efímera en disco fue purgada.

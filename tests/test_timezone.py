@@ -12,7 +12,7 @@ class TestPlantTimezone(unittest.TestCase):
         apply_pending_migrations()
 
     def test_plant_timezone_offset(self):
-        """Verifica que la zona horaria sea UTC-3 estricta (Balcarce, Argentina)."""
+        """Verifica que la zona horaria sea UTC-3 estricta (Argentina)."""
         now = get_plant_now()
         self.assertIsNotNone(now.tzinfo)
         offset = now.utcoffset()

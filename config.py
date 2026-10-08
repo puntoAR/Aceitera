@@ -141,14 +141,19 @@ ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 MAX_IMAGE_FILE_SIZE_BYTES = 16 * 1024 * 1024
 
 # Define la ruta del archivo de base de datos principal de SQLite
-DATABASE_PATH = os.path.join(DATA_DIR, 'biobalcarce.db')
+DATABASE_PATH = os.path.join(DATA_DIR, 'aceitera.db')
 
 # Define la ruta del archivo de log de eventos y diagnostico de errores
 LOG_FILE_PATH = os.path.join(LOGS_DIR, 'system.log')
 
 # En entornos temporales, copia la base de datos precargada si existe y aun no esta en /tmp
 if str(DATA_DIR).startswith('/tmp') or str(DATA_DIR).startswith('\\tmp'):
-    seed_db = os.path.join(str(BASE_DIR), 'data', 'biobalcarce.db')
+    seed_db = os.path.join(str(BASE_DIR), 'data', 'aceitera.db')
+    if not os.path.exists(seed_db):
+        _data_folder = os.path.join(str(BASE_DIR), 'data')
+        _candidates = [f for f in os.listdir(_data_folder) if f.endswith('.db')] if os.path.exists(_data_folder) else []
+        if _candidates:
+            seed_db = os.path.join(_data_folder, _candidates[0])
     if os.path.exists(seed_db) and not os.path.exists(DATABASE_PATH):
         try:
             import shutil
@@ -162,7 +167,7 @@ TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '').strip()
 USE_TURSO = bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
 
 # Clave secreta para proteccion criptografica de sesiones en Flask
-SECRET_KEY = os.environ.get('SECRET_KEY', 'biobalcarce-clave-segura-industrial-2026')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'aceitera-clave-segura-industrial-2026')
 
 # Puerto de red predeterminado en el que escuchara la aplicacion web
 PORT = int(os.environ.get('PORT', 5000))
@@ -194,5 +199,5 @@ FACTOR_CONVERSION_PH = 10.0
 # URL predeterminada del servidor o repositorio para consultar manifiestos de actualizacion
 DEFAULT_UPDATE_SERVER_URL = os.environ.get(
     'UPDATE_SERVER_URL',
-    'https://raw.githubusercontent.com/biobalcarce/updates/main/latest.json'
+    'https://raw.githubusercontent.com/puntoAR/Aceitera/main/updates/latest.json'
 )

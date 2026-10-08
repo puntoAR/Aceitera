@@ -1,4 +1,4 @@
-# Archivo principal de ejecucion y arranque del servidor web industrial BioBalcarce
+# Archivo principal de ejecucion y arranque del servidor web industrial Control de Planta Aceitera
 # Importa sys y os para configurar el entorno de ejecucion
 import sys
 import os
@@ -221,10 +221,10 @@ if __name__ == '__main__':
     # Ejecuta migraciones de esquema pendientes sin perdida de informacion
     apply_pending_migrations()
     # Registra en log el arranque del servidor
-    log_info('SERVER', f'Iniciando servidor BioBalcarce en http://{HOST}:{PORT}')
+    log_info('SERVER', f'Iniciando servidor Aceitera en http://{HOST}:{PORT}')
     # Imprime mensaje en consola para el usuario
     print(f"\n========================================================")
-    print(f" SISTEMA INDUSTRIAL MODULAR BIOBALCARCE INICIADO")
+    print(f" SISTEMA INDUSTRIAL MODULAR CONTROL DE PLANTA ACEITERA INICIADO")
     print(f" Acceso local: http://localhost:{PORT}")
     print(f" Acceso en red planta / celular: http://{HOST}:{PORT}")
     print(f" Diagnostico independiente: python diagnostics/system_diagnostics.py")

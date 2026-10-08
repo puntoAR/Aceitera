@@ -1,6 +1,6 @@
 """
-Módulo de gestión de zona horaria oficial de planta BioBalcarce.
-La planta industrial opera en Balcarce, Buenos Aires, Argentina (UTC-3).
+Módulo de gestión de zona horaria oficial de planta.
+La planta industrial opera con huso horario de Argentina (UTC-3).
 Argentina no aplica horario de verano desde 2009 (UTC-3 permanente).
 Garantiza que todas las marcas de tiempo (pesadas, paradas, laboratorio,
 auditoría, etc.) coincidan con el reloj local de los operarios y planta,
@@ -8,12 +8,12 @@ tanto en ejecuciones locales como en servidores serverless en la nube (Vercel/AW
 """
 import datetime
 
-# Zona horaria oficial de Balcarce, Argentina: UTC-3 fijo permanente
+# Zona horaria oficial de planta, Argentina: UTC-3 fijo permanente
 PLANT_TZ = datetime.timezone(datetime.timedelta(hours=-3), name="ART")
 
 def get_plant_now() -> datetime.datetime:
     """
-    Retorna objeto datetime consciente de la zona horaria de planta BioBalcarce (UTC-3).
+    Retorna objeto datetime consciente de la zona horaria de planta (UTC-3).
     """
     return datetime.datetime.now(PLANT_TZ)
 
@@ -34,7 +34,7 @@ def get_plant_today_str() -> str:
 def determine_time_slot(dt_or_str=None) -> dict:
     """
     Determina la franja horaria y turno operativo para una fecha/hora dada o la actual.
-    Turnos oficiales BioBalcarce:
+    Turnos oficiales de planta:
       - TM (Turno Mañana): 06:00 a 13:59:59 (06:00 - 14:00)
       - TT (Turno Tarde):  14:00 a 21:59:59 (14:00 - 22:00)
       - TN (Turno Noche):  22:00 a 05:59:59 (22:00 - 06:00)

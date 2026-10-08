@@ -51,14 +51,14 @@ class TestRemoteUpdater(unittest.TestCase):
             'version': '9.9.9',
             'release_date': '2026-10-01',
             'changelog': ['Mejora de rendimiento'],
-            'download_url': 'https://updates.biobalcarce.com/biobalcarce-v9.9.9.zip',
+            'download_url': 'https://updates.aceitera.com/aceitera-v9.9.9.zip',
             'sha256': 'abcdef123456'
         }
         # Asigna el mock a requests.get
         mock_get.return_value = mock_response
 
         # Ejecuta la comprobacion
-        result = check_for_remote_updates('https://updates.biobalcarce.com/latest.json')
+        result = check_for_remote_updates('https://updates.aceitera.com/latest.json')
         # Verifica exito en la llamada
         self.assertTrue(result['success'])
         # Verifica que detecte actualizacion disponible

@@ -197,7 +197,7 @@ def forgot_password():
             clean_phone = raw_phone
             
         # Mensaje formateado para el envio por WhatsApp
-        msg_text = f"BioBalcarce Planta: Hola {user['full_name']}, su código de recuperación de contraseña es: *{otp_code}*. Válido por 15 minutos."
+        msg_text = f"Control de Planta: Hola {user['full_name']}, su código de recuperación de contraseña es: *{otp_code}*. Válido por 15 minutos."
         # Codifica la URL de wa.me
         wa_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg_text)}"
         
@@ -268,7 +268,7 @@ def verify_reset_code():
                 clean_phone = '549' + raw_phone
             else:
                 clean_phone = raw_phone
-            pwd_msg = f"BioBalcarce Planta: Hola {user['full_name']}, su nueva contraseña provisoria de acceso es: *{temp_password}*. Recuerde que deberá cambiarla en su primer ingreso."
+            pwd_msg = f"Control de Planta: Hola {user['full_name']}, su nueva contraseña provisoria de acceso es: *{temp_password}*. Recuerde que deberá cambiarla en su primer ingreso."
             wa_pwd_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(pwd_msg)}"
             
             # Renderiza la pantalla de confirmacion de clave provisoria

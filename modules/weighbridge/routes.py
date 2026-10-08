@@ -198,7 +198,7 @@ def export_excel():
 
         excel_stream = export_weighings_to_excel(weighings, as_stream=True, order_by=order_by) # Genera flujo Excel
         date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M') # Estampa de tiempo para archivo
-        filename = f"BioBalcarce_Balanza_{date_str}.xlsx" # Nombre de archivo descargable
+        filename = f"Aceitera_Balanza_{date_str}.xlsx" # Nombre de archivo descargable
 
         return send_file( # Envia archivo binario para descarga
             excel_stream, # Flujo en memoria
@@ -231,7 +231,7 @@ def export_csv(): # Controlador de exportacion CSV
 
         csv_content = export_weighings_to_csv(weighings, order_by=order_by) # Genera texto CSV con orden
         date_str = datetime.datetime.now().strftime('%Y%m%d_%H%M') # Estampa de tiempo
-        filename = f"BioBalcarce_Balanza_{date_str}.csv" # Nombre archivo CSV
+        filename = f"Aceitera_Balanza_{date_str}.csv" # Nombre archivo CSV
 
         return Response(
             csv_content,

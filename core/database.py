@@ -722,7 +722,7 @@ def init_db():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS system_licensing_config (
             id INTEGER PRIMARY KEY,
-            client_name TEXT DEFAULT 'BioBalcarce S.A.',
+            client_name TEXT DEFAULT 'Aceitera S.A.',
             plan_name TEXT DEFAULT 'Plan Libre Uso Anual (puntoAR)',
             license_mode TEXT DEFAULT 'libre_uso',
             license_key TEXT DEFAULT 'PTAR-ACTV-2026-OK',
@@ -761,7 +761,7 @@ def ensure_licensing_schema(conn):
     cursor.execute("PRAGMA table_info(system_licensing_config);")
     cols = {row[1] for row in cursor.fetchall()}
     needed = [
-        ("client_name", "TEXT DEFAULT 'BioBalcarce S.A.'"),
+        ("client_name", "TEXT DEFAULT 'Aceitera S.A.'"),
         ("license_key", "TEXT DEFAULT 'PTAR-ACTV-2026-OK'"),
         ("start_date", "TEXT DEFAULT '2026-09-01'"),
         ("is_active", "INTEGER DEFAULT 1"),
@@ -779,11 +779,11 @@ def ensure_licensing_schema(conn):
     if not cursor.fetchone():
         cursor.execute("""
             INSERT OR IGNORE INTO system_licensing_config (id, client_name, license_mode, license_key, start_date, expiration_date, is_active, max_users)
-            VALUES (1, 'BioBalcarce S.A.', 'libre_uso', 'PTAR-ACTV-2026-OK', '2026-09-01', '2027-09-01', 1, 50);
+            VALUES (1, 'Aceitera S.A.', 'libre_uso', 'PTAR-ACTV-2026-OK', '2026-09-01', '2027-09-01', 1, 50);
         """)
     conn.commit()
 
-# Llena la base de datos con los equipos y parametros reales de BioBalcarce
+# Llena la base de datos con los equipos y parametros reales de la planta
 def seed_initial_data():
     # Abre conexion para verificar e insertar datos iniciales
     with get_db_connection() as conn:
@@ -825,7 +825,7 @@ def seed_initial_data():
             # Confirma la operacion en disco
             conn.commit()
 
-        # Inserta los tanques de aceite reales de BioBalcarce segun el documento tecnico
+        # Inserta los tanques de aceite reales de la planta segun el documento tecnico
         tank_count = conn.execute("SELECT COUNT(*) FROM equipment_tanks;").fetchone()[0]
         # Si no hay tanques cargados previamente
         if tank_count == 0:

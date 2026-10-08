@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-<!-- Extiende de la plantilla base institucional de BioBalcarce -->
+<!-- Extiende de la plantilla base institucional -->
 
-{% block title %}BioBalcarce - Mantenimiento Industrial & Pañol de Repuestos{% endblock %}
+{% block title %}Mantenimiento Industrial & Pañol de Repuestos - Control de Planta{% endblock %}
 <!-- Titulo dinamico de la pestana de navegacion -->
 
 {% block content %}
@@ -1556,8 +1556,8 @@
                 if (statusEl) { // Si existe status
                     // Color celeste
                     statusEl.style.color = '#38bdf8'; // Estilo celeste
-                    // Mensaje de carga hacia la nube
-                    statusEl.innerHTML = '⏳ Subiendo fotografía a la nube de BioBalcarce...'; // Mensaje
+                    // Mensaje de carga hacia el servidor
+                    statusEl.innerHTML = '⏳ Subiendo fotografía al servidor...'; // Mensaje
                 } // Fin if
 
                 // Bloque de envio asincronico

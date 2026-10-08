@@ -1,5 +1,5 @@
 """
-Pruebas unitarias para validar las correcciones de errores del sistema BioBalcarce:
+Pruebas unitarias para validar las correcciones de errores del sistema Aceitera:
 1. Parseo seguro de cadenas vacías a float en cubicaje de tanques (density_override).
 2. Parseo seguro de cadenas vacías a float en cubicaje de silos (ph_override).
 3. Inserción correcta de 10 columnas en inventory_movements sin error de desajuste.

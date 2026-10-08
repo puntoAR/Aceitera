@@ -16,7 +16,7 @@ import sqlite3
 from config import BASE_DIR, DATABASE_PATH, BACKUPS_DIR
 # Importa logger
 from core.error_logger import log_info, log_error
-# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+# Importa funciones horarias oficiales de planta (Argentina UTC-3)
 from core.timezone import get_plant_now, get_plant_now_str
 
 # Asegura que el directorio de respaldos exista de manera segura
@@ -37,7 +37,8 @@ def create_backup(label="pre_update"):
     os.makedirs(backup_path, exist_ok=True)
 
     # 1. Respaldo seguro en caliente de la base de datos SQLite usando la API backup
-    db_backup_path = os.path.join(backup_path, 'biobalcarce.db')
+    db_name = os.path.basename(DATABASE_PATH)
+    db_backup_path = os.path.join(backup_path, db_name)
     if os.path.exists(DATABASE_PATH):
         # Conecta a la base activa en modo lectura
         src_conn = sqlite3.connect(DATABASE_PATH)
@@ -131,13 +132,14 @@ def list_backups():
                     # Une las partes restantes como etiqueta
                     inferred_label = "_".join(parts[3:]) if len(parts) > 3 else 'desconocido'
                 # Agrega el diccionario de datos del respaldo a la lista
+                db_name = os.path.basename(DATABASE_PATH)
                 backups.append({
                     'folder_name': item,
                     'label': inferred_label,
                     'created_at': inferred_date,
                     'version': 'N/D',
                     'path': item_path,
-                    'has_database': os.path.exists(os.path.join(item_path, 'biobalcarce.db'))
+                    'has_database': any(f.endswith('.db') for f in os.listdir(item_path)) if os.path.isdir(item_path) else False
                 })
     # Ordena del mas reciente al mas antiguo
     backups.sort(key=lambda x: x.get('created_at', ''), reverse=True)
@@ -150,7 +152,13 @@ def restore_backup(backup_folder_path):
         raise ValueError(f"La carpeta de respaldo especificada no existe: {backup_folder_path}")
 
     # 1. Restaura la base de datos de manera consistente usando el API backup de SQLite
-    db_backup = os.path.join(backup_folder_path, 'biobalcarce.db')
+    db_name = os.path.basename(DATABASE_PATH)
+    db_backup = os.path.join(backup_folder_path, db_name)
+    if not os.path.exists(db_backup):
+        # Busca cualquier archivo .db presente en la carpeta de respaldo para restauracion
+        candidates = [f for f in os.listdir(backup_folder_path) if f.endswith('.db')]
+        if candidates:
+            db_backup = os.path.join(backup_folder_path, candidates[0])
     # Verifica si el archivo de base de datos existe en el respaldo
     if os.path.exists(db_backup):
         # Abre conexion en modo lectura con la base de respaldo

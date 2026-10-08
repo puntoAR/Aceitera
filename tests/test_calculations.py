@@ -90,7 +90,7 @@ class TestTankCalculations(unittest.TestCase):
 
     # Prueba del tanque cilindrico horizontal en diferentes niveles
     def test_horizontal_tank_geometry(self):
-        # Tanque 1 de BioBalcarce: D=2.50m, L=6.50m
+        # Tanque 1 de Aceitera: D=2.50m, L=6.50m
         diam = 2.50
         length = 6.50
         # Nivel cero debe dar volumen cero

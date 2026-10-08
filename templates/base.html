@@ -7,7 +7,7 @@
     <!-- Meta viewport indispensable para el diseno responsivo en celulares y tablets -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Titulo dinamico de la pagina -->
-    <title>{% block title %}BioBalcarce - Control Industrial{% endblock %}</title>
+    <title>{% block title %}Aceitera - Control Industrial{% endblock %}</title>
     <!-- Icono de pestana del navegador en alta resolucion -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <!-- Icono de acceso directo para navegadores clasicos -->
@@ -21,7 +21,7 @@
     <!-- Estilo de barra de estado en iOS -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Titulo de la aplicacion al anadirse en pantalla de inicio de iOS -->
-    <meta name="apple-mobile-web-app-title" content="BioBalcarce">
+    <meta name="apple-mobile-web-app-title" content="Aceitera">
     <!-- Icono de inicio para dispositivos Apple iOS -->
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/pwa_icon_192.png') }}">
     <!-- Cabeceras HTTP para impedir cache estancado en navegadores moviles y desktop -->
@@ -44,9 +44,9 @@
         <!-- Marca y titulo de la planta con enlace inteligente segun modulos autorizados -->
         <a href="{% if g.user %}{% if has_module_access(g.user, 'dashboard') %}{{ url_for('dashboard.index') }}{% elif has_module_access(g.user, 'production') %}{{ url_for('production.index') }}{% elif has_module_access(g.user, 'maintenance') %}{{ url_for('maintenance.index') }}{% elif has_module_access(g.user, 'inventory') %}{{ url_for('inventory.index') }}{% else %}{{ url_for('dashboard.index') }}{% endif %}{% else %}{{ url_for('dashboard.login') }}{% endif %}" class="navbar-brand">
             <!-- Logotipo oficial de girasol y gota de aceite -->
-            <img src="{{ url_for('static', filename='images/logo_simple.png') }}" alt="BioBalcarce" style="height: 30px; width: 30px; object-fit: contain; margin-right: 0.45rem; vertical-align: middle;">
+            <img src="{{ url_for('static', filename='images/logo_simple.png') }}" alt="Aceitera" style="height: 30px; width: 30px; object-fit: contain; margin-right: 0.45rem; vertical-align: middle;">
             <!-- Denominacion institucional de la aplicacion -->
-            <span>BioBalcarce Control</span>
+            <span>Control de Planta</span>
         </a>
 
         <!-- Si el usuario esta autenticado muestra menu de navegacion adaptado a su perfil -->
@@ -148,7 +148,7 @@
                 <strong>Aviso de Licenciamiento:</strong> {{ licensing_info.status_label }}.
                 {% if licensing_info.restrictions.block_data_entry %}La carga de nuevos registros se encuentra temporalmente restringida.{% endif %}
             </div>
-            <a href="mailto:empresa.puntoar@gmail.com?subject=Renovacion%20Licencia%20BioBalcarce" style="color: #991b1b; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Renovacion%20Licencia%20Aceitera" style="color: #991b1b; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
                 Regularizar con puntoAR &rarr;
             </a>
         </div>
@@ -157,7 +157,7 @@
             <div>
                 <strong>Período de Prueba:</strong> Su versión de demostración caduca en <strong>{{ licensing_info.days_remaining }} días</strong>.
             </div>
-            <a href="mailto:empresa.puntoar@gmail.com?subject=Extension%20Prueba%20BioBalcarce" style="color: #92400e; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Extension%20Prueba%20Aceitera" style="color: #92400e; font-weight: 700; text-decoration: underline; font-size: 0.85rem;">
                 Consultar planes puntoAR &rarr;
             </a>
         </div>
@@ -170,7 +170,7 @@
     <footer class="footer">
         <!-- Texto de copyright y descripcion de sistema -->
         <p>
-            &copy; 2026 BioBalcarce - Sistema Industrial de Control de Proceso
+            &copy; 2026 Aceitera - Sistema Industrial de Control de Proceso
             &bull;
             <a href="{{ url_for('dashboard.about') }}" style="color: inherit; text-decoration: underline; opacity: 0.9;" title="Información del desarrollador">Acerca de</a>
         </p>
@@ -206,11 +206,11 @@
     <!-- Banner flotante para sugerir la instalacion de la aplicacion en el celular -->
     <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #0f172a; color: white; padding: 0.85rem 1.15rem; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); border: 1px solid #d97706; align-items: center; gap: 0.75rem;">
         <!-- Icono representativo de la aplicacion -->
-        <img src="{{ url_for('static', filename='images/pwa_icon_192.png') }}" style="width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;" alt="BioBalcarce Icon">
+        <img src="{{ url_for('static', filename='images/pwa_icon_192.png') }}" style="width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;" alt="Aceitera Icon">
         <!-- Bloque de texto informativo -->
         <div style="flex: 1;">
             <!-- Titulo del aviso de instalacion -->
-            <div style="font-weight: 700; color: #f59e0b; font-size: 0.9rem;">Instalar BioBalcarce</div>
+            <div style="font-weight: 700; color: #f59e0b; font-size: 0.9rem;">Instalar Aplicación</div>
             <!-- Subtitulo explicativo para el usuario -->
             <div style="font-size: 0.75rem; color: #94a3b8;">Acceso directo con icono en tu celular</div>
         </div>

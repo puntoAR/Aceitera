@@ -1,10 +1,10 @@
 @echo off
 REM Desactiva la repeticion de comandos en consola
-title Instalador BioBalcarce - Control de Planta
+title Instalador Aceitera - Control de Planta
 REM Establece el titulo de la consola de instalacion
 echo ======================================================
 REM Encabezado visual de inicio
-echo    INSTALADOR OFICIAL BIOBALCARCE - CONTROL DE PLANTA
+echo    INSTALADOR OFICIAL ACEITERA - CONTROL DE PLANTA
 REM Nombre del sistema
 echo ======================================================
 REM Separador visual

@@ -13,7 +13,7 @@ from modules.calculations.speed_calc import (
 )
 # Importa el registrador de eventos
 from core.error_logger import log_info, log_error
-# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+# Importa la funcion horaria oficial de planta (Argentina UTC-3)
 from core.timezone import get_plant_now_str, determine_time_slot, get_plant_now, get_plant_today_str
 # Importa el servicio de auditoria de eventos
 from core.audit import record_audit_event

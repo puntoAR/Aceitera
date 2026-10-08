@@ -1,4 +1,4 @@
-# Script utilitario para cargar datos realistas de simulacion de turno en BioBalcarce
+# Script utilitario para cargar datos realistas de simulacion de turno en planta
 # Importa sys y os para configurar rutas
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -17,7 +17,7 @@ from modules.yield_balance.service import reconcile_shift
 def seed_realistic_shift():
     # Inicializa las tablas si no existen
     init_db()
-    print("Cargando datos de prueba de BioBalcarce...")
+    print("Cargando datos de prueba de planta...")
 
     # 1. Cubicaje inicial de tanques de aceite
     with get_db_connection() as conn:

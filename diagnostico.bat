@@ -1,6 +1,6 @@
 @echo off
 REM Desactiva el eco de comandos en la consola para una presentacion limpia
-title BioBalcarce - Diagnostico de Planta
+title Aceitera - Diagnostico de Planta
 REM Imprime encabezado visual para el operador de planta
 echo ======================================================
 echo    EJECUTANDO DIAGNOSTICO INDEPENDIENTE DE PLANTA

@@ -1,5 +1,5 @@
 """
-Módulo de utilidades generales para BioBalcarce.
+Módulo de utilidades generales para Control de Planta Aceitera.
 Proporciona funciones para conversión robusta de tipos numéricos,
 normalización y sanitización de entradas de formularios web e importaciones.
 """

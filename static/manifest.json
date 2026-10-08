@@ -1,7 +1,7 @@
 {
-  "name": "BioBalcarce - Control de Planta",
-  "short_name": "BioBalcarce",
-  "description": "Sistema Industrial de Control de Proceso, Existencias y Rendimiento — BioBalcarce",
+  "name": "Aceitera - Control de Planta",
+  "short_name": "Aceitera",
+  "description": "Sistema Industrial de Control de Proceso, Existencias y Rendimiento — Planta Aceitera",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -35,7 +35,7 @@
       "purpose": "maskable"
     },
     {
-      "src": "/static/images/biobalcarce.ico",
+      "src": "/static/images/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     }

@@ -225,7 +225,7 @@ class TestRolesAndSecurity(unittest.TestCase):
 
         # Blanqueo directo
         new_pwd = admin_blanquear_password(user_id)
-        self.assertTrue(new_pwd.startswith('Bio-'))
+        self.assertTrue(new_pwd.startswith('Ace-'))
 
         with get_db_connection() as conn:
             u_check = conn.execute("SELECT pin, must_change_password FROM users WHERE id = ?;", (user_id,)).fetchone()
@@ -361,14 +361,14 @@ class TestRolesAndSecurity(unittest.TestCase):
         # Consulta el manifiesto de la aplicacion
         r_manifest = self.client.get('/manifest.json')
         self.assertEqual(r_manifest.status_code, 200)
-        self.assertIn(b'BioBalcarce', r_manifest.data)
+        self.assertIn(b'Aceitera', r_manifest.data)
         self.assertIn(b'standalone', r_manifest.data)
 
         # Consulta el Service Worker
         r_sw = self.client.get('/sw.js')
         self.assertEqual(r_sw.status_code, 200)
         self.assertEqual(r_sw.headers.get('Service-Worker-Allowed'), '/')
-        self.assertIn(b'biobalcarce-pwa', r_sw.data)
+        self.assertIn(b'aceitera-pwa', r_sw.data)
 
     # Prueba 11: Validacion de asignacion de rol 'gerencia' y visualizacion de etiqueta
     def test_gerencia_role_assignment_and_display(self):
@@ -434,9 +434,9 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertEqual(remaining[0]['username'], 'mariana_gerencia')
 
         # Verifica serializacion de parametros en TursoConnection
-        turso = TursoConnection("libsql://biobalcarce-test.turso.io", "test-token")
+        turso = TursoConnection("libsql://aceitera-test.turso.io", "test-token")
         # Comprueba URL del pipeline v2
-        self.assertEqual(turso.pipeline_url, "https://biobalcarce-test.turso.io/v2/pipeline")
+        self.assertEqual(turso.pipeline_url, "https://aceitera-test.turso.io/v2/pipeline")
         # Comprueba serializacion de valor nulo
         self.assertEqual(turso._to_turso_arg(None), {"type": "null"})
         # Comprueba serializacion de valor entero
@@ -467,7 +467,7 @@ class TestRolesAndSecurity(unittest.TestCase):
         resp = self.client.post('/inventory/movement', data={
             'product': 'semilla',
             'movement_type': 'ingreso',
-            'origin': 'Camión Balcarce 101',
+            'origin': 'Camión Planta 101',
             'destination': 'Silo 1 Semilla Girasol',
             'quantity_kg': '28500.0',
             'document_ref': 'REM-2026-999',
@@ -536,7 +536,7 @@ class TestRolesAndSecurity(unittest.TestCase):
         self.assertIn('ℹ️ Acerca de', html_dash)
         self.assertIn('/about', html_dash)
         # Verifica enlace en pie de pagina
-        self.assertIn('BioBalcarce - Sistema Industrial de Control de Proceso', html_dash)
+        self.assertIn('Aceitera - Sistema Industrial de Control de Proceso', html_dash)
 
     # Prueba 13: Compatibilidad y arranque serverless en Vercel
     def test_vercel_serverless_handler_and_config(self):

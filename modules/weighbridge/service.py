@@ -201,7 +201,7 @@ def record_weighing(
 
 
     # Procedencia o destino consolidado
-    origin_destination = origin_destination or destination or origin or 'BioBalcarce'
+    origin_destination = origin_destination or destination or origin or 'Planta Aceitera'
     # Cliente
     client = client or destination or ''
     # Destinatario
@@ -289,7 +289,7 @@ def record_weighing(
                     product=inv_prod, # Producto
                     movement_type=inv_mov_type, # Tipo
                     origin=origin or 'Balanza Báscula', # Origen
-                    destination=destination or 'Planta BioBalcarce', # Destino
+                    destination=destination or 'Planta Aceitera', # Destino
                     quantity_kg=net, # Kilos netos
                     document_ref=f"BAL-{ticket_number or weighing_id}", # Referencia documental
                     shift_id=shift_id, # Turno
@@ -1244,7 +1244,7 @@ def export_weighings_to_excel(weighings=None, as_stream=False, order_by='ticket_
     ws = wb.active # Obtiene hoja activa
     ws.title = "Pesadas de Balanza" # Establece título de pestaña
 
-    # Estilos corporativos de BioBalcarce
+    # Estilos corporativos de Planta Aceitera
     header_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid") # Fondo oscuro slate 900
     header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF") # Fuente blanca en negrita
     data_font = Font(name="Arial", size=9) # Fuente regular para datos

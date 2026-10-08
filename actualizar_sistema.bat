@@ -1,9 +1,9 @@
 @echo off
 REM Desactiva el eco de comandos en la consola para una presentacion limpia
-title BioBalcarce - Actualizador de Sistema
+title Aceitera - Actualizador de Sistema
 REM Imprime encabezado visual para el operador de planta
 echo ======================================================
-echo    ACTUALIZADOR DEL SISTEMA BIOBALCARCE (IN-PLACE)
+echo    ACTUALIZADOR DEL SISTEMA ACEITERA (IN-PLACE)
 echo ======================================================
 REM Cambia el directorio de trabajo a la unidad y carpeta donde reside este script
 cd /d "%~dp0"

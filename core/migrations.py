@@ -45,7 +45,7 @@ REGISTERED_MIGRATIONS = [
     {
         'version': 1,
         'name': 'initial_schema_v1_0',
-        'description': 'Esquema base de BioBalcarce con 13 tablas iniciales',
+        'description': 'Esquema base con 13 tablas iniciales',
         'sql': '-- Migracion base ya consolidada en init_db'
     },
     {
@@ -59,7 +59,7 @@ REGISTERED_MIGRATIONS = [
         """
     },
     {
-        # Version 3 de migracion para sincronizar silos exactos de la planilla BioBalcarce
+        # Version 3 de migracion para sincronizar silos exactos de la planilla de planta
         'version': 3,
         # Identificador de la migracion
         'name': 'sync_spreadsheet_silos_and_tanks',
@@ -282,10 +282,10 @@ REGISTERED_MIGRATIONS = [
         """
     },
     {
-        # Version 9: Ajuste de marcas temporales grabadas en UTC a horario oficial Balcarce (UTC-3)
+        # Version 9: Ajuste de marcas temporales grabadas en UTC a horario oficial de planta (UTC-3)
         'version': 9,
         'name': 'adjust_legacy_utc_timestamps_to_art',
-        'description': 'Ajuste de registros grabados en UTC en servidores en la nube a horario local de planta Balcarce (-3 horas)',
+        'description': 'Ajuste de registros grabados en UTC en servidores en la nube a horario local de planta (-3 horas)',
         'sql': """
             -- Corrige pesadas de produccion grabadas con hora de servidor UTC
             UPDATE production_weighings
@@ -395,7 +395,7 @@ REGISTERED_MIGRATIONS = [
                 1, 'libre_uso', 'Plan Libre Uso por 1 Año (puntoAR)',
                 '2026-09-01', '2027-09-01',
                 0, 0, 0, 0, 0,
-                'Uso autorizado para BioBalcarce provisto por puntoAR.', 'admin_sistema'
+                'Uso autorizado provisto por puntoAR.', 'admin_sistema'
             );
         """
     },
@@ -578,7 +578,7 @@ REGISTERED_MIGRATIONS = [
         # Identificador de la migracion
         'name': 'v20_ensure_active_equipment', # Nombre
         # Descripcion del ajuste
-        'description': 'Asegura que los 7 silos y 3 tanques oficiales de planta BioBalcarce se encuentren activos',
+        'description': 'Asegura que los 7 silos y 3 tanques oficiales de planta se encuentren activos',
         # Script SQL para reactivar equipos
         'sql': """
             -- Reactiva los 7 silos oficiales de planta en caso de haber sido desactivados inadvertidamente
@@ -724,7 +724,7 @@ def backfill_weighbridge_standard_columns(conn):
             # Obtiene destino
             dest = (r['destination'] if isinstance(r, dict) else r[7]) or ''
             # Procedencia o destino consolidado
-            orig_dest = dest or orig or 'Planta BioBalcarce'
+            orig_dest = dest or orig or 'Planta Aceitera'
             # En egreso: entra vacio (tara) y sale cargado (bruto)
             if op == 'egreso':
                 # Peso al ingreso fue la tara

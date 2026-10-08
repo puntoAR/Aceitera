@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{# Extiende la plantilla base de BioBalcarce #}
+{# Extiende la plantilla base #}
 
 {# Asigna el flag para ocultar la barra superior estandar y el footer clasico #}
 {% set hide_navbar = true %}
 
 {# Titulo de la pestana #}
-{% block title %}Ingreso al Sistema - BioBalcarce Control de Planta{% endblock %}
+{% block title %}Ingreso al Sistema - Control de Planta Aceitera{% endblock %}
 
 {# Contenido inmersivo a pantalla completa inspirado en la estetica oficial de aceitera #}
 {% block full_content %}
@@ -93,10 +93,10 @@
     <!-- Tarjeta Central de Ingreso al Sistema -->
     <div class="login-center-container" style="position: relative; z-index: 5; width: 100%; max-width: 430px; margin: 1.5rem; display: flex; flex-direction: column; align-items: center;">
 
-        <!-- Logotipo Oficial de BioBalcarce sobre la tarjeta -->
+        <!-- Logotipo Oficial sobre la tarjeta -->
         <div style="text-align: center; margin-bottom: 1.25rem;">
-            <!-- Imagen oficial completa del logo BioBalcarce (Girasol, gota dorada y hojas) -->
-            <img src="{{ url_for('static', filename='images/logo_full.png') }}" alt="BioBalcarce Aceite de Girasol" style="max-width: 240px; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));">
+            <!-- Imagen oficial completa del logo -->
+            <img src="{{ url_for('static', filename='images/logo_full.png') }}" alt="Aceitera - Control de Planta" style="max-width: 220px; height: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));">
         </div>
 
         <!-- Tarjeta blanca de formulario con diseno ergonomico y bordes redondeados -->

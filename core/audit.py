@@ -5,7 +5,7 @@ import datetime
 from core.database import get_db_connection
 # Importa error_logger para registrar incidencias de auditoria
 from core.error_logger import log_info, log_error
-# Importa funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+# Importa funcion horaria oficial de planta (Argentina UTC-3)
 from core.timezone import get_plant_now_str
 
 # Intenta importar el contexto de peticion de Flask para extraer IP y usuario activo

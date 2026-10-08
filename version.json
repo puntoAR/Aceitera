@@ -1,7 +1,7 @@
 {
   "version": "1.3.7",
   "release_date": "2026-10-07",
-  "app_name": "BioBalcarce Control Industrial",
+  "app_name": "Aceitera Control Industrial",
   "changelog": [
     "v1.3.7 - Sincronización en tiempo real del stock de planta en Dashboard: visualización inmediata del último cubicaje registrado en silos y tanques sin discrepancias con el módulo de Cubicaje (/inventory/), comparación de fechas ISO normalizada con substr y corrección de orden de ordenamiento a DESC en consultas históricas al corte",
     "v1.3.6 - Selector interactivo de fechas en Dashboard: visualización de cualquier día particular, franja de días personalizada o mes completo; consolidación semántica de métricas para períodos (existencias de planta al corte de la fecha final del período, promedios analíticos aritméticos de laboratorio, velocidades medias de proceso, horas de marcha presupuestadas vs efectivas con paradas netas y curva de evolución con todas las muestras cronológicas del período)",

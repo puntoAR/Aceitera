@@ -13,7 +13,7 @@ def generate_license_token(client_name, expiration_date, mode):
     """
     Genera un token de activacion con formato profesional PUNTOAR-XXXX-XXXX-XXXX
     """
-    raw = f"PUNTOAR_BIOBALCARCE_{client_name.strip()}_{expiration_date.strip()}_{mode.strip()}_SECRET_2026"
+    raw = f"PUNTOAR_ACEITERA_{client_name.strip()}_{expiration_date.strip()}_{mode.strip()}_SECRET_2026"
     digest = hashlib.sha256(raw.encode('utf-8')).hexdigest().upper()
     return f"PTAR-{digest[:4]}-{digest[4:8]}-{digest[8:12]}"
 
@@ -24,7 +24,7 @@ def get_licensing_status():
     dias restantes, estado de expiracion y restricciones efectivas.
     """
     default_status = {
-        'client_name': 'BioBalcarce S.A.',
+        'client_name': 'Aceitera S.A.',
         'license_mode': 'libre_uso',
         'license_key': 'PTAR-ACTV-2026-OK',
         'start_date': '2026-09-01',

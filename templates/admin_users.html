@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 <!-- Extiende la plantilla base -->
 
-{% block title %}Gestión de Usuarios y Aprobaciones - BioBalcarce{% endblock %}
+{% block title %}Gestión de Usuarios y Aprobaciones - Control de Planta{% endblock %}
 
 {% block content %}
 <!-- Cabecera principal del modulo administrativo de usuarios -->
@@ -97,14 +97,14 @@
         <!-- Bloque de botones para copiar o compartir -->
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
             <!-- Boton interactivo para copiar credenciales al portapapeles -->
-            <button type="button" onclick="navigator.clipboard.writeText('BioBalcarce\nUsuario: {{ last_reset_creds.username }}\nContraseña: {{ last_reset_creds.password }}\nIngreso: ' + window.location.origin).then(() => alert('¡Credenciales copiadas al portapapeles!'));" class="btn" style="background: #059669; color: white; border: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+            <button type="button" onclick="navigator.clipboard.writeText('Control de Planta\nUsuario: {{ last_reset_creds.username }}\nContraseña: {{ last_reset_creds.password }}\nIngreso: ' + window.location.origin).then(() => alert('¡Credenciales copiadas al portapapeles!'));" class="btn" style="background: #059669; color: white; border: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
                 <!-- Texto del boton de copia -->
                 📋 Copiar para Enviar (WhatsApp/SMS)
             <!-- Cierre del boton -->
             </button>
             {% if last_reset_creds.phone %}
             <!-- Enlace directo para abrir chat de WhatsApp con el operario -->
-            <a href="https://wa.me/{{ last_reset_creds.phone }}?text=Hola%20{{ last_reset_creds.full_name|urlencode }},%20tus%20credenciales%20de%20acceso%20a%20BioBalcarce%20son:%0AUsuario:%20{{ last_reset_creds.username }}%0AContrase%C3%B1a:%20{{ last_reset_creds.password }}%0AIngreso:%20https://bio-balcarce.vercel.app" target="_blank" class="btn" style="background: #25d366; color: white; text-decoration: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; text-align: center;">
+            <a href="https://wa.me/{{ last_reset_creds.phone }}?text=Hola%20{{ last_reset_creds.full_name|urlencode }},%20tus%20credenciales%20de%20acceso%20al%20sistema%20son:%0AUsuario:%20{{ last_reset_creds.username }}%0AContrase%C3%B1a:%20{{ last_reset_creds.password }}" target="_blank" class="btn" style="background: #25d366; color: white; text-decoration: none; padding: 0.55rem 1rem; border-radius: 0.375rem; font-size: 0.85rem; font-weight: 600; text-align: center;">
                 <!-- Texto de boton WhatsApp -->
                 💬 Enviar por WhatsApp
             <!-- Cierre de enlace -->

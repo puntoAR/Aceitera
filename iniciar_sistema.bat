@@ -1,9 +1,9 @@
 @echo off
 REM Desactiva el eco de comandos en la consola para una presentacion limpia
-title BioBalcarce - Control de Planta
+title Aceitera - Control de Planta
 REM Imprime encabezado visual para el operador de planta
 echo ======================================================
-echo    INICIANDO SISTEMA INDUSTRIAL MODULAR BIOBALCARCE
+echo    INICIANDO SISTEMA INDUSTRIAL MODULAR ACEITERA
 echo ======================================================
 REM Cambia el directorio de trabajo a la unidad y carpeta donde reside este script
 cd /d "%~dp0"

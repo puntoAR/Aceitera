@@ -150,7 +150,7 @@ def change_shift():
 @roles_required('admin_sistema')
 def update_licensing():
     try:
-        client_name = request.form.get('client_name', 'BioBalcarce S.A.')
+        client_name = request.form.get('client_name', 'Aceitera S.A.')
         license_mode = request.form.get('license_mode', 'libre_uso')
         expiration_date = request.form.get('expiration_date', '')
         start_date = request.form.get('start_date', '')

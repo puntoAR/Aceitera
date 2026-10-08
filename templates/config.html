@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 <!-- Extiende plantilla base -->
 
-{% block title %}Calibración y Configuración de Equipos - BioBalcarce{% endblock %}
+{% block title %}Calibración y Configuración de Equipos - Control de Planta{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -231,7 +231,7 @@
             </p>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <a href="mailto:empresa.puntoar@gmail.com?subject=Licencia%20BioBalcarce" class="btn" style="background: #f1f5f9; color: #1e3a8a; font-size: 0.82rem; border: 1px solid #cbd5e1;">
+            <a href="mailto:empresa.puntoar@gmail.com?subject=Licencia%20Aceitera" class="btn" style="background: #f1f5f9; color: #1e3a8a; font-size: 0.82rem; border: 1px solid #cbd5e1;">
                 ✉️ Contactar a puntoAR
             </a>
         </div>
@@ -367,7 +367,7 @@
                 </div>
                 <div>
                     <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #334155;">Notas / Observaciones de Licencia</label>
-                    <input type="text" name="status_notes" class="form-input" value="{{ licensing.status_notes or '' }}" placeholder="Ej: Implementación inicial en planta Balcarce">
+                    <input type="text" name="status_notes" class="form-input" value="{{ licensing.status_notes or '' }}" placeholder="Ej: Implementación inicial en planta">
                 </div>
             </div>
         </div>

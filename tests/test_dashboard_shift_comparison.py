@@ -77,17 +77,17 @@ class TestDashboardDateRangeAndPerformance(unittest.TestCase):
             conn.execute("""
                 INSERT INTO lab_analyses 
                 (timestamp, sample_date, shift_id, sample_code, product, sampling_point, press_number, operator_name, fat_pct, moisture_pct, acidity_pct)
-                VALUES ('2026-10-01 11:00:00', '2026-10-01', 'TM', 'EXP-01', 'expeller', 'Prensa 2', 2, 'BioAnalista', 7.5, 8.0, NULL)
+                VALUES ('2026-10-01 11:00:00', '2026-10-01', 'TM', 'EXP-01', 'expeller', 'Prensa 2', 2, 'Analista', 7.5, 8.0, NULL)
             """)
             conn.execute("""
                 INSERT INTO lab_analyses 
                 (timestamp, sample_date, shift_id, sample_code, product, sampling_point, press_number, operator_name, fat_pct, moisture_pct, acidity_pct)
-                VALUES ('2026-10-02 16:00:00', '2026-10-02', 'TT', 'EXP-02', 'expeller', 'Prensa 2', 2, 'BioAnalista', 8.5, 9.0, NULL)
+                VALUES ('2026-10-02 16:00:00', '2026-10-02', 'TT', 'EXP-02', 'expeller', 'Prensa 2', 2, 'Analista', 8.5, 9.0, NULL)
             """)
             conn.execute("""
                 INSERT INTO lab_analyses 
                 (timestamp, sample_date, shift_id, sample_code, product, sampling_point, press_number, operator_name, fat_pct, moisture_pct, acidity_pct)
-                VALUES ('2026-10-02 16:30:00', '2026-10-02', 'TT', 'ACE-01', 'aceite', 'Tanque 1', NULL, 'BioAnalista', NULL, NULL, 1.2)
+                VALUES ('2026-10-02 16:30:00', '2026-10-02', 'TT', 'ACE-01', 'aceite', 'Tanque 1', NULL, 'Analista', NULL, NULL, 1.2)
             """)
 
             # Stock measurements in inventory_tanks

@@ -8,7 +8,7 @@ import re
 import traceback
 # Importa la ruta del archivo de logs definida en la configuracion central
 from config import LOG_FILE_PATH
-# Importa la funcion horaria oficial de planta BioBalcarce (Argentina UTC-3)
+# Importa la funcion horaria oficial de planta (Argentina UTC-3)
 from core.timezone import get_plant_now_str
 
 # Analiza una traza de error en texto plano para deducir el archivo, linea, funcion y codigo causante
@@ -78,11 +78,17 @@ def log_event(level, module_name, message, exc=None):
                 last_frame = frames[-1]
                 # Normaliza la ruta del archivo con barras inclinadas
                 raw_filename = last_frame.filename.replace('\\', '/')
-                # Simplifica la ruta a partir del directorio del proyecto si es posible
-                if 'Bio-Balcarce' in raw_filename:
-                    origin_file = raw_filename.split('Bio-Balcarce/')[-1]
-                elif 'biobalcarce' in raw_filename.lower():
-                    origin_file = raw_filename.split('biobalcarce-control-planta/')[-1] if 'biobalcarce-control-planta/' in raw_filename else os.path.basename(raw_filename)
+                # Simplifica la ruta a partir de los directorios clave del proyecto
+                if 'modules/' in raw_filename:
+                    origin_file = 'modules/' + raw_filename.split('modules/')[-1]
+                elif 'core/' in raw_filename:
+                    origin_file = 'core/' + raw_filename.split('core/')[-1]
+                elif 'api/' in raw_filename:
+                    origin_file = 'api/' + raw_filename.split('api/')[-1]
+                elif 'diagnostics/' in raw_filename:
+                    origin_file = 'diagnostics/' + raw_filename.split('diagnostics/')[-1]
+                elif 'tests/' in raw_filename:
+                    origin_file = 'tests/' + raw_filename.split('tests/')[-1]
                 else:
                     origin_file = os.path.basename(raw_filename)
                 # Almacena el numero de linea

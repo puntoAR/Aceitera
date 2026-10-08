@@ -9,7 +9,7 @@ from modules.calculations.yield_calc import (
 )
 # Importa logger de eventos
 from core.error_logger import log_info, log_error
-# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+# Importa funciones horarias oficiales de planta (Argentina UTC-3)
 from core.timezone import get_plant_now_str, get_plant_today_str
 
 # Realiza la conciliacion de turno y guarda el balance de masa en base de datos

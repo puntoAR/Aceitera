@@ -16,7 +16,7 @@ from modules.updater.service import apply_update_package, get_current_version_in
 # Punto de entrada por terminal
 def main():
     print("======================================================================")
-    print("      ACTUALIZADOR EN CALIENTE DE BIOBALCARCE (IN-PLACE UPDATER)      ")
+    print("      ACTUALIZADOR EN CALIENTE DEL SISTEMA (IN-PLACE UPDATER)      ")
     print("======================================================================")
 
     current = get_current_version_info()

@@ -12,13 +12,13 @@ from flask import session, redirect, url_for, flash, g, request
 from core.database import get_db_connection
 # Importa el modulo de auditoria de eventos
 from core.audit import record_audit_event
-# Importa funciones horarias oficiales de planta BioBalcarce (Argentina UTC-3)
+# Importa funciones horarias oficiales de planta (Argentina UTC-3)
 from core.timezone import get_plant_now, get_plant_now_str
 
 # Genera una contrasena segura y memorable para recuperacion automatica
 def generate_secure_password(length=8):
     # Prefijo corporativo de la planta
-    prefix = "Bio-"
+    prefix = "Ace-"
     # Genera 4 digitos numericos aleatorios
     digits = ''.join(secrets.choice(string.digits) for _ in range(4))
     # Caracter especial seguro
